@@ -444,6 +444,8 @@ pub struct PublicConfigResponse {
     pub license_key_buffer_days: u32,
     /// Further days past the user-visible expiry before a key stops working.
     pub license_key_grace_days: u32,
+    /// The staleness window, in hours, a site uses when it sets none of its own.
+    pub default_site_stale_after_hours: i64,
     /// The newest promoted release, when it is newer than this server. `None`
     /// on cloud, with `SCANOPY_DISABLE_UPDATE_CHECK` set, before the first
     /// check answers, or when this server is current.
@@ -940,6 +942,7 @@ pub async fn get_public_config(
             license_signing_available: state.license_issuer.is_some(),
             license_key_buffer_days: crate::server::license::mint::PAID_THROUGH_BUFFER_DAYS as u32,
             license_key_grace_days: crate::server::license::mint::GRACE_PERIOD_DAYS as u32,
+            default_site_stale_after_hours: crate::server::sites::r#impl::DEFAULT_STALE_AFTER_HOURS,
             available_upgrade,
         })),
     )

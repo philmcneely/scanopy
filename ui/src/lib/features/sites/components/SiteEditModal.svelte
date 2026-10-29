@@ -11,6 +11,7 @@
 	import { pushError } from '$lib/shared/stores/feedback';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
+	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import DurationInput from '$lib/shared/components/forms/input/DurationInput.svelte';
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
@@ -69,6 +70,8 @@
 
 	const currentUserQuery = useCurrentUserQuery();
 	let currentUser = $derived(currentUserQuery.data);
+
+	const configQuery = useConfigQuery();
 
 	// Demo mode check
 	let isDemoOrg = $derived(
@@ -270,7 +273,7 @@
 								id="stale_after_hours"
 								{field}
 								initialHours={site?.stale_after_hours ?? null}
-								placeholderHours={site?.effective_stale_after_hours ?? null}
+								placeholderHours={configQuery.data?.default_site_stale_after_hours ?? null}
 								helpText={sites_staleAfterHoursHelp()}
 							/>
 						{/snippet}
@@ -295,6 +298,7 @@
 						placeholder={credentials_selectToAddPlaceholder()}
 						emptyMessage={sites_noCredentialsAssigned()}
 						allowReorder={false}
+						allowItemEdit={() => false}
 						options={assignableCredentials}
 						items={selectedCredentials}
 						optionDisplayComponent={CredentialDisplay}

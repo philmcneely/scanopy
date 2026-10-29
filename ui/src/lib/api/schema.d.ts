@@ -4144,7 +4144,7 @@ export interface components {
          * @description API metadata included in all responses
          * @example {
          *       "api_version": 1,
-         *       "server_version": "0.19.3"
+         *       "server_version": "0.19.4"
          *     }
          */
         ApiMeta: {
@@ -4155,7 +4155,7 @@ export interface components {
             api_version: number;
             /**
              * @description Server version (semver)
-             * @example 0.19.3
+             * @example 0.19.4
              */
             server_version: string;
         };
@@ -4184,19 +4184,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-29T00:47:12.834954Z",
+             *       "created_at": "2026-10-29T12:08:33.632983Z",
              *       "first_discovery_id": null,
-             *       "id": "a01a3c0d-4f57-4430-a023-5b5efbadad34",
+             *       "id": "c59efd7f-4d8c-4870-adf4-b58063f4ec62",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-29T00:47:12.834954Z",
+             *       "last_seen_at": "2026-10-29T12:08:33.632983Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-29T00:47:12.834954Z",
-             *       "valid_from": "2026-10-29T00:47:12.834954Z",
+             *       "updated_at": "2026-10-29T12:08:33.632983Z",
+             *       "valid_from": "2026-10-29T12:08:33.632983Z",
              *       "valid_to": null
              *     }
              */
@@ -5079,19 +5079,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-29T00:47:12.802662Z",
+             *               "created_at": "2026-10-29T12:08:33.600052Z",
              *               "first_discovery_id": null,
-             *               "id": "fd1564f8-c075-433b-9769-91a6f2a9af3b",
+             *               "id": "199c398e-8f43-49aa-a1cb-c4d85b2c4f3b",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-29T00:47:12.802662Z",
+             *               "last_seen_at": "2026-10-29T12:08:33.600052Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-29T00:47:12.802662Z",
-             *               "valid_from": "2026-10-29T00:47:12.802662Z",
+             *               "updated_at": "2026-10-29T12:08:33.600052Z",
+             *               "valid_from": "2026-10-29T12:08:33.600052Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5104,7 +5104,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Ntfy",
+             *           "service_definition": "Atlassian Fisheye",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5911,6 +5911,11 @@ export interface components {
             /** @description The result payload. Omitted on failure. */
             data?: {
                 available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
+                /**
+                 * Format: int64
+                 * @description The staleness window, in hours, a site uses when it sets none of its own.
+                 */
+                default_site_stale_after_hours: number;
                 /** @description How this instance is run: cloud, commercial self-hosted, or community. */
                 deployment_type: components["schemas"]["DeploymentType"];
                 /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -6114,19 +6119,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-29T00:47:12.829717Z",
+             *           "created_at": "2026-10-29T12:08:33.627594Z",
              *           "first_discovery_id": null,
-             *           "id": "42aad322-889d-410b-909e-1091fd63dfbd",
+             *           "id": "23f154e4-7007-4140-96bb-8e30a041e8cc",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-29T00:47:12.829717Z",
+             *           "last_seen_at": "2026-10-29T12:08:33.627594Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-29T00:47:12.829717Z",
-             *           "valid_from": "2026-10-29T00:47:12.829717Z",
+             *           "updated_at": "2026-10-29T12:08:33.627594Z",
+             *           "valid_from": "2026-10-29T12:08:33.627594Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6139,7 +6144,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Ntfy",
+             *       "service_definition": "Atlassian Fisheye",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -7581,19 +7586,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-29T00:47:12.803281Z",
+         *       "created_at": "2026-10-29T12:08:33.600678Z",
          *       "first_discovery_id": null,
-         *       "id": "625dba3d-c23d-4477-aa4c-b0fc9b5e2fa5",
+         *       "id": "7890e782-dc7f-4e6f-a4e8-abf77fc78384",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-29T00:47:12.803281Z",
+         *       "last_seen_at": "2026-10-29T12:08:33.600678Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-29T00:47:12.803281Z",
-         *       "valid_from": "2026-10-29T00:47:12.803281Z",
+         *       "updated_at": "2026-10-29T12:08:33.600678Z",
+         *       "valid_from": "2026-10-29T12:08:33.600678Z",
          *       "valid_to": null
          *     }
          */
@@ -7983,7 +7988,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Ntfy",
+         *           "service_definition": "Atlassian Fisheye",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -10792,8 +10797,12 @@ export interface components {
          *     other fields each time the host is read, so the UI says which ones instead of naming a source.
          */
         HostDeviceTypeSource: {
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The service whose definition declares or implies the device type.
+             */
             service_id: string;
+            /** @description That service's name, for display. */
             service_name: string;
             /** @enum {string} */
             type: "Service";
@@ -11076,19 +11085,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-29T00:47:12.801921Z",
+         *               "created_at": "2026-10-29T12:08:33.599313Z",
          *               "first_discovery_id": null,
-         *               "id": "80e6579b-ed7f-418b-89cc-04ecb3964e28",
+         *               "id": "f201ac88-66c0-4be8-a261-1db6595d8159",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-29T00:47:12.801921Z",
+         *               "last_seen_at": "2026-10-29T12:08:33.599313Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-29T00:47:12.801921Z",
-         *               "valid_from": "2026-10-29T00:47:12.801921Z",
+         *               "updated_at": "2026-10-29T12:08:33.599313Z",
+         *               "valid_from": "2026-10-29T12:08:33.599313Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -11101,7 +11110,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Ntfy",
+         *           "service_definition": "Atlassian Fisheye",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -12945,7 +12954,7 @@ export interface components {
          *         "offset": 0,
          *         "total_count": 142
          *       },
-         *       "server_version": "0.19.3"
+         *       "server_version": "0.19.4"
          *     }
          */
         PaginatedApiMeta: {
@@ -12958,7 +12967,7 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
             /**
              * @description Server version (semver)
-             * @example 0.19.3
+             * @example 0.19.4
              */
             server_version: string;
         };
@@ -14107,6 +14116,11 @@ export interface components {
         };
         PublicConfigResponse: {
             available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
+            /**
+             * Format: int64
+             * @description The staleness window, in hours, a site uses when it sets none of its own.
+             */
+            default_site_stale_after_hours: number;
             /** @description How this instance is run: cloud, commercial self-hosted, or community. */
             deployment_type: components["schemas"]["DeploymentType"];
             /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -14710,19 +14724,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-29T00:47:12.803076Z",
+         *           "created_at": "2026-10-29T12:08:33.600469Z",
          *           "first_discovery_id": null,
-         *           "id": "c31044f7-598d-4af3-9e4f-18e8260edd7c",
+         *           "id": "cc1cdf08-8327-4884-b105-f48969573308",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-29T00:47:12.803076Z",
+         *           "last_seen_at": "2026-10-29T12:08:33.600469Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-29T00:47:12.803076Z",
-         *           "valid_from": "2026-10-29T00:47:12.803076Z",
+         *           "updated_at": "2026-10-29T12:08:33.600469Z",
+         *           "valid_from": "2026-10-29T12:08:33.600469Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14735,7 +14749,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Ntfy",
+         *       "service_definition": "Atlassian Fisheye",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15915,7 +15929,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "df96f4f3-7096-44be-b3d0-5f1c4173ffcd",
+             *           "id": "efa1c714-e521-49fd-b23a-d9a1ad0aab7c",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15925,23 +15939,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "d360e90b-4e00-47f9-a5d9-d9d49d3138cd",
+             *           "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "7e5c4a0a-702a-413c-87b1-c8166db55393",
+             *           "id": "c771d31f-c99a-4067-ba54-0c0f2fd7686a",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "4d25df00-aa2b-4328-8759-8eada9550c4e",
+             *           "id": "0a64d70a-ea49-4248-9b7e-c33b586775b8",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "d360e90b-4e00-47f9-a5d9-d9d49d3138cd",
+             *           "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15955,19 +15969,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "0926321a-e327-4167-bc01-6838ac881b71",
+             *         "id": "debb1fb3-4281-48ec-b57f-699cc003916b",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "17d388fe-2933-48ea-bcbe-f5b4eff95f99",
+             *         "id": "0b5b9955-0b03-4cfe-8c2f-833c613a75fa",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "69a7a354-27af-4d17-a444-008306602826",
+             *         "id": "05ecf367-c87e-4e13-bb6c-a36aea444692",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "abf47a5e-cc20-403c-ae21-c80aac1b286b",
+             *         "id": "619cb90a-e289-414c-9e17-7c4c0eb870ca",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15988,7 +16002,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "abbcf394-7f25-4153-8cce-da6030da4d6a",
+             *         "id": "55afdac4-4d1f-4baa-9690-9f36ead2e837",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15997,19 +16011,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "7c3073be-53ae-46cb-a88e-d4e888388a2b",
+             *         "id": "63ba8185-eacb-490b-b9af-58c3aee7690b",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "17ba93c0-18cd-4062-9ede-20dff6e3d1bf",
+             *         "id": "ae3f910d-edae-46b1-858a-5bd5c24a4b48",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "29e4f20a-b460-496c-9f04-1c243713661d",
+             *         "id": "0c304f2b-9788-4f8f-b39f-a5922ac3026a",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "fecc6bbe-5721-44a6-97b2-bc825cff9322",
+             *         "id": "29796f4b-9fae-4e4f-90d5-bc4035d76cee",
              *         "rule": "ByStack"
              *       }
              *     ]

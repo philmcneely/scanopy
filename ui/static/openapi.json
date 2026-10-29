@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Scanopy API",
-    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.3\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.3\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.3)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
+    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.4\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.4\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.4)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
     "license": {
       "name": "Dual (AGPL3.0, Commercial License Available)"
     },
@@ -23195,12 +23195,12 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.3"
+            "example": "0.19.4"
           }
         },
         "example": {
           "api_version": 1,
-          "server_version": "0.19.3"
+          "server_version": "0.19.4"
         }
       },
       "ApiResponse": {
@@ -23332,19 +23332,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-29T00:47:12.834954Z",
+              "created_at": "2026-10-29T12:08:33.632983Z",
               "first_discovery_id": null,
-              "id": "a01a3c0d-4f57-4430-a023-5b5efbadad34",
+              "id": "c59efd7f-4d8c-4870-adf4-b58063f4ec62",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-29T00:47:12.834954Z",
+              "last_seen_at": "2026-10-29T12:08:33.632983Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-29T00:47:12.834954Z",
-              "valid_from": "2026-10-29T00:47:12.834954Z",
+              "updated_at": "2026-10-29T12:08:33.632983Z",
+              "valid_from": "2026-10-29T12:08:33.632983Z",
               "valid_to": null
             }
           },
@@ -25135,19 +25135,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-29T00:47:12.802662Z",
+                      "created_at": "2026-10-29T12:08:33.600052Z",
                       "first_discovery_id": null,
-                      "id": "fd1564f8-c075-433b-9769-91a6f2a9af3b",
+                      "id": "199c398e-8f43-49aa-a1cb-c4d85b2c4f3b",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-29T00:47:12.802662Z",
+                      "last_seen_at": "2026-10-29T12:08:33.600052Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-29T00:47:12.802662Z",
-                      "valid_from": "2026-10-29T00:47:12.802662Z",
+                      "updated_at": "2026-10-29T12:08:33.600052Z",
+                      "valid_from": "2026-10-29T12:08:33.600052Z",
                       "valid_to": null
                     }
                   ],
@@ -25160,7 +25160,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Ntfy",
+                  "service_definition": "Atlassian Fisheye",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -26237,7 +26237,8 @@
               "server_admin_contact_email",
               "license_signing_available",
               "license_key_buffer_days",
-              "license_key_grace_days"
+              "license_key_grace_days",
+              "default_site_stale_after_hours"
             ],
             "properties": {
               "available_upgrade": {
@@ -26250,6 +26251,11 @@
                     "type": "null"
                   }
                 ]
+              },
+              "default_site_stale_after_hours": {
+                "type": "integer",
+                "format": "int64",
+                "description": "The staleness window, in hours, a site uses when it sets none of its own."
               },
               "deployment_type": {
                 "$ref": "#/components/schemas/DeploymentType",
@@ -26652,19 +26658,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-29T00:47:12.829717Z",
+                  "created_at": "2026-10-29T12:08:33.627594Z",
                   "first_discovery_id": null,
-                  "id": "42aad322-889d-410b-909e-1091fd63dfbd",
+                  "id": "23f154e4-7007-4140-96bb-8e30a041e8cc",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-29T00:47:12.829717Z",
+                  "last_seen_at": "2026-10-29T12:08:33.627594Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-29T00:47:12.829717Z",
-                  "valid_from": "2026-10-29T00:47:12.829717Z",
+                  "updated_at": "2026-10-29T12:08:33.627594Z",
+                  "valid_from": "2026-10-29T12:08:33.627594Z",
                   "valid_to": null
                 }
               ],
@@ -26677,7 +26683,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Ntfy",
+              "service_definition": "Atlassian Fisheye",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -29874,19 +29880,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-29T00:47:12.803281Z",
+          "created_at": "2026-10-29T12:08:33.600678Z",
           "first_discovery_id": null,
-          "id": "625dba3d-c23d-4477-aa4c-b0fc9b5e2fa5",
+          "id": "7890e782-dc7f-4e6f-a4e8-abf77fc78384",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-29T00:47:12.803281Z",
+          "last_seen_at": "2026-10-29T12:08:33.600678Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-29T00:47:12.803281Z",
-          "valid_from": "2026-10-29T00:47:12.803281Z",
+          "updated_at": "2026-10-29T12:08:33.600678Z",
+          "valid_from": "2026-10-29T12:08:33.600678Z",
           "valid_to": null
         }
       },
@@ -30794,7 +30800,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Ntfy",
+              "service_definition": "Atlassian Fisheye",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -37751,6 +37757,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "Service",
             "description": "A service on the host declares the device type, or implies `Server`.",
             "required": [
               "service_id",
@@ -37760,10 +37767,12 @@
             "properties": {
               "service_id": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "description": "The service whose definition declares or implies the device type."
               },
               "service_name": {
-                "type": "string"
+                "type": "string",
+                "description": "That service's name, for display."
               },
               "type": {
                 "type": "string",
@@ -37775,6 +37784,7 @@
           },
           {
             "type": "object",
+            "title": "Matched",
             "description": "A fingerprint of something the host emitted, stored in `matched_device_type`.",
             "required": [
               "source",
@@ -37794,6 +37804,7 @@
           },
           {
             "type": "object",
+            "title": "OperatingSystem",
             "description": "The host's OS implies it. `source` is where the OS came from.",
             "required": [
               "source",
@@ -37813,6 +37824,7 @@
           },
           {
             "type": "object",
+            "title": "Hostname",
             "description": "The host's hostname names a product.",
             "required": [
               "type"
@@ -37828,6 +37840,7 @@
           },
           {
             "type": "object",
+            "title": "Name",
             "description": "The host's name names a product.",
             "required": [
               "type"
@@ -37843,6 +37856,7 @@
           },
           {
             "type": "object",
+            "title": "MacVendor",
             "description": "The maker of one of the host's network adapters makes only this type of device.",
             "required": [
               "type"
@@ -37858,6 +37872,7 @@
           },
           {
             "type": "object",
+            "title": "Containers",
             "description": "The host runs containers.",
             "required": [
               "type"
@@ -37873,6 +37888,7 @@
           },
           {
             "type": "object",
+            "title": "NoEvidence",
             "description": "Nothing on the host names what it is. Also what a reader makes of a rung it does not know.",
             "required": [
               "type"
@@ -38850,19 +38866,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-29T00:47:12.801921Z",
+                  "created_at": "2026-10-29T12:08:33.599313Z",
                   "first_discovery_id": null,
-                  "id": "80e6579b-ed7f-418b-89cc-04ecb3964e28",
+                  "id": "f201ac88-66c0-4be8-a261-1db6595d8159",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-29T00:47:12.801921Z",
+                  "last_seen_at": "2026-10-29T12:08:33.599313Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-29T00:47:12.801921Z",
-                  "valid_from": "2026-10-29T00:47:12.801921Z",
+                  "updated_at": "2026-10-29T12:08:33.599313Z",
+                  "valid_from": "2026-10-29T12:08:33.599313Z",
                   "valid_to": null
                 }
               ],
@@ -38875,7 +38891,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Ntfy",
+              "service_definition": "Atlassian Fisheye",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -40981,6 +40997,7 @@
         "oneOf": [
           {
             "type": "object",
+            "title": "Discovery",
             "description": "Progress or an end state of a discovery session.",
             "required": [
               "data",
@@ -41001,6 +41018,7 @@
           },
           {
             "type": "object",
+            "title": "Topology",
             "description": "A site's live entity set changed, so its topology needs refetching.",
             "required": [
               "data",
@@ -42319,7 +42337,7 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.3"
+            "example": "0.19.4"
           }
         },
         "example": {
@@ -42330,7 +42348,7 @@
             "offset": 0,
             "total_count": 142
           },
-          "server_version": "0.19.3"
+          "server_version": "0.19.4"
         }
       },
       "PaginatedApiResponse_Credential": {
@@ -43252,19 +43270,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-29T00:47:12.789738Z",
+                        "created_at": "2026-10-29T12:08:33.586973Z",
                         "first_discovery_id": null,
-                        "id": "b4652189-a4d4-4312-8b89-aba300e05755",
+                        "id": "11b9cb3c-3a3f-4594-bfb6-77169139f158",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-29T00:47:12.789738Z",
+                        "last_seen_at": "2026-10-29T12:08:33.586973Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-29T00:47:12.789738Z",
-                        "valid_from": "2026-10-29T00:47:12.789738Z",
+                        "updated_at": "2026-10-29T12:08:33.586973Z",
+                        "valid_from": "2026-10-29T12:08:33.586973Z",
                         "valid_to": null
                       }
                     ],
@@ -43277,7 +43295,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Ntfy",
+                    "service_definition": "Atlassian Fisheye",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -43524,19 +43542,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-29T00:47:12.828963Z",
+                    "created_at": "2026-10-29T12:08:33.626755Z",
                     "first_discovery_id": null,
-                    "id": "acee9f27-196c-4700-b69a-41de2eeccab7",
+                    "id": "ad24491d-487b-481b-b4a1-56fc802f78bf",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-29T00:47:12.828963Z",
+                    "last_seen_at": "2026-10-29T12:08:33.626755Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-29T00:47:12.828963Z",
-                    "valid_from": "2026-10-29T00:47:12.828963Z",
+                    "updated_at": "2026-10-29T12:08:33.626755Z",
+                    "valid_from": "2026-10-29T12:08:33.626755Z",
                     "valid_to": null
                   }
                 ],
@@ -43549,7 +43567,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Ntfy",
+                "service_definition": "Atlassian Fisheye",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -44910,7 +44928,8 @@
           "server_admin_contact_email",
           "license_signing_available",
           "license_key_buffer_days",
-          "license_key_grace_days"
+          "license_key_grace_days",
+          "default_site_stale_after_hours"
         ],
         "properties": {
           "available_upgrade": {
@@ -44923,6 +44942,11 @@
                 "type": "null"
               }
             ]
+          },
+          "default_site_stale_after_hours": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The staleness window, in hours, a site uses when it sets none of its own."
           },
           "deployment_type": {
             "$ref": "#/components/schemas/DeploymentType",
@@ -46246,19 +46270,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-29T00:47:12.803076Z",
+              "created_at": "2026-10-29T12:08:33.600469Z",
               "first_discovery_id": null,
-              "id": "c31044f7-598d-4af3-9e4f-18e8260edd7c",
+              "id": "cc1cdf08-8327-4884-b105-f48969573308",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-29T00:47:12.803076Z",
+              "last_seen_at": "2026-10-29T12:08:33.600469Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-29T00:47:12.803076Z",
-              "valid_from": "2026-10-29T00:47:12.803076Z",
+              "updated_at": "2026-10-29T12:08:33.600469Z",
+              "valid_from": "2026-10-29T12:08:33.600469Z",
               "valid_to": null
             }
           ],
@@ -46271,7 +46295,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Ntfy",
+          "service_definition": "Atlassian Fisheye",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -48618,7 +48642,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "df96f4f3-7096-44be-b3d0-5f1c4173ffcd",
+                  "id": "efa1c714-e521-49fd-b23a-d9a1ad0aab7c",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -48628,23 +48652,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "d360e90b-4e00-47f9-a5d9-d9d49d3138cd",
+                  "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "7e5c4a0a-702a-413c-87b1-c8166db55393",
+                  "id": "c771d31f-c99a-4067-ba54-0c0f2fd7686a",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "4d25df00-aa2b-4328-8759-8eada9550c4e",
+                  "id": "0a64d70a-ea49-4248-9b7e-c33b586775b8",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "d360e90b-4e00-47f9-a5d9-d9d49d3138cd",
+                  "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
                   "rule": "ByHost"
                 }
               ]
@@ -48674,19 +48698,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "0926321a-e327-4167-bc01-6838ac881b71",
+                "id": "debb1fb3-4281-48ec-b57f-699cc003916b",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "17d388fe-2933-48ea-bcbe-f5b4eff95f99",
+                "id": "0b5b9955-0b03-4cfe-8c2f-833c613a75fa",
                 "rule": "ByVLAN"
               },
               {
-                "id": "69a7a354-27af-4d17-a444-008306602826",
+                "id": "05ecf367-c87e-4e13-bb6c-a36aea444692",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "abf47a5e-cc20-403c-ae21-c80aac1b286b",
+                "id": "619cb90a-e289-414c-9e17-7c4c0eb870ca",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -48707,7 +48731,7 @@
                 }
               },
               {
-                "id": "abbcf394-7f25-4153-8cce-da6030da4d6a",
+                "id": "55afdac4-4d1f-4baa-9690-9f36ead2e837",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -48716,19 +48740,19 @@
                 }
               },
               {
-                "id": "7c3073be-53ae-46cb-a88e-d4e888388a2b",
+                "id": "63ba8185-eacb-490b-b9af-58c3aee7690b",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "17ba93c0-18cd-4062-9ede-20dff6e3d1bf",
+                "id": "ae3f910d-edae-46b1-858a-5bd5c24a4b48",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "29e4f20a-b460-496c-9f04-1c243713661d",
+                "id": "0c304f2b-9788-4f8f-b39f-a5922ac3026a",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "fecc6bbe-5721-44a6-97b2-bc825cff9322",
+                "id": "29796f4b-9fae-4e4f-90d5-bc4035d76cee",
                 "rule": "ByStack"
               }
             ]
