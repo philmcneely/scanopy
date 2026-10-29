@@ -3,7 +3,7 @@ use crate::server::ip_addresses::r#impl::base::{IPAddress, mac_of};
 use crate::server::services::r#impl::base::Service;
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::{
-    ServiceDefinition, ServiceDefinitionExt, VirtualizationRole,
+    DeviceTypeImplication, ServiceDefinition, ServiceDefinitionExt, VirtualizationRole,
 };
 use crate::server::services::r#impl::patterns::Vendor;
 use crate::server::shared::attribution::AttributeSource;
@@ -435,8 +435,9 @@ impl Host {
     /// The device type this host's icon shows.
     ///
     /// The ladder, first answer wins:
-    /// 1. The highest-precedence device type the host's own services declare, other than `Server`.
-    ///    A matched definition names the product the host runs, so it outranks the OS.
+    /// 1. The highest-precedence device type the host's own services say it is
+    ///    ([`DeviceTypeImplication::Is`]). A matched definition names the product the host runs, so
+    ///    it outranks the OS.
     /// 2. The device type a fingerprint of something the host emitted names (`matched_device_type`):
     ///    a certificate subject or page title that says "IP Camera" is more specific than an OS
     ///    family, and less than the product a matched definition names.
@@ -448,7 +449,10 @@ impl Host {
     ///    device: Espressif sells only embedded Wi-Fi chips.
     /// 6. `Server`, when one of its services implies it.
     /// 7. `Server`, when the host runs containers: a container runtime, or software inside one.
-    /// 8. `Unidentified`.
+    /// 8. The highest-precedence device type its services suggest
+    ///    ([`DeviceTypeImplication::Suggests`]): Spotify Connect and AirPlay run on receivers and
+    ///    speakers, and on desktops and servers too, so they decide only a host nothing else names.
+    /// 9. `Unidentified`.
     ///
     /// `Server` is what any application implies, so it yields to an OS or a name that says what
     /// the machine is: a Mac sharing files over SMB, or running Postgres, is still a workstation.
@@ -480,21 +484,26 @@ impl Host {
                 )
             });
 
-        let declared: Vec<(DeviceType, &Service)> = own
+        let implications: Vec<(DeviceTypeImplication, &Service)> = own
             .iter()
-            .filter_map(|s| Some((s.base.service_definition.device_type()?, *s)))
+            .map(|s| (s.base.service_definition.device_type(), *s))
             .collect();
+        let highest = |strength: fn(DeviceTypeImplication) -> Option<DeviceType>| {
+            implications
+                .iter()
+                .filter_map(|(implication, service)| Some((strength(*implication)?, *service)))
+                .min_by_key(|(device_type, _)| *device_type)
+        };
         let from_service = |service: &Service| HostDeviceTypeSource::Service {
             service_id: service.id,
             service_name: service.base.name.clone(),
         };
 
-        if let Some((device_type, service)) = declared
-            .iter()
-            .filter(|(device_type, _)| *device_type != DeviceType::Server)
-            .min_by_key(|(device_type, _)| *device_type)
-        {
-            return (*device_type, from_service(service));
+        if let Some((device_type, service)) = highest(|implication| match implication {
+            DeviceTypeImplication::Is(device_type) => Some(device_type),
+            _ => None,
+        }) {
+            return (device_type, from_service(service));
         }
         if let Some(matched) = self
             .base
@@ -532,11 +541,20 @@ impl Host {
         {
             return (device_type, HostDeviceTypeSource::MacVendor);
         }
-        if let Some((_, service)) = declared.first() {
+        if let Some((_, service)) = implications
+            .iter()
+            .find(|(implication, _)| *implication == DeviceTypeImplication::Server)
+        {
             return (DeviceType::Server, from_service(service));
         }
         if runs_containers {
             return (DeviceType::Server, HostDeviceTypeSource::Containers);
+        }
+        if let Some((device_type, service)) = highest(|implication| match implication {
+            DeviceTypeImplication::Suggests(device_type) => Some(device_type),
+            _ => None,
+        }) {
+            return (device_type, from_service(service));
         }
         (DeviceType::Unidentified, HostDeviceTypeSource::NoEvidence)
     }

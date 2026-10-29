@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 use crate::server::{
     hosts::r#impl::{device_type::DeviceType, virtualization::HostVirtualizationState},
     organizations::r#impl::base::UseCase,
-    services::r#impl::base::Service,
+    services::r#impl::{base::Service, definitions::DeviceTypeImplication},
     shared::{
         concepts::Concept,
         entities::EntityDiscriminants,
@@ -373,7 +373,7 @@ impl TypeMetadataProvider for ServiceCategory {
     fn metadata(&self) -> serde_json::Value {
         serde_json::json!({
             "application_relevant_use_cases": self.application_relevant_use_cases(),
-            "device_type": self.device_type(),
+            "device_type": self.device_type().device_type(),
         })
     }
 }
@@ -382,30 +382,31 @@ impl ServiceCategory {
     /// The device type a service in this category implies for its host, unless its definition
     /// overrides it (see [`ServiceDefinition::device_type`]).
     ///
-    /// Application categories imply `Server`. `None` for categories that say nothing about the
+    /// Application categories imply `Server`. `Nothing` for categories that say nothing about the
     /// device: plumbing that runs on every class (SSH, SNMP, DHCP), containers, which are their
     /// own hosts, and the special categories.
     ///
     /// [`ServiceDefinition::device_type`]: crate::server::services::r#impl::definitions::ServiceDefinition::device_type
-    pub fn device_type(&self) -> Option<DeviceType> {
+    pub fn device_type(&self) -> DeviceTypeImplication {
+        use DeviceTypeImplication::{Is, Nothing, Server};
         use ServiceCategory::*;
         match self {
-            NetworkAppliance => Some(DeviceType::Firewall),
-            NetworkAccess => Some(DeviceType::AccessPoint),
-            Hypervisor => Some(DeviceType::Hypervisor),
-            Storage => Some(DeviceType::Storage),
-            Printer => Some(DeviceType::Printer),
-            Telephony => Some(DeviceType::Phone),
-            Workstation => Some(DeviceType::Workstation),
-            Mobile => Some(DeviceType::Mobile),
-            Industrial => Some(DeviceType::Industrial),
-            IoT => Some(DeviceType::IoT),
+            NetworkAppliance => Is(DeviceType::Firewall),
+            NetworkAccess => Is(DeviceType::AccessPoint),
+            Hypervisor => Is(DeviceType::Hypervisor),
+            Storage => Is(DeviceType::Storage),
+            Printer => Is(DeviceType::Printer),
+            Telephony => Is(DeviceType::Phone),
+            Workstation => Is(DeviceType::Workstation),
+            Mobile => Is(DeviceType::Mobile),
+            Industrial => Is(DeviceType::Industrial),
+            IoT => Is(DeviceType::IoT),
             Backup | Media | HomeAutomation | Orchestrator | DNS | VPN | Monitoring | AdBlock
             | ReverseProxy | Database | Development | Dashboard | MessageQueue
             | IdentityAndAccess | Integration | Office | ProjectManagement | Messaging
-            | Conferencing | Email | Publishing => Some(DeviceType::Server),
+            | Conferencing | Email | Publishing => Server,
             NetworkCore | RemoteAccess | ContainerRuntime | Container | Unknown | Custom
-            | Scanopy | OpenPorts | NetworkIdentities => None,
+            | Scanopy | OpenPorts | NetworkIdentities => Nothing,
         }
     }
 

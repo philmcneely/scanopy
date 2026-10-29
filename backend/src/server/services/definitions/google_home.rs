@@ -5,6 +5,7 @@ use crate::server::services::definitions::chromecast::{
 };
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern, Vendor};
 use crate::server::shared::logos::Logo;
@@ -24,8 +25,8 @@ impl ServiceDefinition for GoogleHome {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
     }
-    fn device_type(&self) -> Option<DeviceType> {
-        Some(DeviceType::Speaker)
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Is(DeviceType::Speaker)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

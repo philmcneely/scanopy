@@ -3,8 +3,9 @@ use crate::server::hosts::r#impl::attributes::{HostHostnameValue, HostOsValue};
 use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
 use crate::server::services::definitions::{
-    docker_daemon::Docker, kerberos::Kerberos, pf_sense::PfSense, postgresql::PostgreSQL,
-    proxmox::Proxmox, samba::Samba, snmp::Snmp, true_nas::TrueNAS,
+    airplay_receiver::AirPlayReceiver, docker_daemon::Docker, kerberos::Kerberos,
+    open_ports::OpenPorts, pf_sense::PfSense, plex::Plex, postgresql::PostgreSQL, proxmox::Proxmox,
+    samba::Samba, snmp::Snmp, spotify_connect::SpotifyConnect, true_nas::TrueNAS,
 };
 use crate::server::services::r#impl::base::ServiceBase;
 use crate::server::services::r#impl::virtualization::{
@@ -132,6 +133,47 @@ fn services_outrank_each_other_by_precedence_then_the_os() {
     });
     assert_eq!(
         host_with_os(windows_by_version).device_type(&[service(Box::new(PostgreSQL))], []),
+        DeviceType::Server
+    );
+}
+
+/// A streaming receiver protocol suggests a media device, and decides only a host nothing else
+/// names: desktops and servers run Spotify Connect and AirPlay too.
+#[test]
+fn a_streaming_receiver_protocol_decides_only_a_host_nothing_else_names() {
+    // An Onkyo AV receiver from a user's scan: an unclaimed port 5000, Spotify Connect and
+    // AirPlay, no OS reading and no product name.
+    let receiver = [
+        service(Box::new(OpenPorts)),
+        service(Box::new(SpotifyConnect)),
+        service(Box::new(AirPlayReceiver)),
+    ];
+    assert_eq!(
+        host_with_os(None).device_type(&receiver, []),
+        DeviceType::NetworkAudio
+    );
+
+    // A Mac receiving AirPlay is still a workstation.
+    assert_eq!(
+        host_with_os(Some(HostOs::family_only(HostOsFamily::MacOs)))
+            .device_type(&[service(Box::new(AirPlayReceiver))], []),
+        DeviceType::Workstation
+    );
+    // A Linux box running Plex and a Spotify Connect client is a server, and so is a Docker host
+    // running one.
+    let linux = || host_with_os(Some(HostOs::family_only(HostOsFamily::Linux)));
+    assert_eq!(
+        linux().device_type(
+            &[service(Box::new(Plex)), service(Box::new(SpotifyConnect))],
+            []
+        ),
+        DeviceType::Server
+    );
+    assert_eq!(
+        linux().device_type(
+            &[service(Box::new(Docker)), service(Box::new(SpotifyConnect))],
+            []
+        ),
         DeviceType::Server
     );
 }
