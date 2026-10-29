@@ -5,9 +5,9 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
 use crate::server::services::r#impl::patterns::Pattern;
 
-/// The printer's TLS listeners: MQTT control on 8883, and the slicer's bind port on 3002. Both
-/// present the unit's certificate under Bambu's own CA.
-const BAMBU_TLS_PORTS: &[u16] = &[8883, 3002];
+/// The printer's TLS listeners: FTPS on 990, MQTT control on 8883, and the slicer's bind port on
+/// 3002. Each presents the unit's certificate under Bambu's own CA.
+const BAMBU_TLS_PORTS: &[u16] = &[990, 8883, 3002];
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct BambuLabPrinter;
@@ -26,12 +26,18 @@ impl ServiceDefinition for BambuLabPrinter {
         DeviceTypeImplication::Is(DeviceType::Printer)
     }
     /// The certificates name the issuer `CN=BBL CA, O=BBL Technologies Co., Ltd`, Bambu Lab's
-    /// company. Once one has, the slicer's other bind port, 3000, is bound too: it speaks TLS 1.3
-    /// and presents nothing to read.
+    /// company, on every TLS port the printer opens (FTPS on 990 among them). Once one has, its
+    /// other LAN ports are bound too, whether or not their own certificate was read this scan: the
+    /// slicer's bind ports 3000 (TLS 1.3, presenting nothing) and 3002, and the LAN video stream
+    /// on 6000.
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::CertificateIssuer("O=BBL Technologies", BAMBU_TLS_PORTS),
-            Pattern::Optional(Box::new(Pattern::Port(PortType::Http3000))),
+            Pattern::Optional(Box::new(Pattern::AnyOf(vec![
+                Pattern::Port(PortType::Http3000),
+                Pattern::Port(PortType::new_tcp(3002)),
+                Pattern::Port(PortType::new_tcp(6000)),
+            ]))),
         ])
     }
 }
