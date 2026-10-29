@@ -99,6 +99,10 @@ impl OrderField for ServiceOrderField {
         }
     }
 
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
+    }
+
     fn nulls_last(&self) -> bool {
         matches!(self, Self::MatchConfidence)
     }

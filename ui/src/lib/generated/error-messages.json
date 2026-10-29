@@ -76,6 +76,7 @@
 	"errors_share_password_required": "Password required for this share",
 	"errors_share_token_invalid": "Access token is invalid or expired",
 	"errors_sites_access_denied": "You don't have access to site '{site}'",
+	"errors_subnet_type_seeded_per_site": "Every site already has its own {subnet_type} subnet, so a new one can't be created",
 	"errors_user_email_in_use": "Email '{email}' is already in use",
 	"errors_validation_bulk_empty": "No IDs provided for bulk operation",
 	"errors_validation_email_disposable": "Temporary email addresses can't be used. Please sign up with a permanent address.",

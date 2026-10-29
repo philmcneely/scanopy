@@ -39,6 +39,13 @@ export function useSubnetsQuery(
 }
 
 /**
+ * The rows the subnets list shows: the user-managed ranges, and one copy of the Internet and Remote
+ * Network ranges every site is seeded with. The list, its filter options and its CSV export all
+ * send it, so they read the same rows.
+ */
+export const LISTED_SUBNETS = { user_managed: true, include_shared_ranges: true } as const;
+
+/**
  * One page of the subnets list, paged, filtered, ordered and nested on the server.
  * `user_managed: true` replaces the browser-side `isUserManagedSubnet` filter, which needed every
  * subnet loaded.
@@ -48,7 +55,7 @@ export function useSubnetsListQuery(params: () => ListPageParams) {
 		queryKeys.subnets.all,
 		({ query, querySerializer }) =>
 			apiClient.GET('/api/v1/subnets', {
-				params: { query: { ...query, user_managed: true } },
+				params: { query: { ...query, ...LISTED_SUBNETS } },
 				querySerializer
 			}),
 		params

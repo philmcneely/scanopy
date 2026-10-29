@@ -4,6 +4,7 @@ import {
 	defaultColumnVisibility,
 	defaultColumnOrder,
 	reconcileColumnState,
+	toggledColumnVisibility,
 	visibleColumns,
 	moveColumn,
 	moveColumnTo,
@@ -122,6 +123,20 @@ describe('defaults', () => {
 
 		expect(defaultColumnOrder(columns)).toContain('created_at');
 		expect(defaultColumnVisibility(columns).created_at).toBe(false);
+	});
+});
+
+describe('toggledColumnVisibility', () => {
+	it('stores only the columns moved off their default, so a changed default still applies', () => {
+		const columns = fieldsToColumns(fields());
+		const shown = reconcileColumnState(columns, { visibility: {} }).visibility;
+
+		const stored = toggledColumnVisibility(columns, shown, 'name');
+		expect(stored).toEqual({ name: false });
+
+		// Toggled back, nothing is left deciding the column.
+		const back = reconcileColumnState(columns, { visibility: stored }).visibility;
+		expect(toggledColumnVisibility(columns, back, 'name')).toEqual({});
 	});
 });
 

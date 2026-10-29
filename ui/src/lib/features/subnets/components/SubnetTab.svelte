@@ -15,7 +15,7 @@
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { fieldValueOptions, useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import { hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { subnetColumns } from './SubnetTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import { Trash2, Edit, CloudAlert } from 'lucide-svelte';
@@ -23,6 +23,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import {
 		isUserManagedSubnet,
+		LISTED_SUBNETS,
 		useSubnetsQuery,
 		useSubnetsByIds,
 		useSubnetsListQuery,
@@ -52,7 +53,9 @@
 		common_subnets,
 		daemons_installPromptSubnets,
 		subnets_rangeSettled,
-		subnets_resolveRange
+		subnets_resolveRange,
+		subnets_sharedRangeReadOnly,
+		subnets_sharedRangeReadOnlyBulk
 	} from '$lib/paraglide/messages';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 
@@ -69,7 +72,7 @@
 	const tagsQuery = useTagsQuery();
 	const SUBNET_FIELD_VALUES = '/api/v1/subnets/field-values/{field}';
 	// The filter options count only the ranges the list shows.
-	const listedOnly = () => ({ user_managed: true });
+	const listedOnly = () => LISTED_SUBNETS;
 
 	// One page of the subnets the user curates, paged, filtered, ordered and nested on the server.
 	const page = listPageState(() => isActive);
@@ -207,6 +210,14 @@
 	function subnetActions(subnet: SubnetResponse): CardAction[] {
 		if (isReadOnly) return [];
 
+		// The Internet and Remote rows stand for a copy on every site, and editing one would change
+		// only one site's copy.
+		const shared = disabledWhen(
+			!isUserManagedSubnet(subnet),
+			subnets_sharedRangeReadOnly(),
+			subnets_sharedRangeReadOnlyBulk()
+		);
+
 		return [
 			// Only where there is something to resolve. A badge that says a range was guessed and
 			// offers no way to settle it leaves the operator with the question and no answer.
@@ -219,14 +230,21 @@
 				onClick: () => handleResolveRange(subnet),
 				unavailable: hiddenWhen(!isProvisionalCidr(subnet), subnets_rangeSettled())
 			},
-			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditSubnet(subnet) },
+			{
+				label: common_edit(),
+				icon: Edit,
+				isOpen: true,
+				onClick: () => handleEditSubnet(subnet),
+				unavailable: shared
+			},
 			{
 				label: common_delete(),
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
 				onBulk: handleBulkDelete,
-				onClick: () => handleDeleteSubnet(subnet)
+				onClick: () => handleDeleteSubnet(subnet),
+				unavailable: shared
 			}
 		];
 	}
@@ -352,7 +370,7 @@
 		// A one-off copy for the request, never read reactively.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.listQuery);
-		params.set('user_managed', 'true');
+		for (const [key, value] of Object.entries(LISTED_SUBNETS)) params.set(key, String(value));
 		await downloadCsv('Subnet', params);
 	}
 

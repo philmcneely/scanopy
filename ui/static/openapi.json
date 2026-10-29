@@ -17080,6 +17080,18 @@
             }
           },
           {
+            "name": "include_shared_ranges",
+            "in": "query",
+            "description": "With `user_managed=true`, also returns the Internet and Remote Network ranges every site is\nseeded with, once each: one site's copy, from the lowest site id among the sites listed.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns subnets that have ANY of the specified tags)",
@@ -17470,6 +17482,18 @@
             }
           },
           {
+            "name": "include_shared_ranges",
+            "in": "query",
+            "description": "With `user_managed=true`, also returns the Internet and Remote Network ranges every site is\nseeded with, once each: one site's copy, from the lowest site id among the sites listed.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns subnets that have ANY of the specified tags)",
@@ -17764,6 +17788,18 @@
             "name": "user_managed",
             "in": "query",
             "description": "`true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates\n(`Subnet::is_user_managed`).",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "include_shared_ranges",
+            "in": "query",
+            "description": "With `user_managed=true`, also returns the Internet and Remote Network ranges every site is\nseeded with, once each: one site's copy, from the lowest site id among the sites listed.",
             "required": false,
             "schema": {
               "type": [

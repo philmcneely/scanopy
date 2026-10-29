@@ -11,11 +11,20 @@ import type { SortState } from './sorting';
  * Builds before 3 stored filter selections as the labels the panel showed (a
  * site's name) rather than the values the API filters on (its id), so their
  * filters are dropped rather than restored as selections that match nothing.
+ * Builds before 4 stored every column's visibility on the first toggle, defaults included, so a
+ * later change to a default never reached that user. Their visibility is dropped once; from 4 on
+ * only the columns a user moved off their default are stored.
  */
-export const STORED_STATE_VERSION = 3;
+export const STORED_STATE_VERSION = 4;
+
+/** The first format whose column visibility holds only the user's own changes. */
+const CHANGES_ONLY_VISIBILITY_VERSION = 4;
 
 /** The first format whose null sort and group are a choice of "none". */
 const EXPLICIT_ORDERING_VERSION = 2;
+
+/** The first format whose filters store the values the API filters on. */
+const FILTER_VALUES_VERSION = 3;
 
 /** Filter selections as they sit in localStorage — sets marshalled to arrays. */
 export interface StoredFieldFilter {
@@ -132,15 +141,16 @@ export function parseStoredState(raw: string | null): StoredState | null {
 	return {
 		version: STORED_STATE_VERSION,
 		searchQuery: typeof state.searchQuery === 'string' ? state.searchQuery : '',
-		filterState: version >= STORED_STATE_VERSION ? parseFilterState(state.filterState) : {},
+		filterState: version >= FILTER_VALUES_VERSION ? parseFilterState(state.filterState) : {},
 		sortState: parseSortState(state.sortState, current),
 		selectedGroupField: parseGroupField(state.selectedGroupField, current),
 		currentPage:
 			typeof state.currentPage === 'number' && state.currentPage > 0 ? state.currentPage : 1,
 		pageSize: isPageSize(state.pageSize) ? state.pageSize : undefined,
-		columnVisibility: isRecordOf(state.columnVisibility, 'boolean')
-			? (state.columnVisibility as Record<string, boolean>)
-			: undefined,
+		columnVisibility:
+			version >= CHANGES_ONLY_VISIBILITY_VERSION && isRecordOf(state.columnVisibility, 'boolean')
+				? (state.columnVisibility as Record<string, boolean>)
+				: undefined,
 		columnOrder: Array.isArray(state.columnOrder) ? state.columnOrder.map(String) : undefined,
 		columnGroupOrder: Array.isArray(state.columnGroupOrder)
 			? state.columnGroupOrder.map(String)

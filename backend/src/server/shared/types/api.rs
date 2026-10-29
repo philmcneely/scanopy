@@ -661,6 +661,18 @@ impl ApiError {
         )
     }
 
+    // === Subnet errors ===
+
+    /// Bad request (400) - a user tried to create an Internet or Remote Network subnet
+    pub fn subnet_type_seeded_per_site(subnet_type: &str) -> Self {
+        Self::coded(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::SubnetTypeSeededPerSite {
+                subnet_type: subnet_type.to_string(),
+            },
+        )
+    }
+
     // === Share errors ===
 
     /// Forbidden (403) - password required for share

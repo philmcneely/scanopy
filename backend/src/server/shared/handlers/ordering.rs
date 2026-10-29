@@ -17,6 +17,9 @@ use super::query::OrderDirection;
 // OrderField Trait
 // ============================================================================
 
+/// The alias of the site a site-name sort joins.
+const SITE_ALIAS: &str = "row_site";
+
 /// Trait for order field enums that generate SQL ORDER BY expressions.
 ///
 /// Implement this for entity-specific OrderField enums to enable generic
@@ -43,9 +46,27 @@ pub trait OrderField: Clone + Copy + Default + Send + Sync + 'static {
         false
     }
 
+    /// Whether this field is a site id that sorts by the site's name. `to_sql` stays the id, which
+    /// keys the field's groups and filter values and breaks ties between sites sharing a name.
+    fn sorts_by_site_name(&self) -> bool {
+        false
+    }
+
+    /// The JOIN a site-name sort reads the name from. `None` for any other field.
+    fn site_join(&self) -> Option<String> {
+        self.sorts_by_site_name().then(|| {
+            format!(
+                "LEFT JOIN sites AS {SITE_ALIAS} ON {SITE_ALIAS}.id = {}",
+                self.to_sql()
+            )
+        })
+    }
+
     /// The field's ORDER BY term in the given direction.
     fn order_term(&self, dir: &str) -> String {
-        if self.nulls_last() {
+        if self.sorts_by_site_name() {
+            format!("{SITE_ALIAS}.name {dir}, {} {dir}", self.to_sql())
+        } else if self.nulls_last() {
             format!("{} {} NULLS LAST", self.to_sql(), dir)
         } else {
             format!("{} {}", self.to_sql(), dir)
@@ -54,10 +75,10 @@ pub trait OrderField: Clone + Copy + Default + Send + Sync + 'static {
 
     /// The ORDER BY term that keeps this field's groups together.
     fn group_term(&self) -> String {
-        if self.nulls_last() {
-            format!("{} ASC NULLS LAST", self.to_sql())
+        if self.sorts_by_site_name() || !self.nulls_last() {
+            self.order_term("ASC")
         } else {
-            format!("{} ASC", self.to_sql())
+            format!("{} ASC NULLS LAST", self.to_sql())
         }
     }
 }
@@ -136,25 +157,29 @@ where
     O: OrderField,
 {
     let mut order_parts = Vec::new();
+    // Each JOIN once: grouping and sorting by fields that read the same table share one.
+    let mut joins: Vec<String> = Vec::new();
+    for field in group_by.iter().chain(order_by.iter()) {
+        for join in [field.join_sql().map(str::to_string), field.site_join()]
+            .into_iter()
+            .flatten()
+        {
+            if !joins.contains(&join) {
+                joins.push(join);
+            }
+        }
+    }
+    for join in &joins {
+        filter = filter.join(join);
+    }
 
     // Primary: group_by field (always ASC to keep groups together)
     if let Some(group_field) = group_by {
-        if let Some(join) = group_field.join_sql() {
-            filter = filter.join(join);
-        }
         order_parts.push(group_field.group_term());
     }
 
     // Secondary: order_by field with specified direction
     if let Some(order_field) = order_by {
-        // Only add JOIN if not already added by group_by
-        let group_join = group_by.and_then(|g| g.join_sql());
-        let order_join = order_field.join_sql();
-        if let Some(join) = order_join
-            && group_join != order_join
-        {
-            filter = filter.join(join);
-        }
         let dir = direction.unwrap_or_default().to_sql();
         order_parts.push(order_field.order_term(dir));
     }
@@ -282,6 +307,19 @@ mod tag_group_ordering_tests {
             "hosts.created_at ASC",
         );
         (filter.to_join_clause(), order)
+    }
+
+    #[test]
+    fn grouping_and_sorting_by_site_join_the_site_once_and_order_by_its_name() {
+        let (filter, order) = apply_ordering(
+            Some(HostOrderField::SiteId),
+            Some(HostOrderField::SiteId),
+            Some(OrderDirection::Desc),
+            StorableFilter::<Host>::new_from_site_ids(&[]),
+            "",
+        );
+        assert_eq!(filter.to_join_clause().matches("JOIN sites").count(), 1);
+        assert!(order.starts_with("row_site.name ASC, hosts.site_id ASC, row_site.name DESC"));
     }
 
     #[test]

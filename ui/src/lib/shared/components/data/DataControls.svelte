@@ -79,6 +79,7 @@
 	import {
 		fieldsToColumns,
 		reconcileColumnState,
+		toggledColumnVisibility,
 		visibleColumns,
 		buildTagColumn,
 		withTagColumn,
@@ -822,7 +823,7 @@
 	);
 
 	function toggleColumn(id: string) {
-		columnVisibility = { ...columnState.visibility, [id]: columnState.visibility[id] === false };
+		columnVisibility = toggledColumnVisibility(allColumns, columnState.visibility, id);
 		dropHiddenColumns();
 	}
 

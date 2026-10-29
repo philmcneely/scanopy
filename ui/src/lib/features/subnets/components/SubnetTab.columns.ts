@@ -2,6 +2,7 @@ import type { Snippet } from 'svelte';
 import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { cidrSourceItems } from '$lib/shared/utils/cidr-source';
 import { utilizationRatio } from '../nesting';
+import { isUserManagedSubnet } from '../queries';
 import type { Subnet, SubnetResponse } from '../types/base';
 import { entityRef } from '$lib/shared/components/data/types';
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
@@ -27,6 +28,7 @@ import {
 	common_unknownSite,
 	common_unknownEntity,
 	common_updated,
+	subnets_allSites,
 	subnets_managedBy,
 	subnets_subnetType,
 	common_utilization
@@ -128,11 +130,26 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				// The sites some subnet is on.
 				filterOptions: fieldValueOptions(ctx.siteValues()),
 				filterLabel: (id) => ctx.sites().find((n) => n.id === id)?.name ?? common_unknownSite(),
-				// Displayed as a name, but grouped by id on the server.
+				// Displayed as a name, but grouped by id on the server. The Internet and Remote rows stand
+				// for the copy every site holds, so they read "All sites", not the listed copy's site.
 				getGroupValue: (item) => item.site_id,
 				getValue: (item) =>
-					ctx.sites().find((n) => n.id == item.site_id)?.name || common_unknownSite(),
-				display: { order: 2, getItems: (item) => siteItems(item.site_id, ctx.sites()) }
+					isUserManagedSubnet(item)
+						? ctx.sites().find((n) => n.id == item.site_id)?.name || common_unknownSite()
+						: subnets_allSites(),
+				display: {
+					order: 2,
+					getItems: (item) =>
+						isUserManagedSubnet(item)
+							? siteItems(item.site_id, ctx.sites())
+							: [
+									{
+										id: item.site_id,
+										label: subnets_allSites(),
+										color: entities.getColorHelper('Site').color
+									}
+								]
+				}
 			},
 			created_at: {
 				label: common_created(),
@@ -217,8 +234,7 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 		[
 			{
 				key: 'description',
-				searchable: true,
-				display: { hiddenByDefault: true }
+				searchable: true
 			},
 			{
 				key: 'first_found_by',

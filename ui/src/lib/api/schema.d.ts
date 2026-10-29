@@ -24901,6 +24901,11 @@ export interface operations {
                  *     (`Subnet::is_user_managed`).
                  */
                 user_managed?: boolean | null;
+                /**
+                 * @description With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+                 *     seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+                 */
+                include_shared_ranges?: boolean | null;
                 /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -25035,6 +25040,11 @@ export interface operations {
                  *     (`Subnet::is_user_managed`).
                  */
                 user_managed?: boolean | null;
+                /**
+                 * @description With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+                 *     seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+                 */
+                include_shared_ranges?: boolean | null;
                 /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -25111,6 +25121,11 @@ export interface operations {
                  *     (`Subnet::is_user_managed`).
                  */
                 user_managed?: boolean | null;
+                /**
+                 * @description With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+                 *     seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+                 */
+                include_shared_ranges?: boolean | null;
                 /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
