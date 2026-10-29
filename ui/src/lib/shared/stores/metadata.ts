@@ -95,7 +95,7 @@ export interface CredentialTypeMetadata {
 	last_unsupported_daemon_version?: string;
 	/** Release maturity of this type's integration. Beta types render a "Beta" tag in the
 	 *  picker but stay selectable. Union derived from the backend enum, never hand-written. */
-	stability?: components['schemas']['CredentialStability'];
+	stability?: components['schemas']['Stability'];
 	/** Whether the vendor publishes the API this type talks to. Undocumented types render an
 	 *  "Unofficial API" tag but stay selectable. A separate axis from `stability`: an integration
 	 *  can be fully validated and still ride an endpoint the vendor never published. */
@@ -271,6 +271,8 @@ export interface DependencyTypeMetadata {}
 
 export interface FeatureMetadata {
 	is_coming_soon: boolean;
+	/** Beta features carry a Beta tag that links to the beta program sign-up. */
+	stability: components['schemas']['Stability'];
 	minimum_plan: string | null;
 	/** A credential type needs this feature; plan cards list the integration instead of it. */
 	gates_integration: boolean;

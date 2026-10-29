@@ -8,15 +8,16 @@ import type { Tag } from '$lib/features/tags/types/base';
 import { credentialIntegrations, credentialTypes, entities } from '$lib/shared/stores/metadata';
 import {
 	getCredentialTypeId,
-	getStabilityTagProps,
 	getTargetTagProps,
 	getUpstreamSupportTagProps
 } from '$lib/features/credentials/types/base';
+import { getStabilityTagProps } from '$lib/shared/utils/stability';
 import type { Host } from '$lib/features/hosts/types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import osFamilies from '$lib/data/os-families.json';
 import {
 	common_beta,
+	credentials_betaTooltip,
 	common_created,
 	common_integration,
 	common_type,
@@ -163,7 +164,10 @@ export function credentialColumns(ctx: CredentialColumnsContext) {
 				display: {
 					getItems: (item: Credential) => {
 						const typeId = getCredentialTypeId(item);
-						const tag = getStabilityTagProps(credentialTypes.getMetadata(typeId)?.stability);
+						const tag = getStabilityTagProps(
+							credentialTypes.getMetadata(typeId)?.stability,
+							credentials_betaTooltip()
+						);
 						return tag ? [{ id: `${typeId}-beta`, ...tag }] : [];
 					}
 				}

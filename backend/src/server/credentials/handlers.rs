@@ -2,8 +2,7 @@ use crate::server::auth::middleware::permissions::{Admin, Authorized, Viewer};
 use crate::server::credentials::r#impl::base::Credential;
 use crate::server::credentials::r#impl::mapping::Target;
 use crate::server::credentials::r#impl::types::{
-    CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, OsFamily,
-    UpstreamSupport,
+    CredentialIntegration, CredentialTypeDiscriminants, OsFamily, UpstreamSupport,
 };
 use crate::server::credentials::service::{CredentialService, check_type_in_plan};
 use crate::server::daemons::r#impl::base::Daemon;
@@ -21,6 +20,7 @@ use crate::server::shared::handlers::traits::{
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::{Junction, StorableFilter};
 use crate::server::shared::storage::traits::{Entity, Storable};
+use crate::server::shared::types::Stability;
 use crate::server::shared::types::api::ApiJson;
 use crate::server::shared::types::api::{
     ApiError, ApiErrorResponse, EmptyApiResponse, PaginatedApiResponse,
@@ -58,7 +58,7 @@ static BETA_SQL: LazyLock<String> = LazyLock::new(|| {
     in_sql(
         CREDENTIAL_TYPE_SQL,
         CredentialTypeDiscriminants::iter()
-            .filter(|t| t.stability() == CredentialStability::Beta)
+            .filter(|t| t.stability() == Stability::Beta)
             .map(Into::into),
     )
 });

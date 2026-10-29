@@ -27,6 +27,7 @@
 		billing_selfHosted,
 		billing_showFeatures,
 		billing_hideFeatures,
+		billing_betaFeatureTooltip,
 		billing_startDayFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
@@ -58,7 +59,9 @@
 	import type { ColorStyle } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { tooltip } from '$lib/shared/actions/tooltip';
-	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
+	import { getStabilityTagProps } from '$lib/shared/utils/stability';
+	import { betaProgramUrl } from '$lib/features/support/support';
 
 	const configQuery = useConfigQuery();
 
@@ -211,6 +214,16 @@
 
 	function isComingSoon(featureKey: string): boolean {
 		return featureHelpers.getMetadata(featureKey)?.is_coming_soon === true;
+	}
+
+	/** A beta feature's tag, linking to the beta program sign-up; `null` for a stable feature. */
+	function betaTag(featureKey: string) {
+		const cloud = configQuery.data ? isCloud(configQuery.data) : false;
+		return getStabilityTagProps(
+			featureHelpers.getMetadata(featureKey)?.stability,
+			billing_betaFeatureTooltip(),
+			betaProgramUrl('app_plans', cloud, featureKey)
+		);
 	}
 
 	const DISCOVERY_INTEGRATIONS = 'discovery_integrations';
@@ -576,6 +589,7 @@
 			>
 			<ul class="space-y-1">
 				{#each features as featureKey (featureKey)}
+					{@const beta = betaTag(featureKey)}
 					<!-- pl-7: the integration logo (20px) and its gap, so the names line up -->
 					<li class="flex items-center gap-2 pl-7 text-xs text-tertiary">
 						<span
@@ -585,6 +599,9 @@
 						>
 						{#if isComingSoon(featureKey)}
 							<Tag label={common_comingSoon()} color="Gray" />
+						{/if}
+						{#if beta}
+							<Tag {...beta} />
 						{/if}
 					</li>
 				{/each}
@@ -893,6 +910,7 @@
 												{:else}
 													{@const featureKey = entry.key}
 													{@const comingSoon = isComingSoon(featureKey)}
+													{@const beta = betaTag(featureKey)}
 													<li class="flex items-start gap-2 text-sm">
 														<Check
 															class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
@@ -910,6 +928,9 @@
 														{/if}
 														{#if comingSoon}
 															<Tag label={common_comingSoon()} color="Gray" />
+														{/if}
+														{#if beta}
+															<Tag {...beta} />
 														{/if}
 													</li>
 												{/if}
@@ -977,8 +998,9 @@
 
 					{#each categoryFeatures as featureKey (featureKey)}
 						{@const comingSoon = isComingSoon(featureKey)}
+						{@const beta = betaTag(featureKey)}
 						<div class="comparison-row" style="grid-template-columns: {gridColumns}">
-							<div class="comparison-label-cell">
+							<div class="comparison-label-cell gap-2">
 								<div
 									class="explainer text-xs font-medium lg:text-sm"
 									data-tooltip={featureHelpers.getDescription(featureKey)}
@@ -986,6 +1008,9 @@
 								>
 									{featureHelpers.getName(featureKey)}
 								</div>
+								{#if beta}
+									<Tag {...beta} />
+								{/if}
 							</div>
 							{#each filteredPlans as plan (plan.type)}
 								{@const value = getFeatureValue(plan.type, featureKey)}

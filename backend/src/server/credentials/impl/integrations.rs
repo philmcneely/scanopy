@@ -16,12 +16,9 @@ use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::shared::logos::Logo;
 use crate::server::shared::types::field_definition::FieldDefinition;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
-use crate::server::shared::types::{Color, Icon};
+use crate::server::shared::types::{Color, Icon, Stability};
 
-use super::types::{
-    CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, Target,
-    UpstreamSupport,
-};
+use super::types::{CredentialIntegration, CredentialTypeDiscriminants, Target, UpstreamSupport};
 
 /// A kind of host virtualization an integration reports, by id (`HostVirtualization`'s tag) and
 /// display name.
@@ -101,7 +98,7 @@ pub struct IntegrationTransport {
     /// Where this transport can be applied (daemon host, hosts, site).
     pub targets: Vec<Target>,
     /// Release maturity of this specific transport.
-    pub stability: CredentialStability,
+    pub stability: Stability,
     /// Whether the vendor publishes the API this transport talks to. Independent of
     /// `stability`: a transport can be fully validated (`Stable`) and still ride an
     /// endpoint the vendor never documented, which is true of both UniFi transports.
