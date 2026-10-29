@@ -85,38 +85,14 @@ impl OrderField for SubnetOrderField {
         }
     }
 
-    fn join_sql(&self) -> Option<&'static str> {
-        match self {
-            Self::SiteId => Some(SITE_JOIN),
-            _ => None,
-        }
-    }
-
     fn nulls_last(&self) -> bool {
         matches!(self, Self::ManagedBy)
     }
 
-    /// A site sorts by its name. The id stays the group key and breaks ties between sites that
-    /// share a name, so their rows don't interleave.
-    fn order_term(&self, dir: &str) -> String {
-        match self {
-            Self::SiteId => format!("subnet_site.name {dir}, {} {dir}", self.to_sql()),
-            _ if self.nulls_last() => format!("{} {} NULLS LAST", self.to_sql(), dir),
-            _ => format!("{} {}", self.to_sql(), dir),
-        }
-    }
-
-    fn group_term(&self) -> String {
-        match self {
-            Self::SiteId => self.order_term("ASC"),
-            _ if self.nulls_last() => format!("{} ASC NULLS LAST", self.to_sql()),
-            _ => format!("{} ASC", self.to_sql()),
-        }
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
     }
 }
-
-/// The subnet's site, for ordering by its name.
-const SITE_JOIN: &str = "LEFT JOIN sites AS subnet_site ON subnet_site.id = subnets.site_id";
 
 // ============================================================================
 // Subnet Filter Query

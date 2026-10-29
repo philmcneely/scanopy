@@ -53,6 +53,10 @@ impl OrderField for DependencyOrderField {
             Self::SiteId => "dependencies.site_id",
         }
     }
+
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
+    }
 }
 
 // ============================================================================
