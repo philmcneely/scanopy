@@ -292,7 +292,7 @@ fn integration_without_credential_line(
 ) -> String {
     let name = e.integration.name();
     let text = format!(
-        "<strong>{}</strong> answers on {} that no credential works on.",
+        "<strong>{}</strong> answers on {} that no credential targets.",
         html_escape(name),
         plural(e.host_ids.len() as u32, "host", "hosts"),
     );
