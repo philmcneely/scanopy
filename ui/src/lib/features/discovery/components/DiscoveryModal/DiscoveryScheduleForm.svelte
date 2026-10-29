@@ -27,7 +27,6 @@
 		discovery_scheduleEditAsCron,
 		discovery_scheduleFreeDiscoveryPaused,
 		discovery_scheduleFreePlanWarning,
-		discovery_scheduleHelp,
 		discovery_scheduleLapsedWarning,
 		discovery_scheduleResetToDayPicker,
 		discovery_scheduleTimezoneHelp
@@ -168,10 +167,6 @@
 		{#if rawCronMode}
 			<InlineInfo title={discovery_scheduleCronExpression()} body={discovery_scheduleCronInfo()} />
 		{/if}
-		<p class="text-sm text-tertiary">
-			{discovery_scheduleHelp()}
-		</p>
-
 		{#if rawCronMode}
 			<!-- Raw Cron Mode -->
 			<form.Field

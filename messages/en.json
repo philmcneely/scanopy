@@ -1036,7 +1036,6 @@
 	"discovery_scheduleEveryHours": "Every {hours} hours",
 	"discovery_scheduleFreeDiscoveryPaused": "Discovery is paused",
 	"discovery_scheduleFreePlanWarning": "Scheduled discovery runs are paused on the Free plan. Upgrade to a paid plan to resume automatic scans. Your schedule will be preserved.",
-	"discovery_scheduleHelp": "Configure when this discovery should run automatically",
 	"discovery_scheduleLapsedWarning": "Scheduled discovery runs are paused while your plan is lapsed. Choose a paid plan to resume automatic scans. Your schedule will be preserved.",
 	"discovery_scheduleOnDays": "{days} at {time} ({timezone})",
 	"discovery_schedulePausedFreePlan": "Paused — upgrade to resume scheduled runs",
