@@ -11,7 +11,12 @@
  * Invalidating on recovery, rather than taking the app offline through TanStack's
  * `onlineManager`, keeps failed requests failing as they do now: going offline would also pause
  * mutations and replay them when the server came back.
+ *
+ * While the server is unreachable, `ServerUnreachableBanner` shows on the page, or in the open
+ * modal's banner frame.
  */
+
+import { writable } from 'svelte/store';
 
 /** How often to probe while the server is unreachable. */
 export const PROBE_INTERVAL_MS = 5_000;
@@ -23,6 +28,8 @@ export const PROBE_INTERVAL_MS = 5_000;
 const PROBE_PATH = '/api/health/ready';
 
 let unreachable = false;
+/** The same state as `unreachable`, for components. */
+export const serverUnreachable = writable(false);
 let probeTimer: ReturnType<typeof setTimeout> | null = null;
 let probeUrl = PROBE_PATH;
 
@@ -46,21 +53,19 @@ export function isUnreachableResponse(response: Response): boolean {
 	return !(response.headers.get('content-type') ?? '').includes('application/json');
 }
 
-/**
- * Record a request that did not reach the server. Returns true for the first one of an outage,
- * so the caller tells the user once rather than once per failed request.
- */
-export function reportUnreachable(): boolean {
-	if (unreachable) return false;
+/** Record a request that did not reach the server. */
+export function reportUnreachable(): void {
+	if (unreachable) return;
 	unreachable = true;
+	serverUnreachable.set(true);
 	scheduleProbe();
-	return true;
 }
 
 /** Record a response from the server. The first one after an outage refetches every query. */
 export function reportAnswered(): void {
 	if (!unreachable) return;
 	unreachable = false;
+	serverUnreachable.set(false);
 	if (probeTimer !== null) {
 		clearTimeout(probeTimer);
 		probeTimer = null;

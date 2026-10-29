@@ -3,6 +3,7 @@
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import AppBanners from '$lib/shared/components/feedback/AppBanners.svelte';
 	import ServerUpdatedBanner from '$lib/shared/components/feedback/ServerUpdatedBanner.svelte';
+	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
 	import TrialExpiryModal from '$lib/shared/components/feedback/TrialExpiryModal.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
 	import GlobalSearch from '$lib/shared/components/layout/GlobalSearch.svelte';
@@ -488,6 +489,7 @@
 			{#if !isBillingBlocking && !isSelfHostedPlanLocked}
 				<AppBanners />
 			{/if}
+			<ServerUnreachableBanner />
 			<!-- Shows here only when an automatic reload already failed to bring the tab onto the
 			     server's version; otherwise the tab reloads, or the open modal carries it. -->
 			<ServerUpdatedBanner />
