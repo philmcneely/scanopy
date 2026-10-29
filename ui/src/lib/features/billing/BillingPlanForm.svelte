@@ -222,7 +222,7 @@
 		return getStabilityTagProps(
 			featureHelpers.getMetadata(featureKey)?.stability,
 			billing_betaFeatureTooltip(),
-			betaProgramUrl('app_plans', cloud, featureKey)
+			betaProgramUrl('app_plans', cloud)
 		);
 	}
 
