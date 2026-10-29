@@ -19,8 +19,8 @@ impl ServiceDefinition for Ssh {
         ServiceCategory::RemoteAccess
     }
     /// Either an SSH credential authenticated, on whatever port it is configured for, or the
-    /// banner probe answered on 22. Both require the protocol to answer, so a listener that does
-    /// not speak SSH is not claimed as this service.
+    /// banner probe answered on 22 or 2222. Both require the protocol to answer, so a listener that
+    /// does not speak SSH is not claimed as this service.
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::ClientResponse(ClientProbe::Ssh)
     }

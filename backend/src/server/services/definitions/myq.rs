@@ -28,8 +28,11 @@ impl ServiceDefinition for MyQ {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::CHAMBERLAIN),
             Pattern::Port(PortType::Http),
+            Pattern::Optional(Box::new(Pattern::CertificateIssuer(
+                "CN=setup.myqdevice.com",
+                &[443],
+            ))),
         ])
-        .also_binding(Pattern::CertificateIssuer("CN=setup.myqdevice.com", &[443]))
     }
 
     fn logo(&self) -> Option<Logo> {

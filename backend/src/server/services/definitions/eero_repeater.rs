@@ -1,6 +1,5 @@
 use crate::server::hosts::r#impl::device_type::DeviceType;
-use crate::server::ports::r#impl::base::PortType;
-use crate::server::services::definitions::eero_gateway::EERO_PORT;
+use crate::server::services::definitions::eero_gateway::eero_ports;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::DeviceTypeImplication;
@@ -29,8 +28,8 @@ impl ServiceDefinition for EeroRepeater {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::EERO),
             Pattern::Not(Box::new(Pattern::IsGateway)),
+            eero_ports(),
         ])
-        .also_binding(Pattern::Port(PortType::new_tcp(EERO_PORT)))
     }
 
     fn logo(&self) -> Option<Logo> {

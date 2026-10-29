@@ -24,14 +24,16 @@ impl ServiceDefinition for NginxProxyManager {
     /// with its status and version (`{"status":"OK","setup":true,"version":{…,"revision":3}}`,
     /// `backend/routes/main.js`), which says nothing about the product without the page beside it.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyOf(vec![
-            Pattern::Endpoint(PortType::Http, "", "nginx proxy manager", None),
-            Pattern::Endpoint(PortType::new_tcp(81), "", "nginx proxy manager", None),
+        Pattern::AllOf(vec![
+            Pattern::AnyOf(vec![
+                Pattern::Endpoint(PortType::Http, "", "nginx proxy manager", None),
+                Pattern::Endpoint(PortType::new_tcp(81), "", "nginx proxy manager", None),
+            ]),
+            Pattern::Optional(Box::new(Pattern::AnyOf(vec![
+                Pattern::Port(PortType::Https),
+                Pattern::Endpoint(PortType::Http3000, "/", "\"revision\"", None),
+            ]))),
         ])
-        .also_binding(Pattern::AnyOf(vec![
-            Pattern::Port(PortType::Https),
-            Pattern::Endpoint(PortType::Http3000, "/", "\"revision\"", None),
-        ]))
     }
 
     fn logo(&self) -> Option<Logo> {

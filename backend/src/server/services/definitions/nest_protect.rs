@@ -34,9 +34,9 @@ impl ServiceDefinition for NestProtect {
                 Pattern::MacVendor(Vendor::GOOGLE),
             ]),
             Pattern::Port(PortType::new_tcp(11095)),
+            // Its Home services on 8012 and 10101 present certificates under Google's Cast CAs.
+            Pattern::Optional(Box::new(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS))),
         ])
-        // Its Home services on 8012 and 10101 present certificates under Google's Cast CAs.
-        .also_binding(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS))
     }
 
     fn logo(&self) -> Option<Logo> {

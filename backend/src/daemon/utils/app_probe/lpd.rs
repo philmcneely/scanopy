@@ -75,7 +75,8 @@ mod tests {
     #[test]
     fn a_queue_status_is_lpd() {
         for reply in [
-            // HP Jetdirect.
+            // An HP LaserJet M110w's Jetdirect, idle: no newline.
+            &b"queue empty"[..],
             &b"Printer: raw is ready\nno entries\n"[..],
             // A daemon with no queue by that name still answers in text.
             &b"Unknown printer raw\n"[..],
