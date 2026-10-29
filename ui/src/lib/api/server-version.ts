@@ -14,8 +14,9 @@ import { modalState } from '$lib/shared/stores/modal-registry';
 
 /**
  * The server version the last automatic reload was for. If the reloaded bundle still doesn't
- * match it (a CDN still serving the old bundle), reloading again would loop, so the banner asks
- * instead.
+ * match it (a CDN still serving the old bundle, or a dev server whose UI and server versions
+ * differ), reloading again would loop and the banner's Reload would do no better, so the tab
+ * stays as it is.
  */
 const RELOADED_FOR_KEY = 'scanopy_reloaded_for_server_version';
 
@@ -30,9 +31,14 @@ export function checkServerVersion(serverVersion: string): void {
 		return;
 	}
 	if (get(serverUpdatePending)) return;
+	if (readReloadedFor() === serverVersion) {
+		console.warn(
+			`Scanopy server runs ${serverVersion} and this frontend ${VERSION}; a reload did not bring them in line.`
+		);
+		return;
+	}
 	serverUpdatePending.set(true);
 
-	if (readReloadedFor() === serverVersion) return;
 	if (get(modalState).name === null) {
 		reloadFor(serverVersion);
 		return;

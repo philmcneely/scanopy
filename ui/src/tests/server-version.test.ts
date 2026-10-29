@@ -65,7 +65,7 @@ describe('checkServerVersion', () => {
 		expect(reload).toHaveBeenCalledTimes(1);
 	});
 
-	it('asks instead of reloading again when a reload did not bring the new version', async () => {
+	it('stops, with no banner, when a reload did not bring the new version', async () => {
 		const first = await load();
 		first.checkServerVersion('0.20.0');
 		expect(reload).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ describe('checkServerVersion', () => {
 		const afterReload = await load();
 		afterReload.checkServerVersion('0.20.0');
 		expect(reload).toHaveBeenCalledTimes(1);
-		expect(get(afterReload.serverUpdatePending)).toBe(true);
+		expect(get(afterReload.serverUpdatePending)).toBe(false);
 
 		// A later release gets its own reload.
 		const later = await load();

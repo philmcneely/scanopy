@@ -2,7 +2,6 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import AppBanners from '$lib/shared/components/feedback/AppBanners.svelte';
-	import ServerUpdatedBanner from '$lib/shared/components/feedback/ServerUpdatedBanner.svelte';
 	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
 	import TrialExpiryModal from '$lib/shared/components/feedback/TrialExpiryModal.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
@@ -490,9 +489,6 @@
 				<AppBanners />
 			{/if}
 			<ServerUnreachableBanner />
-			<!-- Shows here only when an automatic reload already failed to bring the tab onto the
-			     server's version; otherwise the tab reloads, or the open modal carries it. -->
-			<ServerUpdatedBanner />
 			<div class="p-4 [&_.sticky]:sticky [&_.sticky]:top-0">
 				<!--
 					Programmatically render all tabs based on sidebar config.
