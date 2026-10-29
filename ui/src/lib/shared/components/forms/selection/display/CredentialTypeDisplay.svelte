@@ -47,7 +47,9 @@
 		},
 		getDisabled: (_item, context) => !!context?.disabledReason || !!context?.upgradeFeature,
 		getDisabledReason: (_item, context) =>
-			context?.disabledReason ?? (context?.upgradeFeature ? common_availableOnPaidPlans() : null)
+			context?.disabledReason ?? (context?.upgradeFeature ? common_availableOnPaidPlans() : null),
+		// Only the upgrade badge opens something. A type the daemon can't run stays dimmed.
+		getDisabledClickable: (_item, context) => !context?.disabledReason && !!context?.upgradeFeature
 	};
 </script>
 
