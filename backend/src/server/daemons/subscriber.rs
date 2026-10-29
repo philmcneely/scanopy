@@ -127,13 +127,20 @@ impl Subscriber<DiscoveryPhase> for DaemonService {
             }
             let delivery = self.deliver_cancellation(daemon_id, session_id).await;
             match &delivery {
-                // `NotRunning` is usually a daemon that finished the session a moment
-                // before the cancel landed. Its own outcome arrives on the next poll, and
-                // if the daemon instead restarted, the restart check fails the session
-                // then. Failing it here would overwrite a real completion.
-                CancelDelivery::Delivered
-                | CancelDelivery::PulledByDaemon
-                | CancelDelivery::NotRunning => {
+                // `NotRunning` may be a daemon that finished the session a moment before the
+                // cancel landed, or one that restarted and lost it. Draining it now records a
+                // real outcome first, and ends a lost session at once instead of at the stall
+                // sweep.
+                CancelDelivery::NotRunning => {
+                    tracing::info!(
+                        daemon_id = %daemon_id,
+                        session_id = %session_id,
+                        delivery = delivery.outcome(),
+                        "The daemon is not running the session it was asked to cancel"
+                    );
+                    self.reconcile_not_running(daemon_id, session_id).await;
+                }
+                CancelDelivery::Delivered | CancelDelivery::PulledByDaemon => {
                     tracing::info!(
                         daemon_id = %daemon_id,
                         session_id = %session_id,

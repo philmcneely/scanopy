@@ -256,6 +256,39 @@ pub(crate) fn select_stalled(
         .collect()
 }
 
+/// Why a session went quiet, from when its daemon last checked in with the server.
+///
+/// A daemon checks in on every DaemonPoll work request and every ServerPoll status poll, at
+/// intervals well under the stall threshold. One seen within the threshold is alive and has gone
+/// quiet on this session alone; one not seen in that long has gone quiet altogether. With no
+/// check-in on record (the daemon is gone, or never checked in) the server cannot tell.
+pub(crate) fn stall_reason(
+    daemon_last_seen: Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+    threshold: Duration,
+) -> DiscoveryTerminalReason {
+    match daemon_last_seen {
+        None => DiscoveryTerminalReason::StalledNoUpdates,
+        Some(seen) if now.signed_duration_since(seen) <= threshold => {
+            DiscoveryTerminalReason::SessionSilent
+        }
+        Some(_) => DiscoveryTerminalReason::DaemonOffline,
+    }
+}
+
+/// The error a stalled session is recorded with, for the reason [`stall_reason`] chose.
+fn stall_error(reason: DiscoveryTerminalReason) -> &'static str {
+    match reason {
+        DiscoveryTerminalReason::DaemonOffline => {
+            "Session stalled - the daemon stopped checking in with the server"
+        }
+        DiscoveryTerminalReason::SessionSilent => {
+            "Session stalled - the daemon is checking in but sent no updates for this session for more than 5 minutes"
+        }
+        _ => "Session stalled - no updates received from daemon for more than 5 minutes",
+    }
+}
+
 /// A session the stall sweep ended, and the queued session promoted in its place.
 pub(crate) struct ReapedSession {
     pub session: DiscoveryUpdatePayload,
@@ -264,7 +297,8 @@ pub(crate) struct ReapedSession {
     pub previous_phase: DiscoveryPhase,
 }
 
-/// Fail and remove stalled sessions, returning them as recorded.
+/// Fail and remove stalled sessions, each with the reason given for it, returning them as
+/// recorded.
 ///
 /// Each reaped session leaves `sessions`, its daemon's queue and `discovery_sessions`, and a
 /// `Queued` session at the head of the queue is promoted. Its stamp in `last_updated` stays as a
@@ -272,12 +306,12 @@ pub(crate) struct ReapedSession {
 /// the tombstone is evicted once the daemon has been quiet for the stall threshold.
 pub(crate) fn reap(
     maps: &mut SessionMaps,
-    stalled: &[Uuid],
+    stalled: &[(Uuid, DiscoveryTerminalReason)],
     now: DateTime<Utc>,
 ) -> Vec<ReapedSession> {
     let mut reaped = Vec::new();
 
-    for session_id in stalled {
+    for (session_id, reason) in stalled {
         let Some(mut session) = maps.sessions.remove(session_id) else {
             continue;
         };
@@ -286,11 +320,9 @@ pub(crate) fn reap(
         let previous_phase = session.phase;
 
         session.phase = DiscoveryPhase::Failed;
-        session.error = Some(
-            "Session stalled - no updates received from daemon for more than 5 minutes".to_string(),
-        );
+        session.error = Some(stall_error(*reason).to_string());
         session.finished_at = Some(now);
-        session.reason = Some(DiscoveryTerminalReason::StalledNoUpdates);
+        session.reason = Some(*reason);
         session.last_update_at = last_update_at;
 
         let promoted = remove_from_queue_and_promote_head(maps, daemon_id, *session_id, now);
@@ -447,6 +479,14 @@ mod tests {
         update
     }
 
+    /// A stalled session as the sweep hands it to `reap`, with the cause it could not tell.
+    fn stalled_as(session: &DiscoveryUpdatePayload) -> (Uuid, DiscoveryTerminalReason) {
+        (
+            session.session_id,
+            DiscoveryTerminalReason::StalledNoUpdates,
+        )
+    }
+
     #[test]
     fn a_terminal_update_removes_the_session_and_returns_it_as_updated() {
         let mut maps = Maps::default();
@@ -565,7 +605,7 @@ mod tests {
         let queued = maps.start(daemon, DiscoveryPhase::Queued);
         let now = Utc::now();
 
-        let reaped = reap(&mut maps.borrow(), &[stalled.session_id], now);
+        let reaped = reap(&mut maps.borrow(), &[stalled_as(&stalled)], now);
 
         assert_eq!(reaped.len(), 1);
         assert_eq!(reaped[0].session.phase, DiscoveryPhase::Failed);
@@ -651,7 +691,7 @@ mod tests {
         let stalled = maps.start(Uuid::new_v4(), DiscoveryPhase::Scanning);
         maps.last_updated
             .insert(stalled.session_id, Utc::now() - Duration::minutes(10));
-        reap(&mut maps.borrow(), &[stalled.session_id], Utc::now());
+        reap(&mut maps.borrow(), &[stalled_as(&stalled)], Utc::now());
 
         let late = apply_update(
             &mut maps.borrow(),
@@ -762,7 +802,7 @@ mod tests {
         maps.pull_cancellations
             .insert(daemon, (true, stalled.session_id));
 
-        reap(&mut maps.borrow(), &[stalled.session_id], Utc::now());
+        reap(&mut maps.borrow(), &[stalled_as(&stalled)], Utc::now());
 
         assert_eq!(
             maps.pull_cancellations.get(&daemon),
@@ -777,13 +817,61 @@ mod tests {
         let last_heard = Utc::now() - Duration::minutes(7);
         maps.last_updated.insert(stalled.session_id, last_heard);
 
-        let reaped = reap(&mut maps.borrow(), &[stalled.session_id], Utc::now());
+        let reaped = reap(
+            &mut maps.borrow(),
+            &[(stalled.session_id, DiscoveryTerminalReason::SessionSilent)],
+            Utc::now(),
+        );
 
         assert_eq!(
             reaped[0].session.reason,
-            Some(DiscoveryTerminalReason::StalledNoUpdates)
+            Some(DiscoveryTerminalReason::SessionSilent)
         );
         assert_eq!(reaped[0].session.last_update_at, Some(last_heard));
+    }
+
+    #[test]
+    fn a_stall_names_its_cause_from_when_the_daemon_last_checked_in() {
+        let now = Utc::now();
+        let seen = |ago: i64| Some(now - Duration::seconds(ago));
+
+        assert_eq!(
+            stall_reason(seen(30), now, threshold()),
+            DiscoveryTerminalReason::SessionSilent
+        );
+        assert_eq!(
+            stall_reason(seen(THRESHOLD_MINUTES * 60 + 1), now, threshold()),
+            DiscoveryTerminalReason::DaemonOffline
+        );
+        assert_eq!(
+            stall_reason(None, now, threshold()),
+            DiscoveryTerminalReason::StalledNoUpdates
+        );
+    }
+
+    #[test]
+    fn a_session_its_daemon_dropped_ends_and_the_next_queued_one_starts() {
+        let mut maps = Maps::default();
+        let daemon = Uuid::new_v4();
+        let dropped = maps.start(daemon, DiscoveryPhase::Starting);
+        let queued = maps.start(daemon, DiscoveryPhase::Queued);
+        let mut failure = with_phase(&dropped, DiscoveryPhase::Failed);
+        failure.reason = Some(DiscoveryTerminalReason::DaemonDroppedSession);
+
+        let UpdateOutcome::Terminal(effects) =
+            apply_server_update(&mut maps.borrow(), &failure, Utc::now())
+        else {
+            panic!("a server-decided failure is terminal");
+        };
+
+        assert_eq!(
+            effects.promoted.map(|p| p.session_id),
+            Some(queued.session_id)
+        );
+        assert_eq!(
+            maps.sessions[&queued.session_id].phase,
+            DiscoveryPhase::Pending
+        );
     }
 
     #[test]

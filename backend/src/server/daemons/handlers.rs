@@ -945,6 +945,13 @@ async fn daemon_startup(
         .process_startup(id, request.daemon_version, request.os, auth.into_entity())
         .await?;
 
+    // Only DaemonPoll daemons announce their startup, once per boot.
+    state
+        .services
+        .daemon_service
+        .fail_sessions_lost_to_restart(id)
+        .await;
+
     Ok(Json(ApiResponse::success(capabilities)))
 }
 
@@ -1072,6 +1079,14 @@ async fn receive_work_request(
         .daemon_service
         .process_status(daemon_id, status.clone(), auth.entity.clone())
         .await?;
+
+    // Before dispatch and the cancellation read: a session the daemon dropped ends here, and the
+    // one promoted in its place goes out in this response.
+    state
+        .services
+        .daemon_service
+        .fail_sessions_dropped_by_daemon(&daemon, status.ready_for_work)
+        .await;
 
     // Only dispatch work if daemon reports ready
     let next_session = if status.ready_for_work {

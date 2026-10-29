@@ -9173,7 +9173,7 @@ export interface components {
          *     [`Self::daemon_assigned`]. Absent on runs recorded before this field existed.
          * @enum {string}
          */
-        DiscoveryTerminalReason: "Completed" | "UserCancelled" | "DaemonReportedFailure" | "StalledNoUpdates" | "DaemonRestarted" | "DaemonUnreachable" | "DaemonBusy" | "WatchdogTimeout";
+        DiscoveryTerminalReason: "Completed" | "UserCancelled" | "DaemonReportedFailure" | "StalledNoUpdates" | "DaemonRestarted" | "DaemonUnreachable" | "DaemonBusy" | "WatchdogTimeout" | "DaemonOffline" | "SessionSilent" | "DaemonDroppedSession";
         DiscoveryType: {
             /**
              * Format: uuid

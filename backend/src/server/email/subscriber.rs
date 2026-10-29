@@ -1,5 +1,5 @@
 //! Email subscriber for entity (Host/Site/User Created/Deleted) and
-//! onboarding (FirstDaemonRegistered, FirstDiscoveryCompleted) events.
+//! onboarding (FirstDaemonRegistered, FirstDiscoveryCompleted) events, and failed discovery runs.
 //!
 //! Triggers transactional emails: plan-limit notifications on entity
 //! create/delete, and post-onboarding guides (discovery walkthrough,
@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use secrecy::ExposeSecret;
 use std::collections::HashMap;
 
+use crate::daemon::discovery::types::base::{DiscoveryPhase, DiscoveryPhaseDiscriminants};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     billing::types::base::BillingReason,
@@ -778,3 +779,35 @@ inventory::submit!(SubscriberRegistration::new::<
     EmailService,
     DiscoveryDigestOperation,
 >());
+
+#[async_trait]
+impl Subscriber<DiscoveryPhase> for EmailService {
+    fn filter(&self) -> EventFilter<DiscoveryPhase> {
+        EventFilter::ops(vec![DiscoveryPhaseDiscriminants::Failed])
+    }
+
+    /// A failed run that brings its discovery to several failures in a row emails the daemon's
+    /// recipients. Every `Failed` event is a finished run, published once its historical row is
+    /// written. Not retried: a re-run would mail recipients that already got it.
+    async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
+        let mut failures = Vec::new();
+        for event in events {
+            if let Err(e) = self
+                .daemon_service
+                .send_failure_streak_notification(
+                    event.scope.session_id,
+                    event.scope.daemon_id,
+                    self,
+                )
+                .await
+            {
+                failures.push(anyhow::anyhow!(
+                    "failure streak email for session {}: {e:#}",
+                    event.scope.session_id
+                ));
+            }
+        }
+        NonRetryable::from_failures(failures).map_or(Ok(()), |e| Err(e.into()))
+    }
+}
+inventory::submit!(SubscriberRegistration::new::<EmailService, DiscoveryPhase>());

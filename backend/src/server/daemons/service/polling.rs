@@ -1,4 +1,5 @@
-//! ServerPoll polling loop and per-daemon poll state machine.
+//! ServerPoll polling loop and per-daemon poll state machine, and ending the sessions a daemon of
+//! either mode can no longer finish.
 use super::*;
 use crate::daemon::discovery::types::base::{DiscoveryPhase, DiscoveryTerminalReason};
 use crate::server::shared::types::error_codes::ErrorCode;
@@ -133,6 +134,93 @@ impl DaemonService {
                     session_id,
                     DiscoveryTerminalReason::DaemonUnreachable,
                     "The server stopped being able to reach the daemon running this scan"
+                        .to_string(),
+                )
+                .await;
+        }
+    }
+
+    /// End the sessions a DaemonPoll daemon was holding when it announced its startup: a process
+    /// that just booted holds none, so every session it was handed is lost.
+    ///
+    /// `Starting` counts here. A DaemonPoll daemon is handed work only in a work request's
+    /// response, and it makes no work request until its startup announcement returns, so a
+    /// `Starting` session went to the process before this one.
+    pub(crate) async fn fail_sessions_lost_to_restart(&self, daemon_id: Uuid) {
+        let sessions = self.discovery_service.sessions_on_daemon(&daemon_id).await;
+        for session_id in handed_out_sessions(&sessions) {
+            self.discovery_service
+                .fail_session(
+                    session_id,
+                    DiscoveryTerminalReason::DaemonRestarted,
+                    "Daemon restarted during discovery; session state was lost".to_string(),
+                )
+                .await;
+        }
+    }
+
+    /// End the sessions a DaemonPoll daemon no longer holds, judged from a work request.
+    ///
+    /// The daemon sends a session's final report, with retries, before it frees its slot, and it
+    /// makes one work request at a time, starting the session a response hands it before the next.
+    /// So a daemon that reports itself ready for work while the server has it holding a session
+    /// either never got that session or gave up reporting how it ended. Either way nothing more is
+    /// coming for it. Runs before the request hands out new work, so the session promoted in its
+    /// place goes out in the same response.
+    pub(crate) async fn fail_sessions_dropped_by_daemon(
+        &self,
+        daemon: &Daemon,
+        ready_for_work: bool,
+    ) {
+        let sessions = self.discovery_service.sessions_on_daemon(&daemon.id).await;
+        for session_id in
+            dropped_sessions(ready_for_work, daemon.reports_ready_for_work(), &sessions)
+        {
+            self.discovery_service
+                .fail_session(
+                    session_id,
+                    DiscoveryTerminalReason::DaemonDroppedSession,
+                    "The daemon was idle while the server had it running this scan, and never reported how the scan ended"
+                        .to_string(),
+                )
+                .await;
+        }
+    }
+
+    /// Settle a session a ServerPoll daemon said it is not running when asked to cancel it.
+    ///
+    /// The daemon may have finished the session a moment before: it keeps the final report until
+    /// its next session starts, so one drain records that outcome. A session still running once
+    /// the drain succeeds was lost to a restart, the only way a ServerPoll daemon loses its report.
+    /// `Starting` is left alone, since a dispatch may still be on its way to the daemon.
+    /// Daemons too old for the poll endpoints are left to the stall sweep.
+    pub(crate) async fn reconcile_not_running(&self, daemon_id: Uuid, session_id: Uuid) {
+        let daemon = match self.get_by_id(&daemon_id).await {
+            Ok(Some(daemon)) if daemon.supports_full_server_poll() => daemon,
+            _ => return,
+        };
+        let api_key = match self.get_daemon_api_key(&daemon).await {
+            Ok(key) => key,
+            Err(e) => {
+                tracing::debug!(
+                    daemon_id = %daemon_id,
+                    error = %e,
+                    "Cannot poll the daemon to settle a session it is not running"
+                );
+                return;
+            }
+        };
+        if !self.drain_discovery(&daemon, &api_key).await {
+            return;
+        }
+
+        let sessions = self.discovery_service.sessions_on_daemon(&daemon_id).await;
+        if dispatched_sessions(&sessions).contains(&session_id) {
+            self.discovery_service
+                .fail_session(
+                    session_id,
+                    DiscoveryTerminalReason::DaemonRestarted,
+                    "The daemon no longer had this scan when asked to cancel it; it restarted and lost it"
                         .to_string(),
                 )
                 .await;
@@ -316,75 +404,7 @@ impl DaemonService {
             }
         }
 
-        // Poll discovery data
-        let poll_ok = match self.poll_discovery(daemon, &api_key).await {
-            Ok(mut poll_response) => {
-                let auth = AuthenticatedEntity::System;
-
-                // Processing runs as `System`, so the daemon's site scope is enforced here: the
-                // DaemonPoll endpoint refuses VLANs for a site the daemon is not assigned to, and
-                // the same submission arriving by poll must not get further.
-                poll_response.entities.vlans.retain(|batch| {
-                    let allowed = batch.request.site_id == daemon.base.site_id;
-                    if !allowed {
-                        tracing::warn!(
-                            daemon_id = %daemon.id,
-                            site_id = %batch.request.site_id,
-                            "Dropping VLAN batch for a site the daemon is not assigned to"
-                        );
-                    }
-                    allowed
-                });
-
-                // Entities before progress. A poll response can carry both the
-                // session's terminal update and the last hosts of that session,
-                // and finalizing a session consumes the discovery's one-shot
-                // integration targets — which are only safe to consume once the
-                // credentials that probed successfully have been promoted to
-                // host assignments, which is what persisting these entities does.
-                if !poll_response.entities.is_empty() {
-                    match self
-                        .process_discovery_entities(poll_response.entities, auth.clone())
-                        .await
-                    {
-                        Ok(created_entities) => {
-                            // Send created entities back to daemon
-                            if let Err(e) = self
-                                .send_created_entities(daemon, &api_key, created_entities)
-                                .await
-                            {
-                                tracing::warn!(
-                                    daemon_id = %daemon.id,
-                                    "Failed to send created entities to daemon: {}",
-                                    e
-                                );
-                            }
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                daemon_id = %daemon.id,
-                                error = ?e,
-                                "Failed to process discovery entities"
-                            );
-                        }
-                    }
-                }
-
-                // Process progress update if available
-                if let Some(progress) = poll_response.progress {
-                    self.process_discovery_progress(progress).await;
-                }
-                true
-            }
-            Err(e) => {
-                tracing::debug!(
-                    daemon_id = %daemon.id,
-                    "Failed to poll daemon discovery: {}",
-                    e
-                );
-                false
-            }
-        };
+        let poll_ok = self.drain_discovery(daemon, &api_key).await;
 
         // A daemon that says it is ready for work while the server has it running a session has
         // restarted and lost that session: it will never report on it again. After the progress
@@ -463,6 +483,79 @@ impl DaemonService {
         }
 
         Ok(())
+    }
+
+    /// Fetch a ServerPoll daemon's buffered discovery data and process it, entities before
+    /// progress. Returns whether the poll succeeded.
+    pub(crate) async fn drain_discovery(&self, daemon: &Daemon, api_key: &str) -> bool {
+        match self.poll_discovery(daemon, api_key).await {
+            Ok(mut poll_response) => {
+                let auth = AuthenticatedEntity::System;
+
+                // Processing runs as `System`, so the daemon's site scope is enforced here: the
+                // DaemonPoll endpoint refuses VLANs for a site the daemon is not assigned to, and
+                // the same submission arriving by poll must not get further.
+                poll_response.entities.vlans.retain(|batch| {
+                    let allowed = batch.request.site_id == daemon.base.site_id;
+                    if !allowed {
+                        tracing::warn!(
+                            daemon_id = %daemon.id,
+                            site_id = %batch.request.site_id,
+                            "Dropping VLAN batch for a site the daemon is not assigned to"
+                        );
+                    }
+                    allowed
+                });
+
+                // Entities before progress. A poll response can carry both the
+                // session's terminal update and the last hosts of that session,
+                // and finalizing a session consumes the discovery's one-shot
+                // integration targets — which are only safe to consume once the
+                // credentials that probed successfully have been promoted to
+                // host assignments, which is what persisting these entities does.
+                if !poll_response.entities.is_empty() {
+                    match self
+                        .process_discovery_entities(poll_response.entities, auth.clone())
+                        .await
+                    {
+                        Ok(created_entities) => {
+                            // Send created entities back to daemon
+                            if let Err(e) = self
+                                .send_created_entities(daemon, api_key, created_entities)
+                                .await
+                            {
+                                tracing::warn!(
+                                    daemon_id = %daemon.id,
+                                    "Failed to send created entities to daemon: {}",
+                                    e
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                daemon_id = %daemon.id,
+                                error = ?e,
+                                "Failed to process discovery entities"
+                            );
+                        }
+                    }
+                }
+
+                // Process progress update if available
+                if let Some(progress) = poll_response.progress {
+                    self.process_discovery_progress(progress).await;
+                }
+                true
+            }
+            Err(e) => {
+                tracing::debug!(
+                    daemon_id = %daemon.id,
+                    "Failed to poll daemon discovery: {}",
+                    e
+                );
+                false
+            }
+        }
     }
 
     /// Get the API key for a daemon (from the linked api_key_id)
@@ -589,6 +682,35 @@ fn dispatched_sessions(sessions: &[DiscoveryUpdatePayload]) -> Vec<Uuid> {
         .filter(|s| matches!(s.phase, DiscoveryPhase::Started | DiscoveryPhase::Scanning))
         .map(|s| s.session_id)
         .collect()
+}
+
+/// The sessions a DaemonPoll daemon was handed and has not finished: the dispatched ones, and
+/// `Starting`, which for a DaemonPoll daemon means a work response already carried it (see
+/// [`DaemonService::fail_sessions_lost_to_restart`]).
+fn handed_out_sessions(sessions: &[DiscoveryUpdatePayload]) -> Vec<Uuid> {
+    sessions
+        .iter()
+        .filter(|s| {
+            matches!(
+                s.phase,
+                DiscoveryPhase::Starting | DiscoveryPhase::Started | DiscoveryPhase::Scanning
+            )
+        })
+        .map(|s| s.session_id)
+        .collect()
+}
+
+/// Sessions a DaemonPoll daemon has dropped: the ones it was handed, when it reports itself ready
+/// for work. Readiness is only evidence when the daemon's version really reports it.
+fn dropped_sessions(
+    ready_for_work: bool,
+    reports_ready: bool,
+    sessions: &[DiscoveryUpdatePayload],
+) -> Vec<Uuid> {
+    if !(ready_for_work && reports_ready) {
+        return Vec::new();
+    }
+    handed_out_sessions(sessions)
 }
 
 #[cfg(test)]
@@ -742,5 +864,35 @@ mod tests {
             dispatched_sessions(&sessions),
             vec![scanning.session_id, started.session_id]
         );
+    }
+
+    /// A DaemonPoll daemon that comes back ready has dropped every session it was handed,
+    /// including one a work response carried that it never started. Sessions still waiting on the
+    /// server were never its to lose.
+    #[test]
+    fn a_ready_polling_daemon_has_dropped_what_it_was_handed() {
+        let starting = session(DiscoveryPhase::Starting);
+        let scanning = session(DiscoveryPhase::Scanning);
+        let sessions = [
+            starting.clone(),
+            scanning.clone(),
+            session(DiscoveryPhase::Queued),
+            session(DiscoveryPhase::Pending),
+            session(DiscoveryPhase::AwaitingSnapshot),
+        ];
+
+        assert_eq!(
+            dropped_sessions(true, true, &sessions),
+            vec![starting.session_id, scanning.session_id]
+        );
+    }
+
+    /// Busy, or too old to report readiness truthfully: nothing is judged dropped.
+    #[test]
+    fn readiness_is_only_evidence_when_the_daemon_is_ready_and_reports_it() {
+        let sessions = [session(DiscoveryPhase::Scanning)];
+
+        assert!(dropped_sessions(false, true, &sessions).is_empty());
+        assert!(dropped_sessions(true, false, &sessions).is_empty());
     }
 }

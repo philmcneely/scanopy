@@ -33359,7 +33359,10 @@
           "DaemonRestarted",
           "DaemonUnreachable",
           "DaemonBusy",
-          "WatchdogTimeout"
+          "WatchdogTimeout",
+          "DaemonOffline",
+          "SessionSilent",
+          "DaemonDroppedSession"
         ]
       },
       "DiscoveryType": {
