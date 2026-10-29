@@ -13,7 +13,6 @@ import type { ErrorCode } from '$lib/generated/error-codes';
 import {
 	common_httpError,
 	common_requestTimedOut,
-	common_requestUnreachable,
 	common_requestUnconfirmed
 } from '$lib/paraglide/messages';
 import { env } from '$env/dynamic/public';
@@ -426,10 +425,10 @@ export const AUTH_EMAIL_VERIFICATION_REQUIRED: ErrorCode = 'auth_email_verificat
 
 const errorMiddleware: Middleware = {
 	async onResponse({ request, response }) {
-		// Something answered for a server that is down or restarting. Told once per outage; the
-		// app refetches by itself when the server answers again (server-reachability.ts).
+		// Something answered for a server that is down or restarting. A banner shows until the
+		// server answers again, and the app then refetches by itself (server-reachability.ts).
 		if (isUnreachableResponse(response)) {
-			if (reportUnreachable()) pushError(common_requestUnreachable());
+			reportUnreachable();
 			return response;
 		}
 		reportAnswered();
@@ -493,8 +492,8 @@ const errorMiddleware: Middleware = {
 		if (error instanceof DOMException && error.name === 'AbortError') return;
 		// Everything still here is a rejected fetch — no connection, DNS, CORS — where the browser's
 		// own message ("Failed to fetch") is neither translated nor useful. The cause is the same
-		// whichever it is: the request never reached the server. Told once per outage.
-		if (reportUnreachable()) pushError(common_requestUnreachable());
+		// whichever it is: the request never reached the server, which the unreachable banner reports.
+		reportUnreachable();
 	}
 };
 

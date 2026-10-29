@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { get } from 'svelte/store';
 
 vi.mock('$env/dynamic/public', () => ({
 	env: { PUBLIC_SERVER_HOSTNAME: 'scanopy.test', PUBLIC_SERVER_PROTOCOL: 'http' }
@@ -9,7 +10,7 @@ vi.mock('$lib/api/query-client', () => ({ queryClient: { invalidateQueries } }))
 
 const { apiClient } = await import('$lib/api/client');
 const { pushError } = await import('$lib/shared/stores/feedback');
-const { PROBE_INTERVAL_MS, isServerUnreachable, isUnreachableResponse } =
+const { PROBE_INTERVAL_MS, isServerUnreachable, isUnreachableResponse, serverUnreachable } =
 	await import('$lib/api/server-reachability');
 
 function json(status: number, body: unknown): Response {
@@ -61,17 +62,19 @@ describe('server reachability', () => {
 		vi.unstubAllGlobals();
 	});
 
-	it('tells the user once per outage, not once per failed request', async () => {
+	it('reports an outage through the banner state, not a toast per failed request', async () => {
 		vi.stubGlobal(
 			'fetch',
 			vi.fn(async () => proxyDown())
 		);
 		await apiClient.GET('/api/v1/hosts');
 		await apiClient.GET('/api/v1/subnets');
-		await apiClient.GET('/api/v1/sites');
 
-		expect(isServerUnreachable()).toBe(true);
-		expect(pushError).toHaveBeenCalledTimes(1);
+		expect(get(serverUnreachable)).toBe(true);
+		expect(pushError).not.toHaveBeenCalled();
+
+		await recover();
+		expect(get(serverUnreachable)).toBe(false);
 	});
 
 	it('probes until the server answers, then refetches every query once', async () => {

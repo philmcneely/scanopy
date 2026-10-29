@@ -34,9 +34,9 @@
 	} from '$lib/shared/utils/first-touch';
 	import PaymentMethodModal from '$lib/features/billing/PaymentMethodModal.svelte';
 	import LoadFailedState from './LoadFailedState.svelte';
+	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
+	import { serverUnreachable } from '$lib/api/server-reachability';
 	import {
-		auth_serverUnreachableSubtitle,
-		auth_serverUnreachableTitle,
 		billing_paymentMethodAdded,
 		billing_subscriptionActivated,
 		billing_subscriptionDelayed
@@ -56,6 +56,11 @@
 	// count as a logout.
 	let authCheckComplete = $derived(currentUser !== undefined);
 	let authUnreachable = $derived(currentUserQuery.isError && currentUser === undefined);
+	// While the server is down the unreachable banner shows above a spinner, and the recovery
+	// refetch brings the app up by itself. Only an error the server sent shows the failed state.
+	let authWaitingForServer = $derived(
+		authUnreachable && ($serverUnreachable || currentUserQuery.isFetching)
+	);
 
 	// Dates everywhere follow the signed-in user's display settings; defaults when signed out.
 	$effect(() => {
@@ -310,17 +315,16 @@
 	});
 </script>
 
-{#if isCheckingAuth && !$page.url.pathname.startsWith('/onboarding')}
-	<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
-		<Loading />
+{#if (isCheckingAuth && !$page.url.pathname.startsWith('/onboarding')) || authWaitingForServer}
+	<div class="flex min-h-screen flex-col bg-(--color-bg-elevated)">
+		<ServerUnreachableBanner />
+		<div class="flex flex-1 items-center justify-center">
+			<Loading />
+		</div>
 	</div>
 {:else if authUnreachable}
 	<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
-		<LoadFailedState
-			title={auth_serverUnreachableTitle()}
-			subtitle={auth_serverUnreachableSubtitle()}
-			onRetry={() => currentUserQuery.refetch()}
-		/>
+		<LoadFailedState onRetry={() => currentUserQuery.refetch()} />
 	</div>
 {:else}
 	{@render children()}

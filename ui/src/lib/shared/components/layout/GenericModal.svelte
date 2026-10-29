@@ -38,6 +38,8 @@
 	import ModalStepper from './ModalStepper.svelte';
 	import ServerUpdatedBanner from '$lib/shared/components/feedback/ServerUpdatedBanner.svelte';
 	import { serverUpdatePending } from '$lib/api/server-version';
+	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
+	import { serverUnreachable } from '$lib/api/server-reachability';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { toolbarButtonClass } from '$lib/shared/components/data/controls/actionShortcuts';
@@ -601,13 +603,15 @@
 					<X class="h-5 w-5" />
 				</button>
 			{/if}
-			{#if !noBanners && (banners || $serverUpdatePending)}
+			{#if !noBanners && (banners || $serverUpdatePending || $serverUnreachable)}
 				<!-- Clipped here rather than by putting overflow-hidden on the panel,
 				     which ~42 modals share: AppBanner is full-bleed with square corners
-				     and the panel is rounded. The server-update banner shows over every
-				     modal, opted in or not: the page behind is covered, and the tab
-				     reloads once the modal closes. -->
+				     and the panel is rounded. The server banners show over every modal,
+				     opted in or not: the page behind, which carries the unreachable
+				     banner otherwise, is covered, and the tab reloads for an update once
+				     the modal closes. -->
 				<div class="shrink-0 overflow-hidden rounded-t-lg">
+					<ServerUnreachableBanner />
 					<ServerUpdatedBanner />
 					{@render banners?.()}
 				</div>
