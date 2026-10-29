@@ -10,8 +10,8 @@ use scanopy::server::ip_addresses::r#impl::base::IPAddress;
 use scanopy::server::organizations::r#impl::base::Organization;
 use scanopy::server::ports::r#impl::base::Port;
 use scanopy::server::services::r#impl::base::Service;
-use scanopy::server::shared::entity_metadata::EntityCategory;
 use scanopy::server::shared::fixtures::generate_ui_data_fixtures;
+use scanopy::server::shared::product_area::ProductArea;
 use scanopy::server::shared::storage::traits::{Entity, Storable};
 use scanopy::server::shares::r#impl::base::Share;
 use scanopy::server::sites::r#impl::Site;
@@ -286,14 +286,14 @@ struct EntityMetadataEntry {
 
 impl EntityMetadataEntry {
     fn new<E: Entity + Storable>(id: &'static str) -> Self {
-        let category = E::entity_category();
+        let category = E::product_area();
         Self {
             id,
             name_singular: E::ENTITY_NAME_SINGULAR,
             name_plural: E::ENTITY_NAME_PLURAL,
             description: E::ENTITY_DESCRIPTION,
             category: category.into(),
-            category_display: <EntityCategory as scanopy::server::shared::types::metadata::TypeMetadataProvider>::name(
+            category_display: <ProductArea as scanopy::server::shared::types::metadata::TypeMetadataProvider>::name(
                 &category,
             ),
             table_name: E::table_name(),

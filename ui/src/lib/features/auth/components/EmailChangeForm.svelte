@@ -23,6 +23,7 @@
 	} from '$lib/paraglide/messages';
 
 	let {
+		// eslint-disable-next-line no-useless-assignment -- bound by the parent, which reads it
 		saving = $bindable(false),
 		onChanged
 	}: {

@@ -8,7 +8,7 @@ use uuid::Uuid;
 #[serde(tag = "type", content = "data")]
 pub enum LiveUpdate {
     /// Progress or an end state of a discovery session.
-    Discovery(DiscoveryUpdatePayload),
+    Discovery(Box<DiscoveryUpdatePayload>),
     /// A site's live entity set changed, so its topology needs refetching.
     Topology(LiveTopologyUpdate),
 }
@@ -44,13 +44,13 @@ mod tests {
     use crate::server::discovery::r#impl::types::DiscoveryType;
 
     fn discovery(site_id: Uuid) -> LiveUpdate {
-        LiveUpdate::Discovery(DiscoveryUpdatePayload::new(
+        LiveUpdate::Discovery(Box::new(DiscoveryUpdatePayload::new(
             Uuid::new_v4(),
             Uuid::new_v4(),
             site_id,
             DiscoveryType::default(),
             None,
-        ))
+        )))
     }
 
     fn topology(site_id: Uuid) -> LiveUpdate {

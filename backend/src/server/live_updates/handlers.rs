@@ -57,7 +57,7 @@ async fn live_updates_stream(
         loop {
             let update = tokio::select! {
                 received = discovery_rx.recv() => match received {
-                    Ok(update) => LiveUpdate::Discovery(update),
+                    Ok(update) => LiveUpdate::Discovery(Box::new(update)),
                     Err(RecvError::Lagged(n)) => {
                         tracing::warn!("Live-update stream lagged by {} discovery messages", n);
                         continue;
