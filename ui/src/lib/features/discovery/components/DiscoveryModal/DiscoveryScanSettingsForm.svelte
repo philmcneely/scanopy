@@ -9,7 +9,6 @@
 	import { formatDurationHuman } from '$lib/shared/utils/formatting';
 	import { translateFieldDefinitions } from '$lib/i18n/metadata';
 	import {
-		discovery_scanSettingsHelp,
 		discovery_docsScanSettings,
 		discovery_docsScanSettingsLinkText,
 		discovery_arpScanCutoffWarning,
@@ -177,7 +176,6 @@
 
 <div class="space-y-4">
 	<div class="flex flex-wrap items-baseline gap-x-1">
-		<p class="text-xs text-tertiary">{discovery_scanSettingsHelp()}</p>
 		<DocsHint
 			text={discovery_docsScanSettings()}
 			href="https://scanopy.net/docs/using-scanopy/discovery/"

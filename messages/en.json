@@ -1025,7 +1025,6 @@
 	"discovery_scanModeIntervalExplainer": "The first run is a light scan, so results arrive fast. The second run is a full scan of all 65,535 ports. After that, a full scan runs at this interval.",
 	"discovery_scanModeLight": "Light scan (common ports)",
 	"discovery_scanSettings": "Scan Settings",
-	"discovery_scanSettingsHelp": "Configure scan performance. Default values work well for most networks.",
 	"discovery_scanTuning": "Scan Tuning",
 	"discovery_scanningForHosts": "Scanning for hosts...",
 	"discovery_scheduleCronExpression": "Cron Expression",
