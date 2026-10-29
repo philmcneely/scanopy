@@ -10,68 +10,13 @@ impl ServiceService {
     ) -> Result<Service> {
         // NOTE: This function assumes the caller already holds the service lock.
         // It's called from create() which acquires the lock before calling this.
-        let mut binding_updates = 0;
-
         let service_before_updates = existing_service.clone();
         let mut reason = UpdateReason::EntityRediscovered;
 
-        for new_service_binding in &new_service_data.base.bindings {
-            // Check if this binding is already covered by existing bindings
-            // (e.g., a specific interface binding is covered by an "all ip_addresses" binding for the same port)
-            if Self::is_binding_covered_by_existing(
-                new_service_binding,
-                &existing_service.base.bindings,
-            ) {
-                continue;
-            }
-
-            // Check for binding type conflicts (Interface vs Port on same ip_address)
-            if let Some(conflict_msg) = Self::validate_binding_no_conflict(
-                &new_service_binding.base.binding_type,
-                &existing_service.base.bindings,
-            ) {
-                tracing::warn!(
-                    "Skipping binding {:?} - conflicts with existing binding: {}",
-                    new_service_binding.base.binding_type,
-                    conflict_msg
-                );
-                continue;
-            }
-
-            // If new binding is "all ip_addresses" port binding, remove specific interface bindings for same port
-            // (the all-interfaces binding supersedes them)
-            if let BindingType::Port {
-                port_id,
-                ip_address_id: None,
-            } = &new_service_binding.base.binding_type
-            {
-                let before_count = existing_service.base.bindings.len();
-                existing_service.base.bindings.retain(|existing| {
-                    // Log each comparison for debugging
-                    if let BindingType::Port {
-                        port_id: existing_port_id,
-                        ip_address_id: existing_ip_address_id,
-                    } = &existing.base.binding_type
-                    {
-                        let dominated =
-                            existing_ip_address_id.is_some() && existing_port_id == port_id;
-
-                        return !dominated;
-                    }
-                    true // Keep non-port bindings
-                });
-                let removed = before_count - existing_service.base.bindings.len();
-
-                if removed > 0 {
-                    binding_updates += removed;
-                }
-            }
-
-            if !existing_service.base.bindings.contains(new_service_binding) {
-                binding_updates += 1;
-                existing_service.base.bindings.push(*new_service_binding);
-            }
-        }
+        let binding_updates = Self::merge_rediscovered_bindings(
+            &mut existing_service.base.bindings,
+            &new_service_data.base.bindings,
+        );
 
         // A service never runs inside itself. The server's container safety net once copied an API
         // proxy's container identity onto the runtime the proxy fronts, leaving the runtime owned
