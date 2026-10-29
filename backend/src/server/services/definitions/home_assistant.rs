@@ -19,8 +19,12 @@ impl ServiceDefinition for HomeAssistant {
         ServiceCategory::HomeAutomation
     }
 
+    /// Also binds 1400, where the Sonos integration listens for the speakers' event callbacks: "the
+    /// Sonos devices must be able to connect back to the Home Assistant host on TCP port 1400"
+    /// (Home Assistant's Sonos integration docs, Network requirements).
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Endpoint(PortType::new_tcp(8123), "/", "home assistant", None)
+            .also_binding(Pattern::Port(PortType::new_tcp(1400)))
     }
 
     fn logo(&self) -> Option<Logo> {

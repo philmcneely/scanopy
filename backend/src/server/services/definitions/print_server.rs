@@ -27,8 +27,8 @@ impl ServiceDefinition for PrintServer {
     ///
     /// The LPD arms are gone. 515/udp has no probe, so the network scan never reports it and a
     /// container that declares it is not evidence. 515/tcp rested on a bare connect, which any
-    /// middlebox in the path satisfies. RFC 1179 gives LPD no greeting and no capability query to
-    /// replace it with: a status request needs a queue name we do not have.
+    /// middlebox in the path satisfies. A daemon that answers the LPD probe is the LPD
+    /// definition's.
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Header(Some(PortType::Ipp), "server", "CUPS", None)
     }

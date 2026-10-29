@@ -923,6 +923,7 @@ impl TypeMetadataProvider for ClientProbe {
             Self::DockerPing => "Docker",
             Self::PodmanPing => "Podman",
             Self::Ipp => "IPP",
+            Self::Lpd => "LPD",
             Self::SpotifyConnect => "Spotify Connect",
             Self::Vnc => "VNC",
             Self::AppleLockdown => "Apple lockdown",

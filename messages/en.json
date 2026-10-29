@@ -1639,6 +1639,7 @@
 	"meta_client_probes_Kafka_name": "Kafka",
 	"meta_client_probes_Kerberos_name": "Kerberos",
 	"meta_client_probes_Ldap_name": "LDAP",
+	"meta_client_probes_Lpd_name": "LPD",
 	"meta_client_probes_Mgcp_name": "MGCP",
 	"meta_client_probes_ModbusTcp_name": "Modbus TCP",
 	"meta_client_probes_MongoDb_name": "MongoDB",

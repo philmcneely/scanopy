@@ -412,6 +412,7 @@ pub mod cups;
 pub mod hp_printer;
 pub mod ipp_printer;
 pub mod jetdirect;
+pub mod lpd;
 pub mod print_server;
 
 // ============= UTILITIES & MISC =============
