@@ -89,9 +89,11 @@ pub mod h323;
 pub mod mgcp;
 pub mod ntp;
 pub mod rdp;
+pub mod rpcbind;
 pub mod rustdesk;
 pub mod saltmaster;
 pub mod saltproxy;
+pub mod smux;
 pub mod snmp;
 pub mod ssh;
 pub mod switch;
@@ -136,6 +138,7 @@ pub mod pf_sense;
 // DNS
 pub mod bind9;
 pub mod dns_server;
+pub mod llmnr;
 pub mod power_dns;
 pub mod unbound;
 
@@ -407,6 +410,7 @@ pub mod opc_ua;
 
 // Printer
 pub mod airprint_printer;
+pub mod bambu_lab_printer;
 pub mod brother_printer;
 pub mod cups;
 pub mod hp_printer;

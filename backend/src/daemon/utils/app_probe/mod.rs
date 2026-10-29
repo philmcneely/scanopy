@@ -42,6 +42,7 @@ pub mod kerberos;
 pub mod ldap;
 #[cfg(test)]
 mod live_servers;
+pub mod llmnr;
 pub mod lpd;
 pub mod mgcp;
 #[cfg(test)]
@@ -59,9 +60,11 @@ pub mod oracle;
 pub mod postgresql;
 pub mod rdp;
 pub mod redis;
+pub mod rpcbind;
 pub mod rtsp;
 pub mod sip;
 pub mod smb;
+pub mod smux;
 pub mod snmp_engine;
 pub mod spotify_connect;
 pub mod ssh;

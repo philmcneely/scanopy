@@ -53,8 +53,8 @@ impl ServiceDefinition for GoogleHome {
                 ]),
                 Pattern::DnsSd(DnsSdServiceType::GOOGLE_CAST, None),
                 Pattern::CertificateIssuer(CAST_AUDIO_CA, CAST_DEVICE_PORTS),
-            ])
-            .also_binding(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS)),
+            ]),
+            Pattern::Optional(Box::new(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS))),
         ])
     }
 

@@ -306,6 +306,13 @@ pub enum ClientProbe {
     Ipp,
     /// An LPD "send queue state" request came back as the plain-text status RFC 1179 describes.
     Lpd,
+    /// A SMUX `OpenPDU` came back as a `ClosePDU` (RFC 1227): the agent's multiplexing port
+    /// refusing a subagent it was not configured for, which is SMUX answering.
+    Smux,
+    /// An ONC RPC NULL call to the portmapper program came back as an RPC reply with our XID.
+    Rpcbind,
+    /// An LLMNR query over TCP for the reverse name of the probed address was answered.
+    Llmnr,
     /// A Spotify Connect receiver answered `getInfo` on the port and path its mDNS advertisement
     /// names, with the JSON every Spotify Connect implementation returns. The reply states the
     /// device's brand and model.
@@ -397,6 +404,9 @@ impl ClientProbe {
             | Self::PodmanPing
             | Self::Ipp
             | Self::Lpd
+            | Self::Smux
+            | Self::Rpcbind
+            | Self::Llmnr
             | Self::SpotifyConnect
             | Self::Vnc
             | Self::AppleLockdown
@@ -439,7 +449,8 @@ impl ClientProbe {
             Self::OpcUa => vec![PortType::OpcUa],
             Self::EtherNetIp => vec![PortType::EtherNetIp],
             Self::Sip => vec![PortType::Sip],
-            Self::Ssh => vec![PortType::Ssh],
+            // 2222 is the usual second sshd, and the banner tells it from anything else there.
+            Self::Ssh => vec![PortType::Ssh, PortType::new_tcp(2222)],
             Self::Ftp => vec![PortType::Ftp],
             Self::Telnet => vec![PortType::Telnet],
             Self::Rtsp => vec![PortType::Rtsp],
@@ -480,6 +491,9 @@ impl ClientProbe {
             Self::PodmanPing => vec![PortType::Http8888],
             Self::Ipp => vec![PortType::Ipp],
             Self::Lpd => vec![PortType::LdpTcp],
+            Self::Smux => vec![PortType::new_tcp(199)],
+            Self::Rpcbind => vec![PortType::new_tcp(111)],
+            Self::Llmnr => vec![PortType::new_tcp(5355)],
             Self::Vnc => vec![PortType::new_tcp(5900)],
             Self::AppleLockdown => vec![PortType::new_tcp(62078)],
             Self::DnsUdp => vec![PortType::DnsUdp],
@@ -583,6 +597,13 @@ pub enum Pattern<'a> {
 
     /// Inverse of pattern
     Not(Box<Pattern<'a>>),
+
+    /// Always matches, and binds the inner pattern's ports when the inner pattern matches. For the
+    /// ports a product opens only sometimes, placed in an [`Pattern::AllOf`] beside the evidence
+    /// that names it: the evidence decides the match, and this only adds what it finds. On its own,
+    /// or as an [`Pattern::AnyOf`] arm, it would match every host, which
+    /// `optional_patterns_only_sit_beside_evidence` refuses.
+    Optional(Box<Pattern<'a>>),
 
     /// Whether or not a specific port is open on the host
     Port(PortType),
@@ -721,6 +742,7 @@ impl PartialEq for Pattern<'_> {
             (Pattern::AnyOf(a), Pattern::AnyOf(b)) => a == b,
             (Pattern::AllOf(a), Pattern::AllOf(b)) => a == b,
             (Pattern::Not(a), Pattern::Not(b)) => a == b,
+            (Pattern::Optional(a), Pattern::Optional(b)) => a == b,
             (Pattern::Port(a), Pattern::Port(b)) => a == b,
             (
                 Pattern::Endpoint(port_a, path_a, match_a, range_a),
@@ -776,6 +798,7 @@ impl Display for Pattern<'_> {
                 write!(f, "All of: ({})", pattern_strings)
             }
             Pattern::Not(pattern) => write!(f, "Not ({})", pattern),
+            Pattern::Optional(pattern) => write!(f, "Optionally ({})", pattern),
             Pattern::Port(port_base) => write!(f, "{} is open", port_base),
             Pattern::Endpoint(port_base, path, match_string, range) => {
                 if let Some(range) = range {
@@ -1181,6 +1204,27 @@ impl Pattern<'_> {
                 }),
             },
 
+            // Never fails, and never raises the confidence of the match it sits in: the evidence beside
+            // it decided that. It contributes the ports its inner pattern bound, and a reason either way.
+            Pattern::Optional(pattern) => Ok(match pattern.matches(params) {
+                Ok(result) => MatchResult {
+                    details: MatchDetails {
+                        reason: result.details.reason,
+                        confidence: MatchConfidence::NotApplicable,
+                    },
+                    ..result
+                },
+                Err(e) => MatchResult {
+                    ports: vec![],
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
+                        reason: MatchReason::Reason(format!("Optional, absent: {e}")),
+                        confidence: MatchConfidence::NotApplicable,
+                    },
+                },
+            }),
+
             Pattern::AnyOf(patterns) => {
                 let mut ports = Vec::new();
                 let mut endpoint = None;
@@ -1264,11 +1308,16 @@ impl Pattern<'_> {
                     let max_confidence =
                         matched_confidences.last().unwrap_or(&MatchConfidence::Low);
 
-                    // Boost confidence if multiple lower-confidence patterns are matched
+                    // Boost confidence if multiple lower-confidence patterns are matched. An
+                    // optional arm is not one: it is `NotApplicable`, and corroborates nothing.
+                    let corroborating = matched_confidences
+                        .iter()
+                        .filter(|c| **c != MatchConfidence::NotApplicable)
+                        .count();
                     let confidence = if matches!(
                         max_confidence,
                         MatchConfidence::Low | MatchConfidence::Medium
-                    ) && matched_confidences.len() > 3
+                    ) && corroborating > 3
                     {
                         match max_confidence {
                             MatchConfidence::Low => MatchConfidence::Medium,
@@ -1611,6 +1660,7 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
             }
+            Pattern::Optional(pattern) => pattern.ports(),
             Pattern::ClientResponse(probe) => probe.ports(),
             Pattern::CertificateIssuer(_, ports) | Pattern::Recog(_, ports) => {
                 ports.iter().map(|port| PortType::new_tcp(*port)).collect()
@@ -1626,6 +1676,7 @@ impl Pattern<'_> {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().flat_map(|p| p.client_probes()).collect()
             }
+            Pattern::Optional(pattern) => pattern.client_probes(),
             _ => vec![],
         }
     }
@@ -1653,6 +1704,7 @@ impl Pattern<'_> {
                 .iter()
                 .flat_map(|p| p.endpoints().to_vec())
                 .collect(),
+            Pattern::Optional(pattern) => pattern.endpoints(),
             // The page whose title, cookies and challenge the fingerprints read.
             Pattern::Recog(_, ports) => ports
                 .iter()
@@ -1735,6 +1787,8 @@ impl Pattern<'_> {
             Pattern::Port(_) => true,
             // Satisfied when the inner pattern *fails*, which needs no evidence at all.
             Pattern::Not(_) => true,
+            // Satisfied whatever the inner pattern finds.
+            Pattern::Optional(_) => true,
             Pattern::AnyOf(patterns) => patterns.iter().any(|p| p.satisfiable_by_connect()),
             Pattern::AllOf(patterns) => patterns.iter().all(|p| p.satisfiable_by_connect()),
             _ => false,
@@ -1757,16 +1811,9 @@ impl<'a> Pattern<'a> {
                 patterns.iter().flat_map(|p| p.dns_sd_types()).collect()
             }
             Pattern::Not(pattern) => pattern.dns_sd_types(),
+            Pattern::Optional(pattern) => pattern.dns_sd_types(),
             _ => vec![],
         }
-    }
-
-    /// Matches when `self` does, and also binds what `extra` matches when it matches too. For
-    /// ports a device opens only sometimes, or on numbers that vary by unit: they are claimed
-    /// alongside the evidence, never instead of it. `AnyOf` binds the ports of every arm that
-    /// matches, so the second arm adds `extra`'s ports only when both hold.
-    pub fn also_binding(self, extra: Pattern<'a>) -> Pattern<'a> {
-        Pattern::AnyOf(vec![self.clone(), Pattern::AllOf(vec![self, extra])])
     }
 }
 

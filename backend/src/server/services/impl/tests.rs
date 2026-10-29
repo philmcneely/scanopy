@@ -294,6 +294,7 @@ fn test_all_protocol_ports_have_generic_service() {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => patterns
                 .iter()
                 .any(|p| pattern_matches_port_alone(p, target_port)),
+            Pattern::Optional(p) => pattern_matches_port_alone(p, target_port),
             Pattern::Not(_) => false,
             _ => false,
         }
@@ -372,7 +373,7 @@ fn check_port_usage(
                 check_port_usage(p, well_known_ports, service_name);
             }
         }
-        Pattern::Not(p) => {
+        Pattern::Not(p) | Pattern::Optional(p) => {
             check_port_usage(p, well_known_ports, service_name);
         }
         _ => {}
@@ -485,6 +486,7 @@ fn udp_openness_alone(pattern: &Pattern) -> Option<bool> {
     match pattern {
         Pattern::Port(port) => port.is_udp().then_some(true),
         Pattern::Not(_)
+        | Pattern::Optional(_)
         | Pattern::IsGateway
         | Pattern::SubnetIsType(_)
         | Pattern::ContainerVirtualization => Some(false),
@@ -1261,6 +1263,43 @@ fn connect_only_definitions_are_declared() {
         "these definitions declare a `connect_only_rationale()` they no longer need, because their \
          pattern already validates what answered: {stale:?}\n\
          Remove the declaration; the exception set is meant to shrink."
+    );
+}
+
+/// `Pattern::Optional` always matches, so it only means something inside an `AllOf` beside evidence
+/// that can fail. At the top of a pattern, as an `AnyOf` arm, or in an `AllOf` of nothing but
+/// optionals, it makes the definition match every host it is run against. Under a `Not` it makes
+/// the `Not` never match.
+#[test]
+fn optional_patterns_only_sit_beside_evidence() {
+    use crate::server::services::definitions::ServiceDefinitionRegistry;
+    use crate::server::services::r#impl::definitions::ServiceDefinition;
+
+    /// Whether `pattern` holds an `Optional` somewhere it is not allowed. `allowed` is whether
+    /// `pattern` is an arm of an `AllOf` that has a non-optional arm.
+    fn misplaced(pattern: &Pattern<'_>, allowed: bool) -> bool {
+        match pattern {
+            Pattern::Optional(inner) => !allowed || misplaced(inner, false),
+            Pattern::AllOf(arms) => {
+                let has_evidence = arms.iter().any(|arm| !matches!(arm, Pattern::Optional(_)));
+                arms.iter().any(|arm| misplaced(arm, has_evidence))
+            }
+            Pattern::AnyOf(arms) => arms.iter().any(|arm| misplaced(arm, false)),
+            Pattern::Not(inner) => misplaced(inner, false),
+            _ => false,
+        }
+    }
+
+    let offenders: BTreeSet<&'static str> = ServiceDefinitionRegistry::all_service_definitions()
+        .iter()
+        .filter(|d| misplaced(&d.discovery_pattern(), false))
+        .map(|d| ServiceDefinition::name(d))
+        .collect();
+
+    assert!(
+        offenders.is_empty(),
+        "these definitions use `Pattern::Optional` somewhere it always matches: {offenders:?}\n\
+         Put it in an `AllOf` beside the evidence that names the product."
     );
 }
 

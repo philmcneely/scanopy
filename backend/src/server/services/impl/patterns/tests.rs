@@ -1967,7 +1967,7 @@ fn every_recog_product_a_definition_names_exists_in_the_vendored_data() {
             Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
                 patterns.iter().for_each(|p| recog_pairs(p, out))
             }
-            Pattern::Not(inner) => recog_pairs(inner, out),
+            Pattern::Not(inner) | Pattern::Optional(inner) => recog_pairs(inner, out),
             _ => {}
         }
     }
@@ -2014,4 +2014,30 @@ fn a_web_service_takes_only_unbound_ports_that_answered_http() {
     let unbound = vec![PortType::new_tcp(2222)];
     let params = ctx.create_params_with_ports(&baseline, &unbound);
     assert!(web.discovery_pattern().matches(&params).is_err());
+}
+
+/// An optional part binds its ports when present and is never evidence: the match rests on what
+/// sits beside it.
+#[test]
+fn an_optional_part_binds_beside_the_evidence_and_never_alone() {
+    let ctx = TestContext::new();
+    let pattern = Pattern::AllOf(vec![
+        Pattern::Port(PortType::Http),
+        Pattern::Optional(Box::new(Pattern::Port(PortType::new_tcp(1400)))),
+    ]);
+    let ports_bound = |open: Vec<PortType>| {
+        let baseline = ctx.create_baseline_params(&open);
+        let params = ctx.create_params_with_ports(&baseline, &open);
+        pattern.matches(&params).ok().map(|result| result.ports)
+    };
+
+    assert_eq!(
+        ports_bound(vec![PortType::Http]),
+        Some(vec![PortType::Http])
+    );
+    assert_eq!(
+        ports_bound(vec![PortType::Http, PortType::new_tcp(1400)]),
+        Some(vec![PortType::Http, PortType::new_tcp(1400)])
+    );
+    assert_eq!(ports_bound(vec![PortType::new_tcp(1400)]), None);
 }

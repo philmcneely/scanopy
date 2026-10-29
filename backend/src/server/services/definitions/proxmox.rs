@@ -27,9 +27,20 @@ impl ServiceDefinition for Proxmox {
         // The credentialed probe is the second way in: an API token that answers `/version` is a
         // Proxmox VE node whatever its web UI serves, and `execute_integrations` requires this
         // service to be matched before the Proxmox integration may run.
-        Pattern::AnyOf(vec![
-            Pattern::Endpoint(PortType::new_tcp(8006), "/", "proxmox", None),
-            Pattern::ClientResponse(ClientProbe::Proxmox),
+        //
+        // Once the node is known, its SPICE proxy on 3128 is bound too. `spiceproxy` refuses a plain
+        // GET with `501` and names the Proxmox API daemon in `Server`.
+        Pattern::AllOf(vec![
+            Pattern::AnyOf(vec![
+                Pattern::Endpoint(PortType::new_tcp(8006), "/", "proxmox", None),
+                Pattern::ClientResponse(ClientProbe::Proxmox),
+            ]),
+            Pattern::Optional(Box::new(Pattern::Header(
+                Some(PortType::new_tcp(3128)),
+                "server",
+                "pve-api-daemon",
+                Some(501..502),
+            ))),
         ])
     }
 

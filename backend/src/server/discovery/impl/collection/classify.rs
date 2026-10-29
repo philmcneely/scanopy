@@ -178,6 +178,9 @@ impl ClientProbe {
             | Self::PodmanPing
             | Self::Ipp
             | Self::Lpd
+            | Self::Smux
+            | Self::Rpcbind
+            | Self::Llmnr
             | Self::DnsUdp
             | Self::Ntp
             | Self::Dhcp

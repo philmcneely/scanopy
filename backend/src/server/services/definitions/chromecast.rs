@@ -47,8 +47,8 @@ impl ServiceDefinition for ChromecastDevice {
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
                 Pattern::CertificateIssuer(CAST_DEVICE_CA, CAST_DEVICE_PORTS),
-            ])
-            .also_binding(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS)),
+            ]),
+            Pattern::Optional(Box::new(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS))),
         ])
     }
 
