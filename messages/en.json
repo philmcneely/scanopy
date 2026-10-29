@@ -3206,7 +3206,7 @@
 	"subnets_utilizationValue": "{used} / {usable}",
 	"support_betaProgram": "Join the Beta Program",
 	"support_betaProgramDesc": "Try new features before release and tell us what you think",
-	"support_betaProgramFeaturesDesc": "Try {features} before release and tell us what you think",
+	"support_betaProgramFeaturesDesc": "Get early access to {features} and tell us what you think",
 	"support_discordDesc": "Join our community for help and discussions",
 	"support_emailDesc": "Email the Scanopy team directly",
 	"support_incorrectDetection": "Incorrect Service Detection",
