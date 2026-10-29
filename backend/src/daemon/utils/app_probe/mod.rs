@@ -42,6 +42,7 @@ pub mod kerberos;
 pub mod ldap;
 #[cfg(test)]
 mod live_servers;
+pub mod lpd;
 pub mod mgcp;
 #[cfg(test)]
 mod middlebox;

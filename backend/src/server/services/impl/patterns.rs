@@ -304,6 +304,8 @@ pub enum ClientProbe {
     /// A `Get-Printer-Attributes` request came back as an `application/ipp` message, whatever its
     /// status.
     Ipp,
+    /// An LPD "send queue state" request came back as the plain-text status RFC 1179 describes.
+    Lpd,
     /// A Spotify Connect receiver answered `getInfo` on the port and path its mDNS advertisement
     /// names, with the JSON every Spotify Connect implementation returns. The reply states the
     /// device's brand and model.
@@ -394,6 +396,7 @@ impl ClientProbe {
             | Self::DockerPing
             | Self::PodmanPing
             | Self::Ipp
+            | Self::Lpd
             | Self::SpotifyConnect
             | Self::Vnc
             | Self::AppleLockdown
@@ -476,6 +479,7 @@ impl ClientProbe {
             Self::DockerPing => vec![PortType::Docker],
             Self::PodmanPing => vec![PortType::Http8888],
             Self::Ipp => vec![PortType::Ipp],
+            Self::Lpd => vec![PortType::LdpTcp],
             Self::Vnc => vec![PortType::new_tcp(5900)],
             Self::AppleLockdown => vec![PortType::new_tcp(62078)],
             Self::DnsUdp => vec![PortType::DnsUdp],

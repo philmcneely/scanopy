@@ -177,6 +177,7 @@ impl ClientProbe {
             | Self::DockerPing
             | Self::PodmanPing
             | Self::Ipp
+            | Self::Lpd
             | Self::DnsUdp
             | Self::Ntp
             | Self::Dhcp

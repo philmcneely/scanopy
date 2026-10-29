@@ -30429,6 +30429,7 @@
           "DockerPing",
           "PodmanPing",
           "Ipp",
+          "Lpd",
           "SpotifyConnect",
           "Vnc",
           "AppleLockdown",

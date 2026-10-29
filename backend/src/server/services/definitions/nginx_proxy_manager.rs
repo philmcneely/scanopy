@@ -19,8 +19,19 @@ impl ServiceDefinition for NginxProxyManager {
         ServiceCategory::ReverseProxy
     }
 
+    /// The default site on 80 and the admin UI on 81 both name the product. Once one has, the
+    /// proxy's TLS listener on 443 and the backend API on 3000 are bound too. The API answers `/`
+    /// with its status and version (`{"status":"OK","setup":true,"version":{…,"revision":3}}`,
+    /// `backend/routes/main.js`), which says nothing about the product without the page beside it.
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::Http, "", "nginx proxy manager", None)
+        Pattern::AnyOf(vec![
+            Pattern::Endpoint(PortType::Http, "", "nginx proxy manager", None),
+            Pattern::Endpoint(PortType::new_tcp(81), "", "nginx proxy manager", None),
+        ])
+        .also_binding(Pattern::AnyOf(vec![
+            Pattern::Port(PortType::Https),
+            Pattern::Endpoint(PortType::Http3000, "/", "\"revision\"", None),
+        ]))
     }
 
     fn logo(&self) -> Option<Logo> {

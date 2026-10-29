@@ -25,7 +25,12 @@ impl ServiceDefinition for PiHole {
                 Pattern::Port(PortType::DnsUdp),
                 Pattern::Port(PortType::DnsTcp),
             ]),
-            Pattern::Endpoint(PortType::Http, "/admin", "pi-hole", None),
+            // Pi-hole v6's built-in web server serves the admin UI on 443 as well as 80, under a
+            // self-signed certificate.
+            Pattern::AnyOf(vec![
+                Pattern::Endpoint(PortType::Http, "/admin", "pi-hole", None),
+                Pattern::Endpoint(PortType::Https, "/admin", "pi-hole", None),
+            ]),
         ])
     }
 
