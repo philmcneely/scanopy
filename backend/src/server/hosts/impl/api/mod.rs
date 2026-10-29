@@ -843,6 +843,38 @@ pub struct UpdateHostRequest {
     #[serde(default)]
     pub expected_updated_at: Option<DateTime<Utc>>,
 
+    // Device facts a person can type for a device no scan identified. For each: omitted leaves
+    // the stored value, blank clears it, and a changed value is recorded as typed by a person,
+    // which no later scan replaces.
+    /// Hardware manufacturer, such as "Hirschmann".
+    #[serde(default)]
+    pub manufacturer: Option<String>,
+    /// Hardware model.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Hardware serial number.
+    #[serde(default)]
+    pub serial_number: Option<String>,
+    /// Asset tag.
+    #[serde(default)]
+    pub asset_tag: Option<String>,
+    /// Physical location.
+    #[serde(default)]
+    pub sys_location: Option<String>,
+    /// Administrative contact.
+    #[serde(default)]
+    pub sys_contact: Option<String>,
+    /// Link to the host's own management interface.
+    #[serde(default)]
+    pub management_url: Option<String>,
+    /// Operating system. Omitted leaves the stored one.
+    #[serde(default)]
+    pub os: Option<crate::server::hosts::r#impl::os::HostOs>,
+    /// What the device is. Omitted leaves the stored one; `Unidentified` hands the device type
+    /// back to discovery.
+    #[serde(default)]
+    pub device_type: Option<crate::server::hosts::r#impl::device_type::DeviceType>,
+
     /// Interfaces to sync with this host.
     /// If Some, server will create/update/delete to match this list.
     /// If None, existing ip_addresses are preserved.
@@ -957,6 +989,10 @@ pub struct HostResponse {
     pub description: Option<String>,
     /// How this host came to be known — discovered, imported, or created by hand.
     pub source: EntitySource,
+    /// When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub dismissed_at: Option<DateTime<Utc>>,
     /// How the host is virtualized, when it is a VM or container guest.
     #[serde(
         default,

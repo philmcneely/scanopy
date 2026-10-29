@@ -54,6 +54,7 @@ import {
 	views
 } from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
+import { getConfirmationTag } from '$lib/shared/utils/confirmation';
 import { createColorHelper } from '$lib/shared/utils/styling';
 import type {
 	TooltipContent,
@@ -252,10 +253,17 @@ function resolveStaleTag(
 ): ReturnType<typeof getFreshnessTag> {
 	const subject = elementEntity(node, topology);
 	if (!subject) return null;
-	return getFreshnessTag(
-		subject,
-		sites.find((n) => n.id === subject.site_id),
-		{ entityTypeLabel: entities.getName(resolved.elementType ?? 'Host') || undefined }
+	// One status pill per card. Unconfirmed says the device may not be what the map shows at all,
+	// which outranks it not having been seen lately.
+	return (
+		getConfirmationTag(subject) ??
+		getFreshnessTag(
+			subject,
+			sites.find((n) => n.id === subject.site_id),
+			{
+				entityTypeLabel: entities.getName(resolved.elementType ?? 'Host') || undefined
+			}
+		)
 	);
 }
 

@@ -10584,6 +10584,68 @@
         ]
       }
     },
+    "/api/v1/hosts/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Hosts"
+        ],
+        "summary": "Confirm unconfirmed host",
+        "description": "Records that a person vouches for a host Scanopy knows only from another device's report (an\nLLDP/CDP neighbour, or a switch's forwarding table). The host's source becomes `Manual`.",
+        "operationId": "confirm_host",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Host ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Host confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_HostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The host is already confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Host not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/v1/hosts/{id}/consolidate/{other_id}": {
       "post": {
         "tags": [
@@ -10637,6 +10699,68 @@
           },
           "404": {
             "description": "One or both hosts not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/hosts/{id}/dismiss": {
+      "post": {
+        "tags": [
+          "Hosts"
+        ],
+        "summary": "Dismiss unconfirmed host",
+        "description": "Sets aside a host Scanopy knows only from another device's report. It leaves lists, topology\nand scan warnings, and is not created again by later scans. A scan that reaches the device\nrestores it.",
+        "operationId": "dismiss_host",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Host ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Host dismissed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_HostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The host is already confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Host not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -23368,19 +23492,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-29T12:08:33.632983Z",
+              "created_at": "2026-10-29T20:18:56.763299Z",
               "first_discovery_id": null,
-              "id": "c59efd7f-4d8c-4870-adf4-b58063f4ec62",
+              "id": "ef65a16d-3fe9-4ce2-9557-27dec59fcf59",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-29T12:08:33.632983Z",
+              "last_seen_at": "2026-10-29T20:18:56.763299Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-29T12:08:33.632983Z",
-              "valid_from": "2026-10-29T12:08:33.632983Z",
+              "updated_at": "2026-10-29T20:18:56.763299Z",
+              "valid_from": "2026-10-29T20:18:56.763299Z",
               "valid_to": null
             }
           },
@@ -24692,6 +24816,15 @@
                 "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
                 "readOnly": true
               },
+              "dismissed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.",
+                "readOnly": true
+              },
               "display_name": {
                 "type": [
                   "string",
@@ -25047,6 +25180,7 @@
                 "service_name": "nginx",
                 "type": "Service"
               },
+              "dismissed_at": null,
               "display_name": "web-server-01",
               "display_name_rung": "Name",
               "firmware_revision": null,
@@ -25171,19 +25305,19 @@
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-29T12:08:33.600052Z",
+                      "created_at": "2026-10-29T20:18:56.728746Z",
                       "first_discovery_id": null,
-                      "id": "199c398e-8f43-49aa-a1cb-c4d85b2c4f3b",
+                      "id": "4dd3795f-6ddd-40df-a8e6-7abef4579eb7",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-29T12:08:33.600052Z",
+                      "last_seen_at": "2026-10-29T20:18:56.728746Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-29T12:08:33.600052Z",
-                      "valid_from": "2026-10-29T12:08:33.600052Z",
+                      "updated_at": "2026-10-29T20:18:56.728746Z",
+                      "valid_from": "2026-10-29T20:18:56.728746Z",
                       "valid_to": null
                     }
                   ],
@@ -25196,7 +25330,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Atlassian Fisheye",
+                  "service_definition": "Jupyter",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -26694,19 +26828,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-29T12:08:33.627594Z",
+                  "created_at": "2026-10-29T20:18:56.757842Z",
                   "first_discovery_id": null,
-                  "id": "23f154e4-7007-4140-96bb-8e30a041e8cc",
+                  "id": "5e549f0c-0a53-4187-8ac1-a6365ec9c5e0",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-29T12:08:33.627594Z",
+                  "last_seen_at": "2026-10-29T20:18:56.757842Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-29T12:08:33.627594Z",
-                  "valid_from": "2026-10-29T12:08:33.627594Z",
+                  "updated_at": "2026-10-29T20:18:56.757842Z",
+                  "valid_from": "2026-10-29T20:18:56.757842Z",
                   "valid_to": null
                 }
               ],
@@ -26719,7 +26853,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Atlassian Fisheye",
+              "service_definition": "Jupyter",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -27820,6 +27954,34 @@
                   "$ref": "#/components/schemas/InterfaceNeighborRow"
                 },
                 "description": "Resolved LLDP/CDP neighbour adjacencies (GH #701): the merged read-model of\n`interface_neighbor_interfaces` + `interface_neighbor_hosts`, replacing the old\n`Interface.neighbor` scalar now that a port can anchor several links."
+              },
+              "node_entities": {
+                "type": "object",
+                "description": "Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:\nthe addresses reached through an L2 port, the services bound to all of a host's addresses\non its IP cards, the members inlined on a card. The topology search selects a node when it\nmatches any of them. Nodes with none are absent.",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "propertyNames": {
+                  "type": "string",
+                  "description": "Which topology view is being rendered",
+                  "enum": [
+                    "L2Physical",
+                    "L3Logical",
+                    "Workloads",
+                    "Application"
+                  ]
+                }
               },
               "nodes": {
                 "type": "object",
@@ -29916,19 +30078,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-29T12:08:33.600678Z",
+          "created_at": "2026-10-29T20:18:56.729381Z",
           "first_discovery_id": null,
-          "id": "7890e782-dc7f-4e6f-a4e8-abf77fc78384",
+          "id": "7b1d1ee6-f5b4-440b-849b-471d00cc9f4c",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-29T12:08:33.600678Z",
+          "last_seen_at": "2026-10-29T20:18:56.729381Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-29T12:08:33.600678Z",
-          "valid_from": "2026-10-29T12:08:33.600678Z",
+          "updated_at": "2026-10-29T20:18:56.729381Z",
+          "valid_from": "2026-10-29T20:18:56.729381Z",
           "valid_to": null
         }
       },
@@ -30429,6 +30591,7 @@
           "DockerPing",
           "PodmanPing",
           "Ipp",
+          "Lpd",
           "SpotifyConnect",
           "Vnc",
           "AppleLockdown",
@@ -30836,7 +30999,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Atlassian Fisheye",
+              "service_definition": "Jupyter",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -31359,14 +31522,6 @@
             "description": "What it did in this run."
           }
         }
-      },
-      "CredentialStability": {
-        "type": "string",
-        "description": "Release maturity of a credential type's integration.\n\nAdditive and exhaustive: a new credential variant will not compile until it declares its\nstability, and every existing type is `Stable` by explicit arm rather than by wildcard, so\npromoting an integration is a one-line reviewable change rather than a deletion nobody\nnotices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —\nit is never stored on a credential row, so it carries no deploy-coexistence obligation.",
-        "enum": [
-          "Stable",
-          "Beta"
-        ]
       },
       "CredentialType": {
         "oneOf": [
@@ -35635,6 +35790,29 @@
             "description": "A range was created from the addresses unplaceable far ends publish for themselves."
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnconfirmedHost",
+                "description": "A host is known only from another device's report and awaits confirmation."
+              },
+              {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "UnconfirmedHostInferred"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "A host is known only from another device's report and awaits confirmation."
+          },
+          {
             "type": "object",
             "title": "NeighbourResolutionIncomplete",
             "description": "Link resolution ran out of its time budget, so this scan's links are incomplete.\n\nThe pass runs on the completion request, which the daemon will abandon at its own timeout —\nso it is bounded, and stopping has to be *said* rather than logged. Without this the\ndegraded result is indistinguishable from a network that genuinely has no neighbours.",
@@ -36634,7 +36812,8 @@
           "path",
           "format",
           "summary",
-          "many"
+          "many",
+          "searchable"
         ],
         "properties": {
           "field": {
@@ -36668,6 +36847,10 @@
               "$ref": "#/components/schemas/Hop"
             },
             "description": "Steps from the entity to the objects the value is read from. Empty for the entity itself."
+          },
+          "searchable": {
+            "type": "boolean",
+            "description": "Matched by the topology search: a value that names or identifies the entity on the map\n(a name, an address, a MAC, a port name, a vendor). The search reads only these."
           },
           "source_field": {
             "type": [
@@ -36760,7 +36943,7 @@
           {
             "type": "object",
             "title": "Inferred",
-            "description": "Known only because something else reported it — an LLDP/CDP neighbour publishing an address,\nor a controller listing a device — and never contacted directly.\n\nA distinct rung rather than plain `Discovery` because the difference is exactly what an\noperator cannot otherwise see: a host with no ports, no services and an address nothing ever\nanswered on is indistinguishable from a device that is simply down. It counts as discovered\nfor every other purpose — see [`Self::is_from_discovery`] — so staleness, quota and the\ndiscovery FKs behave for it precisely as they do for a swept host.",
+            "description": "Known only because something else reported it, and never contacted directly: a host an\nLLDP/CDP neighbour advertised or a switch learned the MAC of, or a subnet whose range was\nassumed around such an address. An inferred entity is unconfirmed until a person confirms\nit or a scan reaches it ([`Self::confirmation`]).\n\nA distinct rung rather than plain `Discovery` because the difference is exactly what an\noperator cannot otherwise see: a host with no ports, no services and an address nothing ever\nanswered on is indistinguishable from a device that is simply down. It counts as discovered\nfor every other purpose — see [`Self::is_from_discovery`] — so staleness and the discovery\nFKs behave for it precisely as they do for a swept host.",
             "required": [
               "type"
             ],
@@ -36770,6 +36953,10 @@
                 "enum": [
                   "Inferred"
                 ]
+              },
+              "via": {
+                "$ref": "#/components/schemas/InferredVia",
+                "description": "What reported it, recorded when the entity was created. Defaulted because every row\nstored before the field existed came from an LLDP/CDP neighbour."
               }
             }
           },
@@ -37528,6 +37715,15 @@
                 "description": "When this record was first created.",
                 "readOnly": true
               },
+              "dismissed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When a person dismissed this unconfirmed host. A dismissed host is left out of lists,\ntopology and warnings, and its MAC or chassis id is not minted again. Cleared when a scan\nreaches the device.",
+                "readOnly": true
+              },
               "first_discovery_id": {
                 "type": [
                   "string",
@@ -37599,6 +37795,7 @@
           "created_at": "2026-01-15T10:30:00Z",
           "credential_assignments": [],
           "description": "Primary web server",
+          "dismissed_at": null,
           "first_discovery_id": null,
           "hostname": "web-server-01.local",
           "hostname_source": "Manual",
@@ -38426,6 +38623,15 @@
             "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
             "readOnly": true
           },
+          "dismissed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.",
+            "readOnly": true
+          },
           "display_name": {
             "type": [
               "string",
@@ -38781,6 +38987,7 @@
             "service_name": "nginx",
             "type": "Service"
           },
+          "dismissed_at": null,
           "display_name": "web-server-01",
           "display_name_rung": "Name",
           "firmware_revision": null,
@@ -38905,19 +39112,19 @@
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-29T12:08:33.599313Z",
+                  "created_at": "2026-10-29T20:18:56.728Z",
                   "first_discovery_id": null,
-                  "id": "f201ac88-66c0-4be8-a261-1db6595d8159",
+                  "id": "bc4243e8-b22a-4b82-b55d-ae597ac12c3c",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-29T12:08:33.599313Z",
+                  "last_seen_at": "2026-10-29T20:18:56.728Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-29T12:08:33.599313Z",
-                  "valid_from": "2026-10-29T12:08:33.599313Z",
+                  "updated_at": "2026-10-29T20:18:56.728Z",
+                  "valid_from": "2026-10-29T20:18:56.728Z",
                   "valid_to": null
                 }
               ],
@@ -38930,7 +39137,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Atlassian Fisheye",
+              "service_definition": "Jupyter",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -39631,6 +39838,15 @@
           "Dormant",
           "NotPresent",
           "LowerLayerDown"
+        ]
+      },
+      "InferredVia": {
+        "type": "string",
+        "description": "What reported an [`EntitySource::Inferred`] entity.",
+        "enum": [
+          "Neighbour",
+          "ForwardingTable",
+          "ReportedAddress"
         ]
       },
       "InlineFormat": {
@@ -42830,6 +43046,15 @@
                   "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
                   "readOnly": true
                 },
+                "dismissed_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.",
+                  "readOnly": true
+                },
                 "display_name": {
                   "type": [
                     "string",
@@ -43185,6 +43410,7 @@
                   "service_name": "nginx",
                   "type": "Service"
                 },
+                "dismissed_at": null,
                 "display_name": "web-server-01",
                 "display_name_rung": "Name",
                 "firmware_revision": null,
@@ -43309,19 +43535,19 @@
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-29T12:08:33.586973Z",
+                        "created_at": "2026-10-29T20:18:56.709931Z",
                         "first_discovery_id": null,
-                        "id": "11b9cb3c-3a3f-4594-bfb6-77169139f158",
+                        "id": "377904fa-44ed-447f-acfa-526dbe472975",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-29T12:08:33.586973Z",
+                        "last_seen_at": "2026-10-29T20:18:56.709931Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-29T12:08:33.586973Z",
-                        "valid_from": "2026-10-29T12:08:33.586973Z",
+                        "updated_at": "2026-10-29T20:18:56.709931Z",
+                        "valid_from": "2026-10-29T20:18:56.709931Z",
                         "valid_to": null
                       }
                     ],
@@ -43334,7 +43560,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Atlassian Fisheye",
+                    "service_definition": "Jupyter",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -43581,19 +43807,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-29T12:08:33.626755Z",
+                    "created_at": "2026-10-29T20:18:56.757027Z",
                     "first_discovery_id": null,
-                    "id": "ad24491d-487b-481b-b4a1-56fc802f78bf",
+                    "id": "bfde32f8-77bf-4bb2-afa1-dd4dec93f41f",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-29T12:08:33.626755Z",
+                    "last_seen_at": "2026-10-29T20:18:56.757027Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-29T12:08:33.626755Z",
-                    "valid_from": "2026-10-29T12:08:33.626755Z",
+                    "updated_at": "2026-10-29T20:18:56.757027Z",
+                    "valid_from": "2026-10-29T20:18:56.757027Z",
                     "valid_to": null
                   }
                 ],
@@ -43606,7 +43832,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Atlassian Fisheye",
+                "service_definition": "Jupyter",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -46309,19 +46535,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-29T12:08:33.600469Z",
+              "created_at": "2026-10-29T20:18:56.729167Z",
               "first_discovery_id": null,
-              "id": "cc1cdf08-8327-4884-b105-f48969573308",
+              "id": "8a96a67e-2564-4e52-b2d2-fb88c9ef109d",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-29T12:08:33.600469Z",
+              "last_seen_at": "2026-10-29T20:18:56.729167Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-29T12:08:33.600469Z",
-              "valid_from": "2026-10-29T12:08:33.600469Z",
+              "updated_at": "2026-10-29T20:18:56.729167Z",
+              "valid_from": "2026-10-29T20:18:56.729167Z",
               "valid_to": null
             }
           ],
@@ -46334,7 +46560,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Atlassian Fisheye",
+          "service_definition": "Jupyter",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -47498,6 +47724,14 @@
           }
         }
       },
+      "Stability": {
+        "type": "string",
+        "description": "Release maturity of something Scanopy ships: a credential type's integration, or a plan\nfeature.\n\nEach owner declares it in an exhaustive match, so promoting one to `Stable` is a one-line\nreviewable change. This is presentation metadata about the *code*, like\n`last_unsupported_daemon_version`. It is never stored on a row, so it carries no\ndeploy-coexistence obligation.",
+        "enum": [
+          "Stable",
+          "Beta"
+        ]
+      },
       "Subnet": {
         "allOf": [
           {
@@ -48426,6 +48660,34 @@
             },
             "description": "Resolved LLDP/CDP neighbour adjacencies (GH #701): the merged read-model of\n`interface_neighbor_interfaces` + `interface_neighbor_hosts`, replacing the old\n`Interface.neighbor` scalar now that a port can anchor several links."
           },
+          "node_entities": {
+            "type": "object",
+            "description": "Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:\nthe addresses reached through an L2 port, the services bound to all of a host's addresses\non its IP cards, the members inlined on a card. The topology search selects a node when it\nmatches any of them. Nodes with none are absent.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "propertyNames": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "propertyNames": {
+              "type": "string",
+              "description": "Which topology view is being rendered",
+              "enum": [
+                "L2Physical",
+                "L3Logical",
+                "Workloads",
+                "Application"
+              ]
+            }
+          },
           "nodes": {
             "type": "object",
             "description": "Per-view graph built on request from the entities above + grouping\noptions. Keyed by view so switching the active perspective is a\nclient-side slice selection.",
@@ -48681,7 +48943,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "efa1c714-e521-49fd-b23a-d9a1ad0aab7c",
+                  "id": "e2ea28a8-ab66-4f00-9cc0-9038c5c79d47",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -48691,23 +48953,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
+                  "id": "a665ec34-ca4a-40b7-982c-b31003a319ba",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "c771d31f-c99a-4067-ba54-0c0f2fd7686a",
+                  "id": "47177f84-3fda-46c7-b81b-008293b81188",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "0a64d70a-ea49-4248-9b7e-c33b586775b8",
+                  "id": "eb47e951-9a71-4b3c-806d-63b5932efb95",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
+                  "id": "a665ec34-ca4a-40b7-982c-b31003a319ba",
                   "rule": "ByHost"
                 }
               ]
@@ -48737,19 +48999,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "debb1fb3-4281-48ec-b57f-699cc003916b",
+                "id": "bc09dc49-8389-41cd-b771-ddb43dc9da88",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "0b5b9955-0b03-4cfe-8c2f-833c613a75fa",
+                "id": "8e30beaa-77d4-4447-989e-6305deb6bb03",
                 "rule": "ByVLAN"
               },
               {
-                "id": "05ecf367-c87e-4e13-bb6c-a36aea444692",
+                "id": "12c5994d-26ca-4f68-8eca-0e8c42061489",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "619cb90a-e289-414c-9e17-7c4c0eb870ca",
+                "id": "8642b21c-1575-424c-ae5b-abf4c5467381",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -48770,7 +49032,7 @@
                 }
               },
               {
-                "id": "55afdac4-4d1f-4baa-9690-9f36ead2e837",
+                "id": "339650ec-9d74-40ef-b4f8-5800d7e9375c",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -48779,19 +49041,19 @@
                 }
               },
               {
-                "id": "63ba8185-eacb-490b-b9af-58c3aee7690b",
+                "id": "9868fe8a-440f-45cb-a67d-874b3f4b8454",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "ae3f910d-edae-46b1-858a-5bd5c24a4b48",
+                "id": "93db478d-f448-4766-94bc-732bfd624eaa",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "0c304f2b-9788-4f8f-b39f-a5922ac3026a",
+                "id": "692ca573-af2d-4a44-901c-5a9377562c2e",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "29796f4b-9fae-4e4f-90d5-bc4035d76cee",
+                "id": "4c35f319-bb9a-4d89-bc37-e157b2498c67",
                 "rule": "ByStack"
               }
             ]
@@ -49045,6 +49307,41 @@
         "type": "object",
         "description": "No payload. Present only so the envelope keeps its shape."
       },
+      "UnconfirmedHost": {
+        "type": "object",
+        "description": "A host known only because another device reported it: an LLDP/CDP neighbour advertised it, or a\nswitch learned its MAC. Reported on every scan until a person confirms, merges or dismisses it,\nor a scan reaches the device.",
+        "required": [
+          "host_id",
+          "via",
+          "identifier",
+          "sys_name"
+        ],
+        "properties": {
+          "host_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The host, so the UI can open it. `None` once it has been deleted."
+          },
+          "identifier": {
+            "type": "string",
+            "description": "The identifier it is known by: a chassis id for a neighbour, a MAC for a learned device."
+          },
+          "sys_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The `sysName` a neighbour advertised for it, where it sent one."
+          },
+          "via": {
+            "$ref": "#/components/schemas/InferredVia",
+            "description": "What reported it."
+          }
+        }
+      },
       "UncoveredIntegration": {
         "type": "object",
         "description": "An integration the latest scans found on hosts with no credential of it, still uncovered now.",
@@ -49203,6 +49500,13 @@
           "tags"
         ],
         "properties": {
+          "asset_tag": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Asset tag."
+          },
           "credential_assignments": {
             "type": [
               "array",
@@ -49219,6 +49523,17 @@
               "null"
             ],
             "description": "Free-text notes about the host."
+          },
+          "device_type": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeviceType",
+                "description": "What the device is. Omitted leaves the stored one; `Unidentified` hands the device type\nback to discovery."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "expected_updated_at": {
             "type": [
@@ -49260,9 +49575,41 @@
             },
             "description": "Interfaces to sync with this host.\nIf Some, server will create/update/delete to match this list.\nIf None, existing ip_addresses are preserved."
           },
+          "management_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Link to the host's own management interface."
+          },
+          "manufacturer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Hardware manufacturer, such as \"Hirschmann\"."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Hardware model."
+          },
           "name": {
             "type": "string",
             "description": "Human-facing name for the host."
+          },
+          "os": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HostOs",
+                "description": "Operating system. Omitted leaves the stored one."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ports": {
             "type": [
@@ -49274,6 +49621,13 @@
             },
             "description": "Ports to sync with this host.\nIf Some, server will create/update/delete to match this list.\nIf None, existing ports are preserved."
           },
+          "serial_number": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Hardware serial number."
+          },
           "services": {
             "type": [
               "array",
@@ -49283,6 +49637,20 @@
               "$ref": "#/components/schemas/ServiceInput"
             },
             "description": "Services to sync with this host.\nIf Some, server will create/update/delete to match this list.\nIf None, existing services are preserved."
+          },
+          "sys_contact": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Administrative contact."
+          },
+          "sys_location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Physical location."
           },
           "tags": {
             "type": "array",
@@ -49435,7 +49803,7 @@
       },
       "UpstreamSupport": {
         "type": "string",
-        "description": "Whether the vendor publishes and supports the API a credential type talks to.\n\nDeliberately *not* folded into [`CredentialStability`], because the two describe different\nthings and change independently. Stability is about our own maturity and is meant to be retired\nby promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API\nthat our promotion does not change. Collapsing them would force an integration built on a\nreverse-engineered API to sit in `Beta` forever to keep the warning — or to reach `Stable` with\nthe warning silently dropped. UniFi is the proof that both combinations are real: it is\n`Stable` and `Undocumented` today.",
+        "description": "Whether the vendor publishes and supports the API a credential type talks to.\n\nDeliberately *not* folded into [`Stability`], because the two describe different\nthings and change independently. Stability is about our own maturity and is meant to be retired\nby promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API\nthat our promotion does not change. Collapsing them would force an integration built on a\nreverse-engineered API to sit in `Beta` forever to keep the warning — or to reach `Stable` with\nthe warning silently dropped. UniFi is the proof that both combinations are real: it is\n`Stable` and `Undocumented` today.",
         "enum": [
           "Vendor",
           "Undocumented"

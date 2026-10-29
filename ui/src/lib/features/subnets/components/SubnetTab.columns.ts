@@ -1,6 +1,5 @@
 import type { Snippet } from 'svelte';
 import { lastSeenItems } from '$lib/shared/utils/freshness';
-import { cidrSourceItems } from '$lib/shared/utils/cidr-source';
 import { utilizationRatio } from '../nesting';
 import { isUserManagedSubnet } from '../queries';
 import type { Subnet, SubnetResponse } from '../types/base';
@@ -34,7 +33,7 @@ import {
 	common_utilization
 } from '$lib/paraglide/messages';
 import { concepts, entities, entitySources, subnetTypes } from '$lib/shared/stores/metadata';
-import { entitySourceItems } from '$lib/shared/utils/entity-source';
+import { entitySourceWithConfirmationItems } from '$lib/shared/utils/entity-source';
 
 type SubnetOrderField = components['schemas']['SubnetOrderField'];
 /** The subnet list endpoint's query params, which the filters are sent and linked as. */
@@ -97,7 +96,7 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 					rootKey: (subnet) => subnet.nesting_root_id ?? null,
 					rootsLabel: () => common_nested()
 				},
-				display: { order: 3, getItems: cidrSourceItems() }
+				display: { order: 3 }
 			},
 			subnet_type: {
 				label: subnets_subnetType(),
@@ -198,7 +197,7 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				getValue: (subnet) => entitySources.getName(subnet.source.type),
 				display: {
 					hiddenByDefault: true,
-					getItems: (subnet) => entitySourceItems(subnet.source)
+					getItems: (subnet) => entitySourceWithConfirmationItems(subnet.source)
 				}
 			},
 			managed_by: {

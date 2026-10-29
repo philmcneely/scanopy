@@ -25,6 +25,7 @@ use uuid::Uuid;
 use super::is_virtual_router_mac;
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, is_unset_mac};
 use crate::server::shared::oui;
+use crate::server::shared::types::entities::{EntitySource, InferredVia};
 
 /// What a MAC is worth as an identity anchor, judged on the value alone.
 ///
@@ -192,6 +193,19 @@ pub(crate) fn identity_permits_minting(
 ) -> bool {
     if !ip_addresses.is_empty() || host.base.chassis_id.is_some() {
         return true;
+    }
+    // A host the server mints from a switch's forwarding table carries a third party's MAC, which
+    // the provenance gate refuses. It is minted unconfirmed instead: the source says it is a guess,
+    // which is the harm that gate exists to prevent. The value gate still applies, so a rotating
+    // or shared MAC never mints. Daemon payloads cannot claim this source (`discovery.rs`).
+    if host.base.source
+        == (EntitySource::Inferred {
+            via: InferredVia::ForwardingTable,
+        })
+    {
+        return payload_macs(ip_addresses, interfaces)
+            .iter()
+            .any(|mac| grade(mac) == MacQuality::Strong);
     }
     payload_macs(ip_addresses, interfaces).iter().any(may_mint)
 }
@@ -538,5 +552,58 @@ mod tests {
         assert!(api_error.status.is_client_error());
 
         assert!(require_minting_identity(&host, &[], &[interface_with(burned_in())]).is_ok());
+    }
+
+    /// The forwarding-table rung relaxes provenance and nothing else: a switch's report of a
+    /// burned-in MAC mints an unconfirmed host, while a rotating, shared or group MAC still mints
+    /// nothing, and the same report on any other source is still refused.
+    #[test]
+    fn a_forwarding_table_host_mints_only_on_a_mac_that_can_anchor_one() {
+        use crate::server::hosts::r#impl::base::{Host, HostBase};
+        use crate::server::interfaces::r#impl::base::{Interface, InterfaceBase};
+
+        let learned = |mac: MacAddress| {
+            vec![Interface::new(InterfaceBase {
+                mac_address: Some(evidence(mac, AttributeSource::ForwardingTable)),
+                ..Default::default()
+            })]
+        };
+        let host_from = |source: EntitySource| {
+            Host::new(HostBase {
+                source,
+                ..Default::default()
+            })
+        };
+        let provisional = host_from(EntitySource::Inferred {
+            via: InferredVia::ForwardingTable,
+        });
+
+        assert!(identity_permits_minting(
+            &provisional,
+            &[],
+            &learned(burned_in())
+        ));
+        for unanchorable in [
+            MacAddress::new([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x03]), // locally administered
+            MacAddress::new([0x00, 0x00, 0x5E, 0x00, 0x01, 0x0A]), // VRRP
+            MacAddress::new([0x01, 0x00, 0x5E, 0x00, 0x00, 0x01]), // multicast
+            MacAddress::new([0, 0, 0, 0, 0, 0]),
+        ] {
+            assert!(
+                !identity_permits_minting(&provisional, &[], &learned(unanchorable)),
+                "{unanchorable} must not mint"
+            );
+        }
+        for source in [
+            EntitySource::Discovery,
+            EntitySource::Inferred {
+                via: InferredVia::Neighbour,
+            },
+        ] {
+            assert!(
+                !identity_permits_minting(&host_from(source.clone()), &[], &learned(burned_in())),
+                "{source:?} must not mint on a third party's MAC"
+            );
+        }
     }
 }

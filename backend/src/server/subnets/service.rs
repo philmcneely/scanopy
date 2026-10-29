@@ -19,7 +19,7 @@ use crate::server::{
             generic::GenericPostgresStorage,
             traits::{PaginatedResult, Storable, Storage, Unique},
         },
-        types::entities::EntitySource,
+        types::entities::{EntitySource, InferredVia},
     },
     subnets::r#impl::{
         base::{Subnet, SubnetBase},
@@ -168,7 +168,7 @@ impl SubnetService {
         // extra read. An as-of read holds closed copies, whose ids no warning names.
         let assumed: Vec<(Uuid, Uuid)> = responses
             .iter()
-            .filter(|r| r.subnet.base.cidr.source() == AttributeSource::LldpNeighbourAddress)
+            .filter(|r| r.subnet.base.source.confirmation().is_unconfirmed())
             .map(|r| (r.subnet.id, r.subnet.base.site_id))
             .collect();
         if at.is_none() && !assumed.is_empty() {
@@ -725,7 +725,9 @@ impl SubnetService {
                 AttributeSource::Unspecified,
             ),
             virtualization_service_id: None,
-            source: EntitySource::Discovery,
+            source: EntitySource::Inferred {
+                via: InferredVia::ReportedAddress,
+            },
             tags: Vec::new(),
         });
         subnet.last_seen_at = Utc::now();

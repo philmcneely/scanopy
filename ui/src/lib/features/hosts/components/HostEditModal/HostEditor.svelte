@@ -20,6 +20,7 @@
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { queryKeys } from '$lib/api/query-client';
 	import DetailsForm from './Details/HostDetailsForm.svelte';
+	import { deviceFactsToSubmit, deviceLabelDefaults } from './Details/device-labels';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import IPAddressesForm from './IPAddresses/IPAddressesForm.svelte';
@@ -171,7 +172,8 @@
 						host: hostPrimitive,
 						ip_addresses: formData.ip_addresses,
 						ports: formData.ports,
-						services: formData.services
+						services: formData.services,
+						facts: deviceFactsToSubmit(value, formData)
 					})
 				];
 
@@ -216,7 +218,8 @@
 			services: formData.services || [],
 			credential_mode: ((formData.credential_assignments?.length ?? 0) > 0
 				? 'override'
-				: 'default') as 'default' | 'override'
+				: 'default') as 'default' | 'override',
+			...deviceLabelDefaults(formData)
 		},
 		onSubmit: async ({ value }) => {
 			await performSubmission(value);
@@ -388,7 +391,8 @@
 			ip_addresses: formData.ip_addresses || [],
 			ports: formData.ports || [],
 			services: formData.services || [],
-			credential_mode: (formData.credential_assignments?.length ?? 0) > 0 ? 'override' : 'default'
+			credential_mode: (formData.credential_assignments?.length ?? 0) > 0 ? 'override' : 'default',
+			...deviceLabelDefaults(formData)
 		});
 
 		// Clear stale field registrations from previous modal sessions to prevent

@@ -223,6 +223,20 @@ impl HostService {
             );
         }
 
+        // `Inferred` is the server's verdict on evidence it pooled itself (LLDP far ends,
+        // forwarding-table MACs), and the forwarding-table rung relaxes the minting gate. A
+        // payload a daemon sent is a scan, whatever it claims.
+        if matches!(host.base.source, EntitySource::Inferred { .. }) {
+            host.base.source = EntitySource::Discovery;
+        }
+
+        if host.base.reject_manual_attribute_claims() {
+            tracing::warn!(
+                "Discovery payload claimed a host fact was typed into Scanopy; clamping — only \
+                 the server can record that a person set it"
+            );
+        }
+
         // Identifiers are not names. Daemons up to v0.17.14 repeat the hostname as the name and
         // send the address as an `OwnAddress` name; the same payload carries each identifier in
         // its own column, so the copy is dropped (see the placement rule in `hosts::impl::name`).

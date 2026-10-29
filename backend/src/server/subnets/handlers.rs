@@ -478,6 +478,10 @@ async fn update_subnet(
         // and no daemon can reach it — whereas storage sees every writer alike.
         subnet.base.cidr =
             SubnetCidr::new(subnet.base.cidr.value().clone(), AttributeSource::Manual);
+        // Confirming or correcting an assumed range is what confirms the subnet itself.
+        if current.base.source.confirmation().is_unconfirmed() {
+            subnet.base.source = EntitySource::Manual;
+        }
 
         // CIDR is changing - validate that all existing ip_addresses are within the new CIDR
         let filter = StorableFilter::<IPAddress>::new_from_subnet_id(&id);

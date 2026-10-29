@@ -229,6 +229,43 @@ mod tests {
         }
     }
 
+    // The SQL predicate and `EntitySource::confirmation` are two copies of one rule. Every source
+    // the verdict calls unconfirmed must be the tag the predicate names, and no other.
+    #[test]
+    fn unconfirmed_filter_agrees_with_the_confirmation_verdict() {
+        use crate::server::services::r#impl::patterns::MatchDetails;
+        use crate::server::shared::types::entities::{EntitySource, InferredVia};
+        let clause = StorableFilter::<Host>::new_unfiltered()
+            .unconfirmed(true)
+            .to_where_clause();
+        for discriminant in EntitySourceDiscriminants::iter() {
+            let source = match discriminant {
+                EntitySourceDiscriminants::Manual => EntitySource::Manual,
+                EntitySourceDiscriminants::System => EntitySource::System,
+                EntitySourceDiscriminants::Discovery => EntitySource::Discovery,
+                EntitySourceDiscriminants::DiscoveryWithMatch => EntitySource::DiscoveryWithMatch {
+                    details: MatchDetails::new_certain("test"),
+                },
+                EntitySourceDiscriminants::Inferred => EntitySource::Inferred {
+                    via: InferredVia::ForwardingTable,
+                },
+                EntitySourceDiscriminants::Unknown => EntitySource::Unknown,
+            };
+            assert_eq!(
+                clause.contains(&format!("'{}'", discriminant.id())),
+                source.confirmation().is_unconfirmed(),
+                "{discriminant:?}: {clause}"
+            );
+            // The flag the UI reads is the third copy.
+            use crate::server::shared::types::metadata::TypeMetadataProvider;
+            assert_eq!(
+                discriminant.metadata()["unconfirmed"],
+                source.confirmation().is_unconfirmed(),
+                "{discriminant:?} metadata"
+            );
+        }
+    }
+
     #[test]
     fn live_filter_emits_valid_to_is_null() {
         let filter = StorableFilter::<Tag>::new_unfiltered().live();

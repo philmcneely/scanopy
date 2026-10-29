@@ -262,6 +262,12 @@ pub struct TopologyData {
     /// Connections between the nodes of the built graph.
     #[serde(default)]
     pub edges: HashMap<TopologyView, Vec<Edge>>,
+    /// Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:
+    /// the addresses reached through an L2 port, the services bound to all of a host's addresses
+    /// on its IP cards, the members inlined on a card. The topology search selects a node when it
+    /// matches any of them. Nodes with none are absent.
+    #[serde(default)]
+    pub node_entities: HashMap<TopologyView, HashMap<Uuid, Vec<Uuid>>>,
     /// How many entities of each type a server-side metadata filter removed, by the filter that
     /// removed them.
     ///

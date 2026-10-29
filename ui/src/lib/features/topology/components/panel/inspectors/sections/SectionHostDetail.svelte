@@ -6,7 +6,7 @@
 	import type { ElementRenderContext } from '$lib/features/topology/resolvers';
 	import { useUpdateHostDescriptionMutation } from '$lib/features/hosts/queries';
 	import InspectorSection from '../shared/InspectorSection.svelte';
-	import InferredHostNotice from '$lib/features/hosts/components/InferredHostNotice.svelte';
+	import HostInspectorActions from '$lib/features/hosts/components/HostInspectorActions.svelte';
 
 	let {
 		topology,
@@ -45,7 +45,7 @@
 
 {#if host}
 	<InspectorSection id="HostDetail" section="HostDetail">
-		<InferredHostNotice source={host.source} class="mb-2" />
+		<HostInspectorActions {host} editable={editState.isEditable} class="mb-2" />
 		<div class="card-static card">
 			<EntityDisplayWrapper context={hostContext} item={host} displayComponent={HostDisplay} />
 		</div>

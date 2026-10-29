@@ -209,6 +209,7 @@ struct NeighbourPass {
     re_advertised_addresses: HashSet<IpAddr>,
 }
 
+mod forwarding_table;
 mod inference;
 mod reciprocal;
 
@@ -797,7 +798,7 @@ impl HostService {
             .get_all(StorableFilter::<Host>::new_from_entity_ids(host_ids).live())
             .await?
             .into_iter()
-            .filter(|host| host.base.source == EntitySource::Inferred)
+            .filter(|host| matches!(host.base.source, EntitySource::Inferred { .. }))
             .map(|host| host.id)
             .collect();
         if far_end_ids.is_empty() {
@@ -1129,6 +1130,9 @@ impl HostService {
     /// Called after resolve_lldp_links — only processes ports without LLDP/CDP data
     /// that have exactly one learned MAC address (direct physical connection).
     pub async fn resolve_fdb_links(&self, site_id: Uuid, scan_time: DateTime<Utc>) -> Result<u32> {
+        // First, so a device known only to its switch is a host this pass can place.
+        self.mint_forwarding_table_hosts(site_id, scan_time).await?;
+
         let resolver = LldpResolverImpl::new(
             self.interface_service.clone(),
             self.ip_address_service.clone(),

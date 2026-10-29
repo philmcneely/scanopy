@@ -471,6 +471,45 @@ impl HostBase {
         true
     }
 
+    /// [`Self::reject_manual_name_claim`] for every other attributed fact. A person can type a
+    /// manufacturer, a device type or a location, and `Manual` outranks every scan, so a payload
+    /// claiming it would freeze the value against the person's own edits. Returns whether
+    /// anything changed.
+    pub fn reject_manual_attribute_claims(&mut self) -> bool {
+        fn clamp<T: crate::server::shared::attribution::AttributeValue>(
+            slot: &mut Option<Attributed<T>>,
+        ) -> bool {
+            match slot.take() {
+                Some(v) if v.source() == AttributeSource::Manual => {
+                    *slot = Some(v.clamped_to(AttributeSource::Unspecified));
+                    true
+                }
+                other => {
+                    *slot = other;
+                    false
+                }
+            }
+        }
+        let mut rejected = false;
+        rejected |= clamp(&mut self.hostname);
+        rejected |= clamp(&mut self.sys_descr);
+        rejected |= clamp(&mut self.sys_object_id);
+        rejected |= clamp(&mut self.sys_location);
+        rejected |= clamp(&mut self.sys_contact);
+        rejected |= clamp(&mut self.management_url);
+        rejected |= clamp(&mut self.chassis_id);
+        rejected |= clamp(&mut self.sys_name);
+        rejected |= clamp(&mut self.manufacturer);
+        rejected |= clamp(&mut self.model);
+        rejected |= clamp(&mut self.serial_number);
+        rejected |= clamp(&mut self.asset_tag);
+        rejected |= clamp(&mut self.firmware_revision);
+        rejected |= clamp(&mut self.software_revision);
+        rejected |= clamp(&mut self.os);
+        rejected |= clamp(&mut self.matched_device_type);
+        rejected
+    }
+
     /// Drop a name that is really an identifier copied into `name`. Returns whether anything
     /// changed.
     ///
@@ -535,6 +574,12 @@ pub struct Host {
     #[serde(default)]
     #[schema(read_only)]
     pub first_discovery_id: Option<Uuid>,
+    /// When a person dismissed this unconfirmed host. A dismissed host is left out of lists,
+    /// topology and warnings, and its MAC or chassis id is not minted again. Cleared when a scan
+    /// reaches the device.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub dismissed_at: Option<DateTime<Utc>>,
     #[serde(flatten)]
     #[validate(nested)]
     pub base: HostBase,
@@ -571,6 +616,7 @@ impl Host {
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             base,
         }
     }

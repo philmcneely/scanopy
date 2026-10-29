@@ -11,7 +11,9 @@ use crate::server::{
             InterfaceInput, PortInput, ServiceInput, UpdateHostRequest,
         },
         attributes::{
-            HostChassisIdValue, HostHostnameValue, HostManagementUrlValue, HostSysContactValue,
+            HostAssetTagValue, HostChassisIdValue, HostHostnameValue, HostManagementUrlValue,
+            HostManufacturerValue, HostMatchedDeviceTypeAttributed, HostMatchedDeviceTypeValue,
+            HostModelValue, HostOsValue, HostSerialNumberValue, HostSysContactValue,
             HostSysDescrValue, HostSysLocationValue, HostSysNameValue, HostSysObjectIdValue,
         },
         base::{Host, HostBase},
@@ -51,7 +53,7 @@ use crate::server::{
         },
         types::{
             api::ValidationError,
-            entities::{EntitySource, EntitySourceDiscriminants},
+            entities::{EntitySource, EntitySourceDiscriminants, InferredVia},
         },
     },
     sites::service::SiteService,
@@ -1894,5 +1896,19 @@ mod tests {
             resolve_by_mac(&arp, &[link_v6], &[], &[unreported]),
             Some(vm)
         );
+    }
+}
+
+impl HostService {
+    /// Live, confirmed hosts on these sites: what the dashboard counts. An unconfirmed host is a
+    /// report awaiting a person, not a device in the inventory yet.
+    pub async fn confirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
+        self.storage
+            .count(
+                StorableFilter::<Host>::new_from_site_ids(site_ids)
+                    .live()
+                    .unconfirmed(false),
+            )
+            .await
     }
 }

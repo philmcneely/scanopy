@@ -233,7 +233,13 @@ impl DiscoveryDigestService {
         // batched the same way inside fetch_current_children.
         let all_hosts: Vec<Host> = self
             .host_service
-            .get_all(StorableFilter::<Host>::new_from_site_ids(&[site_id]).live())
+            // Unconfirmed hosts are left to the scan's warnings, which ask a person to confirm
+            // them: until then they are reports, not inventory changes.
+            .get_all(
+                StorableFilter::<Host>::new_from_site_ids(&[site_id])
+                    .live()
+                    .unconfirmed(false),
+            )
             .await?;
         let scanned_host_ids: HashSet<Uuid> = scanned.host_ids.iter().copied().collect();
 
@@ -835,7 +841,7 @@ mod tests {
     use super::*;
     use crate::server::hosts::r#impl::base::HostBase;
     use crate::server::services::r#impl::base::{Service as Svc, ServiceBase};
-    use crate::server::shared::types::entities::EntitySource;
+    use crate::server::shared::types::entities::{EntitySource, InferredVia};
     use crate::server::sites::r#impl::{DEFAULT_STALE_AFTER_HOURS, Site, SiteBase};
 
     const HOUR: i64 = 3600;
@@ -912,7 +918,9 @@ mod tests {
 
         // Stamped with the session's clock, the way the resolution pass now stamps it.
         let mut minted = Host::new(HostBase {
-            source: EntitySource::Inferred,
+            source: EntitySource::Inferred {
+                via: InferredVia::Neighbour,
+            },
             ..Default::default()
         });
         minted.last_seen_at = w.t_end;
@@ -942,7 +950,9 @@ mod tests {
         let w = window(24 * 7, Some(HOUR));
 
         let mut too_late = Host::new(HostBase {
-            source: EntitySource::Inferred,
+            source: EntitySource::Inferred {
+                via: InferredVia::Neighbour,
+            },
             ..Default::default()
         });
         // One second past `finished_at` — the gap between the daemon finishing and the server

@@ -7,6 +7,7 @@
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import IdentitySection from './IdentitySection.svelte';
 	import DeviceFactsSection from './DeviceFactsSection.svelte';
+	import DeviceLabelFields from './DeviceLabelFields.svelte';
 	import {
 		common_tags,
 		common_description,
@@ -65,6 +66,10 @@
 			selectedTagIds={formData.tags}
 			onChange={(tags) => (formData.tags = tags)}
 		/>
+
+		{#if isEditing}
+			<DeviceLabelFields {form} {formData} />
+		{/if}
 	</div>
 
 	{#if isEditing}

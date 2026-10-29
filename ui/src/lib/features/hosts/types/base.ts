@@ -160,7 +160,25 @@ export interface UpdateHostWithServicesRequest {
 	ports: Port[] | null;
 	/** Services to sync - if provided, will create/update/delete to match */
 	services: Service[] | null;
+	/**
+	 * Device facts a person typed. Omitted for an update that does not edit them (a managed VM's
+	 * host fields), so the server leaves them as they are.
+	 */
+	facts?: HostDeviceFacts;
 }
+
+/** The device facts the host editor edits, as `UpdateHostRequest` names them. */
+export type HostDeviceFacts = Pick<
+	components['schemas']['UpdateHostRequest'],
+	| 'manufacturer'
+	| 'model'
+	| 'serial_number'
+	| 'asset_tag'
+	| 'sys_location'
+	| 'sys_contact'
+	| 'management_url'
+	| 'device_type'
+>;
 
 // Frontend-specific types
 export interface AllIPAddresses {

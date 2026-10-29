@@ -9,6 +9,11 @@ use super::*;
 /// Every demo interface, and its VLAN membership, reads as an SNMP walk of its device.
 const SNMP: AttributeSource = AttributeSource::Probe(ClientProbe::Snmp);
 
+/// The MACs of the two shop-floor Hirschmann switches (OUI 00:80:63), learned on HQ switch ports 8
+/// (still unconfirmed) and 9 (`line-2-switch`, confirmed and labelled by a person).
+const SHOP_FLOOR_SWITCH_MAC: &str = "00:80:63:2a:51:07";
+const LINE_2_SWITCH_MAC: &str = "00:80:63:2a:51:3c";
+
 /// Build the SNMP interface rows for the demo hosts, plus the neighbor links
 /// that `run_populate_demo` resolves to IDs once the hosts exist.
 ///
@@ -788,8 +793,15 @@ pub(super) fn generate_interfaces(
             target_if_index: 2,
         });
 
-        // Ports 8-48 — empty/down
+        // Ports 8-48 — empty/down, except ports 8 and 9: Hirschmann industrial switches on the
+        // shop floor that answer no scan. Their MACs are what the HQ switch's forwarding table
+        // knows of them (see the shop-floor hosts in generate_hosts_and_services).
         for port_num in 8..=48 {
+            let learned = match port_num {
+                8 => Some(SHOP_FLOOR_SWITCH_MAC),
+                9 => Some(LINE_2_SWITCH_MAC),
+                _ => None,
+            };
             interfaces.push(Interface {
                 display_name: None,
                 valid_from: now,
@@ -812,7 +824,11 @@ pub(super) fn generate_interfaces(
                     if_type: Some(6),
                     speed_bps: Some(1_000_000_000),
                     admin_status: Some(IfAdminStatus::Up),
-                    oper_status: Some(IfOperStatus::Down),
+                    oper_status: Some(if learned.is_some() {
+                        IfOperStatus::Up
+                    } else {
+                        IfOperStatus::Down
+                    }),
                     mac_address: Some(MacEvidence::new(
                         MacEvidenceValue(MacAddress::new([
                             0xfc,
@@ -826,7 +842,8 @@ pub(super) fn generate_interfaces(
                     )),
                     ip_address_id: None,
                     ip_configured: false,
-                    fdb_macs: None,
+                    fdb_macs: learned
+                        .map(|mac| FdbMacs::new(FdbMacsValue(vec![mac.to_string()]), SNMP)),
                     interface_source: SNMP,
                     vlan_membership_source: SNMP,
                     native_vlan_id: None,
@@ -924,6 +941,61 @@ pub(super) fn generate_interfaces(
                 fdb_macs: None,
                 interface_source: SNMP,
                 vlan_membership_source: SNMP,
+                native_vlan_id: None,
+                vlan_ids: None,
+            },
+        });
+    }
+
+    // ========================================================================
+    // HQ: the shop-floor switches — each known by the MAC the HQ switch learned. The unconfirmed
+    // one is untitled, so it is found by its source rather than its title.
+    // ========================================================================
+    let unconfirmed_shop_floor = hosts.iter().copied().find(|h| {
+        h.base.source
+            == EntitySource::Inferred {
+                via: crate::server::shared::types::entities::InferredVia::ForwardingTable,
+            }
+    });
+    for (host, mac) in [
+        (unconfirmed_shop_floor, SHOP_FLOOR_SWITCH_MAC),
+        (find_host("line-2-switch"), LINE_2_SWITCH_MAC),
+    ]
+    .into_iter()
+    .filter_map(|(host, mac)| Some((host?, mac)))
+    {
+        interfaces.push(Interface {
+            display_name: None,
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: InterfaceBase {
+                neighbor_candidates: Default::default(),
+                host_id: host.id,
+                site_id: host.base.site_id,
+                if_index: None,
+                if_descr: Some(mac.to_string()),
+                if_name: None,
+                if_alias: None,
+                if_type: None,
+                speed_bps: None,
+                admin_status: None,
+                oper_status: None,
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(mac.parse().unwrap()),
+                    AttributeSource::ForwardingTable,
+                )),
+                ip_address_id: None,
+                ip_configured: false,
+                fdb_macs: None,
+                interface_source: AttributeSource::ForwardingTable,
+                vlan_membership_source: AttributeSource::ForwardingTable,
                 native_vlan_id: None,
                 vlan_ids: None,
             },

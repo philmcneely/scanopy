@@ -526,6 +526,7 @@ export function useUpdateHostMutation() {
 				tags: data.host.tags,
 				credential_assignments: data.host.credential_assignments ?? undefined,
 				expected_updated_at: data.host.updated_at,
+				...(data.facts ?? {}),
 				// Only send arrays if provided (undefined = preserve existing)
 				ip_addresses: data.ip_addresses
 					? data.ip_addresses.map((iface, index): IPAddressInput => ({
@@ -630,6 +631,27 @@ export function useUpdateHostDescriptionMutation() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: queryKeys.hosts.lists() });
+		}
+	}));
+}
+
+/**
+ * Confirm or dismiss an unconfirmed host: one a neighbour advertised or a switch learned the MAC
+ * of. Confirming makes it a host a person vouches for; dismissing sets it aside so lists, the map
+ * and scan warnings leave it out and later scans don't create it again.
+ */
+export function useSettleUnconfirmedHostMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: async ({ hostId, action }: { hostId: string; action: 'confirm' | 'dismiss' }) => {
+			const path =
+				action === 'confirm' ? '/api/v1/hosts/{id}/confirm' : '/api/v1/hosts/{id}/dismiss';
+			return unwrapData(await apiClient.POST(path, { params: { path: { id: hostId } } }));
+		},
+		onSuccess: () => {
+			invalidateHostLists(queryClient);
+			queryClient.invalidateQueries({ queryKey: queryKeys.topology.all });
 		}
 	}));
 }

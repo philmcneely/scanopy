@@ -71,6 +71,15 @@
 			.join(', ');
 	}
 
+	// The MACs the port's forwarding table learned: the devices behind it, including ones no scan
+	// reached (each of which is an unconfirmed host until someone confirms it).
+	const learnedField = entityFields('Interface').find((field) => field.id === 'fdb_macs');
+	let learnedMacs = $derived(
+		learnedField
+			? resolveField(learnedField, iface, NO_RELATIONS).map((value) => String(value))
+			: []
+	);
+
 	let statusExpanded = $state(true);
 	let detailsExpanded = $state(true);
 </script>
@@ -97,6 +106,16 @@
 				label="VLAN {nativeVlan.vlan_number} ({nativeVlan.name})"
 				color={entities.getColorHelper('Vlan').color}
 			/>
+		</InfoRow>
+	{/if}
+
+	{#if learnedField && learnedMacs.length > 0}
+		<InfoRow label={entityFieldLabel('Interface', learnedField)}>
+			<div class="flex flex-wrap gap-1">
+				{#each learnedMacs as mac (mac)}
+					<Tag label={mac} color={null} />
+				{/each}
+			</div>
 		</InfoRow>
 	{/if}
 

@@ -719,6 +719,7 @@ mod tests {
                 crate::server::topology::service::metadata_filter::interfaces_with_neighbours(
                     neighbours.iter(),
                 ),
+            interfaces_learning_known_hosts: Default::default(),
         };
         let hide_sets =
             crate::server::topology::service::metadata_filter::server_hide_sets(&options);

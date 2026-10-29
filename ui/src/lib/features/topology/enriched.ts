@@ -63,6 +63,8 @@ export interface EntityBundle {
 	/** Per-view graph built on request by the backend (keyed by view). */
 	nodes?: Partial<Record<TopologyView, TopologyNode[]>>;
 	edges?: Partial<Record<TopologyView, TopologyEdge[]>>;
+	/** Per view, the entities each node also stands for — see `TopologyData.node_entities`. */
+	node_entities?: TopologyData['node_entities'];
 }
 
 export const EMPTY_ENTITY_BUNDLE: EntityBundle = {
@@ -126,6 +128,7 @@ export function toRenderableTopology(
 	const siteId = topology.site_id;
 	const nodes = bundle.nodes?.[view] ?? [];
 	const edges = bundle.edges?.[view] ?? [];
+	const nodeEntities = bundle.node_entities?.[view] ?? {};
 	const hosts = bundle.hosts.filter((h) => h.site_id === siteId);
 	const subnets = bundle.subnets.filter((s) => s.site_id === siteId);
 	const dependencies = bundle.dependencies.filter((d) => d.site_id === siteId);
@@ -165,6 +168,7 @@ export function toRenderableTopology(
 		...topology,
 		nodes,
 		edges,
+		node_entities: nodeEntities,
 		hosts,
 		services,
 		subnets,

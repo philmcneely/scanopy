@@ -93,6 +93,7 @@ impl Storable for Host {
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             base,
         }
     }
@@ -113,6 +114,7 @@ impl Storable for Host {
             last_seen_at,
             last_discovery_id,
             first_discovery_id,
+            dismissed_at,
             base:
                 Self::BaseData {
                     name,
@@ -220,6 +222,7 @@ impl Storable for Host {
                 "last_seen_at",
                 "last_discovery_id",
                 "first_discovery_id",
+                "dismissed_at",
             ],
             vec![
                 SqlValue::Uuid(id),
@@ -271,6 +274,7 @@ impl Storable for Host {
                 SqlValue::Timestamp(last_seen_at),
                 SqlValue::OptionalUuid(last_discovery_id),
                 SqlValue::OptionalUuid(first_discovery_id),
+                SqlValue::OptionTimestamp(dismissed_at),
             ],
         ))
     }
@@ -308,6 +312,7 @@ impl Storable for Host {
             last_seen_at: row.get("last_seen_at"),
             last_discovery_id: row.get("last_discovery_id"),
             first_discovery_id: row.get("first_discovery_id"),
+            dismissed_at: row.get("dismissed_at"),
             base: HostBase {
                 name,
                 description: row.get("description"),
@@ -402,9 +407,24 @@ impl Entity for Host {
         // exception. `Inferred` says "nothing has ever contacted this device", and the moment a
         // scan does, that stops being true. Pinning it would leave a host that answers SNMP still
         // badged as second-hand for ever, which is the opposite of what the rung is for.
+        // Another report (a neighbour advertising a host a switch's forwarding table minted) is
+        // not contact, so it keeps the source the host was minted with.
         self.base.source = match (&existing.base.source, &self.base.source) {
-            (EntitySource::Inferred, incoming) if incoming.is_from_discovery() => incoming.clone(),
+            (EntitySource::Inferred { .. }, incoming)
+                if incoming.is_from_discovery() && !incoming.confirmation().is_unconfirmed() =>
+            {
+                incoming.clone()
+            }
             (existing_source, _) => existing_source.clone(),
+        };
+        // A dismissal stands until a scan reaches the device, which is new evidence. Only the
+        // dismiss action sets it, so an incoming value is taken over a stored one.
+        let promoted = existing.base.source.confirmation().is_unconfirmed()
+            && !self.base.source.confirmation().is_unconfirmed();
+        self.dismissed_at = if promoted {
+            None
+        } else {
+            self.dismissed_at.or(existing.dismissed_at)
         };
         self.created_at = existing.created_at;
         self.updated_at = existing.updated_at;
@@ -473,5 +493,46 @@ impl DiscoveryTracked for Host {
             "id",
             &scanned.host_ids,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::server::hosts::r#impl::base::HostBase;
+    use crate::server::shared::types::entities::InferredVia;
+
+    fn host(source: EntitySource) -> Host {
+        Host::new(HostBase {
+            source,
+            ..Default::default()
+        })
+    }
+
+    #[test]
+    fn a_scan_that_reaches_an_inferred_host_promotes_it() {
+        let existing = host(EntitySource::Inferred {
+            via: InferredVia::ForwardingTable,
+        });
+        let mut incoming = host(EntitySource::Discovery);
+        incoming.preserve_immutable_fields(&existing);
+        assert_eq!(incoming.base.source, EntitySource::Discovery);
+    }
+
+    #[test]
+    fn another_report_keeps_what_an_inferred_host_was_minted_from() {
+        let existing = host(EntitySource::Inferred {
+            via: InferredVia::ForwardingTable,
+        });
+        let mut incoming = host(EntitySource::Inferred {
+            via: InferredVia::Neighbour,
+        });
+        incoming.preserve_immutable_fields(&existing);
+        assert_eq!(
+            incoming.base.source,
+            EntitySource::Inferred {
+                via: InferredVia::ForwardingTable
+            }
+        );
     }
 }

@@ -161,7 +161,16 @@ async fn test_host_crud(ctx: &TestContext) -> Result<(), String> {
         virtualization_service_id: fetched.virtualization_service_id,
         virtualization_interface_id: None,
         tags: fetched.tags.clone(),
-        expected_updated_at: None,    // No optimistic locking for this test
+        expected_updated_at: None, // No optimistic locking for this test
+        manufacturer: None,
+        model: None,
+        serial_number: None,
+        asset_tag: None,
+        sys_location: None,
+        sys_contact: None,
+        management_url: None,
+        os: None,
+        device_type: None,
         ip_addresses: None,           // Keep existing IP addresses
         ports: None,                  // Keep existing ports
         services: None,               // Keep existing services

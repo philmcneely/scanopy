@@ -464,6 +464,10 @@ pub struct FilterValueContext {
     /// The successor to reading `Interface.neighbor.is_some()` directly, now that a port's
     /// resolved adjacencies live in a separate `Vec` rather than a scalar field on the interface.
     pub interfaces_with_neighbours: HashSet<Uuid>,
+    /// Interfaces whose forwarding table learned a known host's MAC (`fdb::learned_hosts`). A
+    /// device is reached through the port even where no LLDP/CDP or single-MAC link was resolved,
+    /// so the port counts as linked.
+    pub interfaces_learning_known_hosts: HashSet<Uuid>,
 }
 
 /// Entities that can surface metadata filter values. Returns the stable

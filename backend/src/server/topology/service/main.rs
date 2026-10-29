@@ -325,7 +325,9 @@ impl TopologyService {
                 snapshot_id,
             )
             .await?;
-        hosts.retain(|host| !is_hidden(&host.base.tags));
+        // A dismissed host is one a person said is not worth showing; it leaves the map the way a
+        // hidden one does.
+        hosts.retain(|host| !is_hidden(&host.base.tags) && host.dismissed_at.is_none());
         let ip_addresses = self
             .ip_address_service
             .get_all(apply_snapshot(
@@ -465,6 +467,7 @@ impl TopologyService {
             // loader leaves them empty.
             nodes: HashMap::new(),
             edges: HashMap::new(),
+            node_entities: HashMap::new(),
             // Filled by `apply_server_metadata_filters`, which runs on the way to the render
             // path; nothing has been dropped yet at this point.
             filtered_out: HashMap::new(),
@@ -593,10 +596,23 @@ impl TopologyService {
         self.augment_grouping_rule_tags(&mut data, &options).await?;
         // One context for both the server-side drop and the values the frontend reads, so a
         // value offered as a chip is the value the server filters by.
-        let filter_ctx = FilterValueContext::from_neighbours(&data.neighbours);
+        let filter_ctx = FilterValueContext::for_bundle(
+            &data.neighbours,
+            data.interfaces.iter().map(|i| &i.interface),
+            &data.ip_addresses,
+        );
         Self::apply_server_metadata_filters(&mut data, &options, &filter_ctx);
         data.stamp_filter_values(&filter_ctx);
         let (nodes, edges) = self.build_view_graphs(&data, &options, views);
+        data.node_entities = nodes
+            .iter()
+            .map(|(view, view_nodes)| {
+                (
+                    *view,
+                    super::node_entities::node_entities(view_nodes, &data),
+                )
+            })
+            .collect();
         data.nodes = nodes;
         data.edges = edges;
         Ok(data)

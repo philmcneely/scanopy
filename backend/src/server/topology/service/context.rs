@@ -52,6 +52,10 @@ pub struct TopologyContext<'a> {
     pub options: &'a TopologyOptions,
     /// View this context is building — drives grouping rule selection.
     pub view: TopologyView,
+    /// Ports whose forwarding table learned a known host, computed from `interfaces` and
+    /// `ip_addresses` the way the server-side filter computes it (`fdb::learned_hosts`), so the
+    /// graph and the filter agree on which ports are linked.
+    pub ports_learning_known_hosts: HashSet<Uuid>,
 }
 
 impl<'a> TopologyContext<'a> {
@@ -86,6 +90,9 @@ impl<'a> TopologyContext<'a> {
             application_group_id: None,
             options,
             view,
+            ports_learning_known_hosts: super::fdb::learned_hosts(interfaces, ip_addresses)
+                .into_keys()
+                .collect(),
         }
     }
 
@@ -270,7 +277,8 @@ impl<'a> TopologyContext<'a> {
     /// ~720; see `FilterValueContext`.
     pub fn interface_link_state(&self, interface_id: Uuid) -> InterfaceLinkState {
         InterfaceLinkState::classify(
-            self.interface_has_neighbor(interface_id),
+            self.interface_has_neighbor(interface_id)
+                || self.ports_learning_known_hosts.contains(&interface_id),
             self.neighbours
                 .iter()
                 .any(|n| n.neighbor.interface_id() == Some(interface_id)),

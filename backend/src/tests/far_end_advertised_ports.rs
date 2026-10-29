@@ -32,7 +32,7 @@ use crate::server::{
     shared::{
         attribution::{AttributeSource, Attributed},
         storage::{factory::StorageFactory, filter::StorableFilter, traits::Storage},
-        types::entities::EntitySource,
+        types::entities::{EntitySource, InferredVia},
     },
 };
 
@@ -231,7 +231,9 @@ fn names(ports: &[(&str, &str)]) -> HashSet<String> {
 /// An Inferred far end with its Last seen at the scan that minted it, named again by `neighbour`.
 async fn re_advertised_far_end(lab: &Lab) -> (Host, Interface) {
     let mut switch = lab.far_end(MUTE_SWITCH).await;
-    switch.base.source = EntitySource::Inferred;
+    switch.base.source = EntitySource::Inferred {
+        via: InferredVia::Neighbour,
+    };
     // Microseconds, the precision Postgres keeps, so a test can compare the stored value to this
     // one. Linux clocks carry nanoseconds, which the round trip drops.
     switch.last_seen_at =

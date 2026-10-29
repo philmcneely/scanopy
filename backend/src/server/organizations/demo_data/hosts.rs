@@ -999,6 +999,7 @@ pub(super) fn generate_hosts_and_services(
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             id: host_id,
             created_at: now,
             updated_at: now,
@@ -1979,6 +1980,7 @@ pub(super) fn generate_hosts_and_services(
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             id: host_id,
             created_at: now,
             updated_at: now,
@@ -1991,7 +1993,9 @@ pub(super) fn generate_hosts_and_services(
                 description: Some(
                     "Seen via LLDP from the HQ core switch; not yet scanned directly".to_string(),
                 ),
-                source: EntitySource::Inferred,
+                source: EntitySource::Inferred {
+                    via: crate::server::shared::types::entities::InferredVia::Neighbour,
+                },
                 virtualization_metadata: None,
                 virtualization_service_id: None,
                 virtualization_interface_id: None,
@@ -2023,6 +2027,72 @@ pub(super) fn generate_hosts_and_services(
             ports: vec![],
             services: vec![],
         });
+    }
+
+    // -- Shop floor — two Hirschmann industrial switches that answer no scan. The HQ switch's
+    // forwarding table learned their MACs on ports 8 and 9. The one on port 8 is still
+    // unconfirmed (EntitySource::Inferred via the forwarding table); someone has confirmed the
+    // one on port 9 and typed in what it is, so its name, manufacturer and device type are
+    // Manual and no scan replaces them.
+    {
+        let manual = AttributeSource::Manual;
+        let unconfirmed = Host {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            dismissed_at: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: HostBase {
+                site_id: hq.id,
+                source: EntitySource::Inferred {
+                    via: crate::server::shared::types::entities::InferredVia::ForwardingTable,
+                },
+                ..Default::default()
+            },
+        };
+        let confirmed = Host {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            dismissed_at: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: HostBase {
+                name: HostName::manual("line-2-switch".to_string()),
+                site_id: hq.id,
+                description: Some("Packaging line 2, cabinet B".to_string()),
+                source: EntitySource::Manual,
+                manufacturer: Some(Attributed::new(
+                    HostManufacturerValue("Hirschmann".to_string()),
+                    manual,
+                )),
+                model: Some(Attributed::new(HostModelValue("RS20".to_string()), manual)),
+                matched_device_type: Some(Attributed::new(
+                    crate::server::hosts::r#impl::attributes::HostMatchedDeviceTypeValue(
+                        crate::server::hosts::r#impl::device_type::DeviceType::Switch,
+                    ),
+                    manual,
+                )),
+                ..Default::default()
+            },
+        };
+        for host in [unconfirmed, confirmed] {
+            result.push(HostWithServices {
+                host,
+                ip_addresses: vec![],
+                ports: vec![],
+                services: vec![],
+            });
+        }
     }
 
     // ========================================================================
@@ -2713,6 +2783,7 @@ pub(super) fn generate_hosts_and_services(
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             id: host_id,
             created_at: now,
             updated_at: now,
