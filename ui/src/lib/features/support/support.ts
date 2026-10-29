@@ -23,16 +23,12 @@ export function supportEmailAddress(
 export type BetaProgramSource = 'app_settings' | 'app_plans';
 
 /**
- * The beta program sign-up on the website. The query names only where the link was opened, the
- * deployment, and the beta feature it was opened for, so nothing that identifies the user leaves a
- * self-hosted server until they type it into the form.
+ * The beta program sign-up on the website: the MCP Server page, which explains the feature the
+ * program opens first and holds the form. The query names only where the link was opened and the
+ * deployment, so nothing that identifies the user leaves a self-hosted server until they type it
+ * into the form.
  */
-export function betaProgramUrl(
-	source: BetaProgramSource,
-	cloud: boolean,
-	feature: string | null = null
-): string {
+export function betaProgramUrl(source: BetaProgramSource, cloud: boolean): string {
 	const params = new URLSearchParams({ source, deployment: cloud ? 'cloud' : 'self_hosted' });
-	if (feature) params.set('feature', feature);
-	return `https://scanopy.net/beta?${params}`;
+	return `https://scanopy.net/product/mcp-server?${params}`;
 }
