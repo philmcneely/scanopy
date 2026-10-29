@@ -2,6 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::beszel_agent::BeszelAgentProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 use crate::server::shared::logos::Logo;
@@ -22,6 +23,9 @@ impl ServiceDefinition for BeszelAgent {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Monitoring
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
 
     /// The agent's port, qualified by the software name in its SSH identification string.

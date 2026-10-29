@@ -1,6 +1,8 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, Vendor};
 use crate::server::shared::logos::Logo;
@@ -17,6 +19,10 @@ impl ServiceDefinition for MyQ {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
+    }
+    // A garage door opener or its hub.
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Is(DeviceType::AccessControl)
     }
 
     // The web server on 80 is Marvell's Wi-Fi microcontroller SDK (`Server: Marvell-WM`), which

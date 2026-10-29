@@ -373,7 +373,7 @@ mod tests {
         services::r#impl::{
             base::{Service, ServiceBase},
             categories::ServiceCategory,
-            definitions::ServiceDefinition,
+            definitions::{DeviceTypeImplication, ServiceDefinition},
             patterns::Pattern,
         },
         shared::types::Color,
@@ -405,6 +405,9 @@ mod tests {
         }
         fn category(&self) -> ServiceCategory {
             self.category
+        }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Server
         }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None

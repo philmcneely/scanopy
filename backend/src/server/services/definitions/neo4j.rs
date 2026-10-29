@@ -1,6 +1,7 @@
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
 use crate::server::shared::logos::Logo;
@@ -17,6 +18,9 @@ impl ServiceDefinition for Neo4j {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Database
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
     /// The HTTP discovery endpoint on 7474 answers unauthenticated with the server's own version
     /// and Bolt routing URIs.

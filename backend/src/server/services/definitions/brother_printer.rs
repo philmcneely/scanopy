@@ -1,6 +1,8 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, Vendor};
 use crate::server::shared::logos::Logo;
@@ -17,6 +19,10 @@ impl ServiceDefinition for BrotherPrinter {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Printer
+    }
+    // Most current Brother network units print, scan and copy.
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Is(DeviceType::MultifunctionDevice)
     }
 
     // Brother's network products are printers, multifunctions and scanners, so the OUI names the

@@ -1961,7 +1961,7 @@ mod tests {
         assert!(targets.is_empty());
     }
     use crate::server::services::r#impl::categories::ServiceCategory;
-    use crate::server::services::r#impl::definitions::ServiceDefinition;
+    use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
     use crate::server::services::r#impl::patterns::Pattern;
 
     #[derive(PartialEq, Eq, Hash, Clone)]
@@ -1976,6 +1976,9 @@ mod tests {
         }
         fn category(&self) -> ServiceCategory {
             ServiceCategory::Development
+        }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Server
         }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None

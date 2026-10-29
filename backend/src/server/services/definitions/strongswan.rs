@@ -2,6 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::ike::IkeProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
@@ -17,6 +18,9 @@ impl ServiceDefinition for StrongSwan {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::VPN
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
 
     /// Matches on the probe's answer. IKE's opening exchange is unauthenticated by construction, so a

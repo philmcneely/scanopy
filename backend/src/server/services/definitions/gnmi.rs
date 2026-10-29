@@ -1,5 +1,6 @@
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
@@ -15,6 +16,9 @@ impl ServiceDefinition for Gnmi {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Nothing
     }
     /// Credential-gated for the same reason as SNMP: a gRPC listener answers a TCP connect
     /// whatever it serves, so a port alone does not establish that this is gNMI. Only a

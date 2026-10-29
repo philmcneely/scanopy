@@ -3,9 +3,11 @@ use crate::server::hosts::r#impl::attributes::{HostHostnameValue, HostOsValue};
 use crate::server::hosts::r#impl::os::{HostOs, HostOsFamily};
 use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
 use crate::server::services::definitions::{
-    airplay_receiver::AirPlayReceiver, docker_daemon::Docker, kerberos::Kerberos,
-    open_ports::OpenPorts, pf_sense::PfSense, plex::Plex, postgresql::PostgreSQL, proxmox::Proxmox,
-    samba::Samba, snmp::Snmp, spotify_connect::SpotifyConnect, true_nas::TrueNAS,
+    airplay_receiver::AirPlayReceiver, airprint_printer::AirPrintPrinter, docker_daemon::Docker,
+    hikvision::Hikvision, kerberos::Kerberos, minio::MinIO, open_ports::OpenPorts,
+    pf_sense::PfSense, plex::Plex, postgresql::PostgreSQL, proxmox::Proxmox, samba::Samba,
+    snmp::Snmp, spotify_connect::SpotifyConnect, true_nas::TrueNAS,
+    workstation::Workstation as WorkstationService,
 };
 use crate::server::services::r#impl::base::ServiceBase;
 use crate::server::services::r#impl::virtualization::{
@@ -175,6 +177,36 @@ fn a_streaming_receiver_protocol_decides_only_a_host_nothing_else_names() {
             []
         ),
         DeviceType::Server
+    );
+}
+
+/// Software a general-purpose OS runs yields to that OS; a dedicated product names its host.
+#[test]
+fn software_a_general_os_runs_yields_to_the_os() {
+    let macos = || host_with_os(Some(HostOs::family_only(HostOsFamily::MacOs)));
+    // A Mac sharing a printer, or running MinIO, is still a workstation.
+    assert_eq!(
+        macos().device_type(&[service(Box::new(AirPrintPrinter))], []),
+        DeviceType::Workstation
+    );
+    assert_eq!(
+        macos().device_type(&[service(Box::new(MinIO))], []),
+        DeviceType::Workstation
+    );
+    // A Windows Server with RDP and SMB open is a server.
+    let windows_server = HostOs {
+        name: Some("Windows Server 2022".to_string()),
+        ..HostOs::family_only(HostOsFamily::Windows)
+    };
+    assert_eq!(
+        host_with_os(Some(windows_server))
+            .device_type(&[service(Box::new(WorkstationService))], []),
+        DeviceType::Server
+    );
+    // A Hikvision unit with nothing else to go on is a camera.
+    assert_eq!(
+        host_with_os(None).device_type(&[service(Box::new(Hikvision))], []),
+        DeviceType::Camera
     );
 }
 

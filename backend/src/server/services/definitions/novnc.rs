@@ -1,5 +1,6 @@
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
 
@@ -16,6 +17,9 @@ impl ServiceDefinition for NoVnc {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::RemoteAccess
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Nothing
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

@@ -136,12 +136,11 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
         None
     }
 
-    /// What this service implies about the device running it. Defaults to the category's;
-    /// override it only where the category holds several roles, as NetworkAccess holds both
-    /// access points and gateways, or where the software runs on any host, as Samba does.
-    fn device_type(&self) -> DeviceTypeImplication {
-        self.category().device_type()
-    }
+    /// What this service implies about the device running it. Every definition states it, so a
+    /// new one can't reach the waterfall without its author choosing: `Is` for a product that
+    /// names its host, `Suggests` for software devices of a type run alongside general-purpose
+    /// computers, `Server` for software on any host, `Nothing` for plumbing every device runs.
+    fn device_type(&self) -> DeviceTypeImplication;
 }
 
 impl<T: ServiceDefinition> HasId for T
@@ -453,6 +452,9 @@ impl ServiceDefinition for DefaultServiceDefinition {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Unknown
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Nothing
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::None
