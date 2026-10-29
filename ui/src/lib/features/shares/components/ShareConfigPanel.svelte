@@ -246,7 +246,7 @@
 				allowCreateNew={false}
 				allowReorder={false}
 				itemClickAction={null}
-				allowItemEdit={() => false}
+				allowItemEdit={false}
 				onAdd={handleAddView}
 				onRemove={handleRemoveView}
 			/>

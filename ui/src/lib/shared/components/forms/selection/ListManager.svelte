@@ -8,11 +8,14 @@
 	import {
 		common_createNew,
 		common_edit,
+		common_moveDown,
+		common_moveUp,
 		common_noEntityAddedYet,
 		common_remove
 	} from '$lib/paraglide/messages';
 	import { lowercasePreservingAcronyms } from '$lib/shared/utils/formatting';
 	import { tooltip } from '$lib/shared/actions/tooltip';
+	import type { Unavailable } from '$lib/shared/components/data/types';
 
 	interface Props {
 		// Global
@@ -71,9 +74,14 @@
 		// Item interaction
 		allowDuplicates?: boolean;
 		itemClickAction?: 'edit' | 'select' | null;
-		allowItemEdit?: (item: T) => boolean;
-		allowItemRemove?: (item: T) => boolean;
-		allowItemReorder?: (item: T) => boolean;
+		/** Whether the list offers editing at all. A per-item refusal goes in `itemEditUnavailable`. */
+		allowItemEdit?: boolean;
+		/** Whether the list offers removing at all. A per-item refusal goes in `itemRemoveUnavailable`. */
+		allowItemRemove?: boolean;
+		/** Why an item's edit, remove or move action can't run, and whether it still shows. */
+		itemEditUnavailable?: (item: T) => Unavailable | undefined;
+		itemRemoveUnavailable?: (item: T) => Unavailable | undefined;
+		itemReorderUnavailable?: (item: T) => Unavailable | undefined;
 		stickyHeader?: boolean;
 		reorderDisabledTooltip?: string;
 		isItemEditing?: (item: T, index: number) => boolean;
@@ -148,9 +156,11 @@
 		// Item interaction
 		allowDuplicates = false,
 		itemClickAction = null,
-		allowItemEdit = () => true,
-		allowItemRemove = () => true,
-		allowItemReorder = () => true,
+		allowItemEdit = true,
+		allowItemRemove = true,
+		itemEditUnavailable = () => undefined,
+		itemRemoveUnavailable = () => undefined,
+		itemReorderUnavailable = () => undefined,
 		stickyHeader = false,
 		reorderDisabledTooltip = undefined,
 		isItemEditing = () => false,
@@ -388,6 +398,10 @@
 				{@const isHighlighted = highlightedIndex === index}
 				{@const selectable = allowSelection && allowItemSelection(item)}
 				{@const selectionDisabledReason = selectable ? getItemSelectionDisabledReason(item) : null}
+				{@const editUnavailable = itemEditUnavailable(item)}
+				{@const removeUnavailable = itemRemoveUnavailable(item)}
+				{@const reorderUnavailable = itemReorderUnavailable(item)}
+				{@const canEdit = allowItemEdit && !editUnavailable}
 
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 				<div
@@ -404,7 +418,7 @@
 						if (allowSelection && itemClickAction == 'select') {
 							// A non-selectable or disabled row in selection mode only reports the click.
 							if (selectable && !selectionDisabledReason) toggleItemSelection(item);
-						} else if (allowItemEdit(item)) {
+						} else if (canEdit) {
 							if (!itemSnippet && itemDisplayComponent.supportsInlineEdit) {
 								// Toggle inline editing for this item
 								editingIndex = editingIndex === index ? null : index;
@@ -413,8 +427,8 @@
 							}
 						}
 					}}
-					tabindex={allowItemEdit(item) || selectable ? 0 : -1}
-					role={selectable ? 'checkbox' : allowItemEdit(item) ? 'button' : undefined}
+					tabindex={canEdit || selectable ? 0 : -1}
+					role={selectable ? 'checkbox' : canEdit ? 'button' : undefined}
 					aria-checked={selectable ? isItemSelected(item) : undefined}
 				>
 					<!-- Selection checkbox -->
@@ -451,72 +465,82 @@
 						{/if}
 					</div>
 
-					<!-- Action Buttons -->
+					<!-- Action Buttons. An action an item can't run shows disabled with its reason on
+					     hover, unless it's `hidden`. -->
 					<div class="flex items-center gap-1">
-						{#if allowItemEdit(item) && itemClickAction != 'edit'}
+						{#if allowItemEdit && editUnavailable?.state !== 'hidden' && itemClickAction != 'edit'}
 							{@const EditIconComponent = editIcon ? editIcon(item, index) : Edit}
 							{@const btnClass = editButtonClass ? editButtonClass(item, index) : 'btn-icon'}
-							<button
-								type="button"
-								onclick={(e) => {
-									e.stopPropagation();
-									if (itemDisplayComponent.supportsInlineEdit) {
-										editingIndex = editingIndex === index ? null : index;
-									} else {
-										onEdit(item, index);
-									}
-								}}
-								class={btnClass}
-								title={common_edit()}
-							>
-								<EditIconComponent size={16} />
-							</button>
+							<span class="flex" data-tooltip={editUnavailable?.reason} use:tooltip>
+								<button
+									type="button"
+									onclick={(e) => {
+										e.stopPropagation();
+										if (itemDisplayComponent.supportsInlineEdit) {
+											editingIndex = editingIndex === index ? null : index;
+										} else {
+											onEdit(item, index);
+										}
+									}}
+									disabled={!!editUnavailable}
+									class={btnClass}
+									title={editUnavailable ? undefined : common_edit()}
+								>
+									<EditIconComponent size={16} />
+								</button>
+							</span>
 						{/if}
 
-						{#if !isItemEditing(item, index) && allowReorder && allowItemReorder(item)}
-							<button
-								type="button"
-								onclick={(e) => {
-									e.stopPropagation();
-									moveItemUp(index);
-								}}
-								disabled={index === 0 ||
-									!allowItemReorder(items[index - 1]) ||
-									!!reorderDisabledTooltip}
-								class="btn-icon"
-								title={reorderDisabledTooltip ?? 'Move up'}
-							>
-								<ArrowUp size={16} />
-							</button>
+						{#if !isItemEditing(item, index) && allowReorder && reorderUnavailable?.state !== 'hidden'}
+							{@const reorderReason = reorderUnavailable?.reason ?? reorderDisabledTooltip}
+							<span class="flex gap-1" data-tooltip={reorderReason} use:tooltip>
+								<button
+									type="button"
+									onclick={(e) => {
+										e.stopPropagation();
+										moveItemUp(index);
+									}}
+									disabled={index === 0 ||
+										!!itemReorderUnavailable(items[index - 1]) ||
+										!!reorderReason}
+									class="btn-icon"
+									title={reorderReason ? undefined : common_moveUp()}
+								>
+									<ArrowUp size={16} />
+								</button>
 
-							<button
-								type="button"
-								onclick={(e) => {
-									e.stopPropagation();
-									moveItemDown(index);
-								}}
-								disabled={index === items.length - 1 ||
-									!allowItemReorder(items[index + 1]) ||
-									!!reorderDisabledTooltip}
-								class="btn-icon"
-								title={reorderDisabledTooltip ?? 'Move down'}
-							>
-								<ArrowDown size={16} />
-							</button>
+								<button
+									type="button"
+									onclick={(e) => {
+										e.stopPropagation();
+										moveItemDown(index);
+									}}
+									disabled={index === items.length - 1 ||
+										!!itemReorderUnavailable(items[index + 1]) ||
+										!!reorderReason}
+									class="btn-icon"
+									title={reorderReason ? undefined : common_moveDown()}
+								>
+									<ArrowDown size={16} />
+								</button>
+							</span>
 						{/if}
 
-						{#if !isItemEditing(item, index) && allowItemRemove(item)}
-							<button
-								type="button"
-								onclick={(e) => {
-									e.stopPropagation();
-									removeItem(index);
-								}}
-								class="btn-icon-danger"
-								title={common_remove()}
-							>
-								<Trash2 size={16} />
-							</button>
+						{#if !isItemEditing(item, index) && allowItemRemove && removeUnavailable?.state !== 'hidden'}
+							<span class="flex" data-tooltip={removeUnavailable?.reason} use:tooltip>
+								<button
+									type="button"
+									onclick={(e) => {
+										e.stopPropagation();
+										removeItem(index);
+									}}
+									disabled={!!removeUnavailable}
+									class="btn-icon-danger"
+									title={removeUnavailable ? undefined : common_remove()}
+								>
+									<Trash2 size={16} />
+								</button>
+							</span>
 						{/if}
 					</div>
 

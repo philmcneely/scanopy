@@ -85,7 +85,7 @@
 		allowReorder={false}
 		allowDuplicates={false}
 		showSearch={true}
-		allowItemEdit={() => false}
+		allowItemEdit={false}
 		options={selectableVms}
 		onSearchChange={hostPicker.onSearchChange}
 		onLoadMore={hostPicker.onLoadMore}

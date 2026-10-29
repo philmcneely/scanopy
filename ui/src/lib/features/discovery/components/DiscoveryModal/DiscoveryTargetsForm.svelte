@@ -148,7 +148,7 @@
 			placeholder={discovery_selectSubnet()}
 			emptyMessage={discovery_allSubnetsScanned()}
 			allowReorder={false}
-			allowItemEdit={() => false}
+			allowItemEdit={false}
 			showSearch={true}
 			options={availableSubnets}
 			items={selectedSubnets}

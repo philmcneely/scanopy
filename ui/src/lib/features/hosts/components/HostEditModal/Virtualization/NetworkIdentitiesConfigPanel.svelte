@@ -43,8 +43,8 @@
 		emptyMessage={hosts_virtualization_noNetworkIdentities()}
 		allowReorder={false}
 		allowAddFromOptions={false}
-		allowItemEdit={() => false}
-		allowItemRemove={() => false}
+		allowItemEdit={false}
+		allowItemRemove={false}
 		options={[] as Host[]}
 		items={identityHosts}
 		getItemContext={() =>

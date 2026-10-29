@@ -88,6 +88,7 @@
 		daemons_credentialWizardTargetSpecificHosts,
 		daemons_credentialWizardTargetAllHosts,
 		daemons_credentialWizardBroadcastHelp,
+		daemons_credentialWizardDaemonHostTargetFixed,
 		credentials_alreadyAssignedTo
 	} from '$lib/paraglide/messages';
 
@@ -980,6 +981,7 @@
 				<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
 			{:else}
 				{#each targetIpValues as ip, i (i)}
+					{@const removeBlocked = isDaemonHostValue(ip) && !supportsRemoteHosts}
 					<div class="flex items-center gap-2">
 						{#if isDaemonHostValue(ip)}
 							<input
@@ -1014,13 +1016,20 @@
 						{/if}
 						<!-- A type that can only target the daemon host keeps that row: removing it would
 						     leave the credential nothing to run on. -->
-						{#if !(isDaemonHostValue(ip) && !supportsRemoteHosts)}
+						<span
+							class="flex shrink-0"
+							data-tooltip={removeBlocked
+								? daemons_credentialWizardDaemonHostTargetFixed()
+								: undefined}
+							use:tooltip
+						>
 							<button
 								type="button"
-								class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
+								class="p-1 text-lg leading-none text-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted"
+								disabled={removeBlocked}
 								onclick={() => handleRemoveTarget(i)}>&times;</button
 							>
-						{/if}
+						</span>
 					</div>
 				{/each}
 				<div class="flex flex-wrap items-center gap-3">

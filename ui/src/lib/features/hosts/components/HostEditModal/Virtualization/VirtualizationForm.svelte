@@ -93,7 +93,7 @@
 				emptyMessage={hosts_virtualization_emptyMessage()}
 				{items}
 				itemClickAction="edit"
-				allowItemRemove={() => false}
+				allowItemRemove={false}
 				allowReorder={false}
 				allowAddFromOptions={false}
 				options={[] as Service[]}

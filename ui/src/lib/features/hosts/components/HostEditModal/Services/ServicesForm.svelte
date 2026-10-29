@@ -154,7 +154,7 @@
 				itemClickAction="edit"
 				showSearch={true}
 				{items}
-				allowItemRemove={() => !isTransferringPortBindings}
+				allowItemRemove={!isTransferringPortBindings}
 				allowReorder={!isTransferringPortBindings}
 				optionDisplayComponent={ServiceTypeDisplay}
 				getOptionContext={() => ({ hideTags: ['category' as const] })}

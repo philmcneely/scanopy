@@ -103,7 +103,7 @@
 		emptyMessage={hosts_virtualization_noContainersYet()}
 		allowReorder={false}
 		allowDuplicates={false}
-		allowItemEdit={() => false}
+		allowItemEdit={false}
 		showSearch={true}
 		options={selectableContainers}
 		items={managedContainers}
@@ -122,8 +122,8 @@
 			})}
 			allowReorder={false}
 			allowAddFromOptions={false}
-			allowItemEdit={() => false}
-			allowItemRemove={() => false}
+			allowItemEdit={false}
+			allowItemRemove={false}
 			options={[] as Host[]}
 			items={containerHosts}
 			getItemContext={() => hostDisplayContext(ipAddressesQuery.data ?? [], services)}

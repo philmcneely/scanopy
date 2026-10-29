@@ -14,6 +14,9 @@
 	} from './columns';
 	import {
 		common_dragToReorderColumn,
+		common_columnPinnedFirst,
+		common_columnPinnedLast,
+		common_columnSectionPinned,
 		common_columns,
 		common_moveColumnDown,
 		common_moveColumnUp,
@@ -23,6 +26,7 @@
 	import { isShiftShortcut, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { isFreeKeydown, useListShortcuts } from '../controls/listShortcuts';
 	import Popover from '../Popover.svelte';
+	import { tooltip } from '$lib/shared/actions/tooltip';
 
 	let {
 		columns,
@@ -270,6 +274,8 @@
 				ondrop={handleSectionDrop}
 			>
 				{#if key !== null && heading}
+					{@const pinnedReason =
+						sectionIndex === -1 ? common_columnSectionPinned({ section: heading }) : undefined}
 					<!-- Flush left, with its columns indented beneath it. Dragging the heading, or its
 							arrows, moves every column under it. -->
 					<div
@@ -279,23 +285,21 @@
 						ondragend={clearDrag}
 						role="presentation"
 					>
-						{#if sectionIndex !== -1}
-							<span
-								class="cursor-grab"
-								title={common_dragToReorderColumn({ column: heading })}
-								aria-hidden="true"
-							>
-								<GripVertical class="h-4 w-4" />
-							</span>
-						{/if}
+						<span
+							class={pinnedReason ? 'cursor-not-allowed opacity-30' : 'cursor-grab'}
+							title={pinnedReason ?? common_dragToReorderColumn({ column: heading })}
+							aria-hidden="true"
+						>
+							<GripVertical class="h-4 w-4" />
+						</span>
 						<span class="min-w-0 flex-1 truncate">{heading}</span>
-						{#if sectionIndex !== -1}
+						<span class="flex" data-tooltip={pinnedReason} use:tooltip>
 							<button
 								type="button"
 								data-move="up"
 								data-section={key}
 								onclick={() => stepSection(key, -1)}
-								disabled={sectionIndex <= 0}
+								disabled={!!pinnedReason || sectionIndex <= 0}
 								aria-label={common_moveColumnUp({ column: heading })}
 								class="rounded-sm p-0.5 transition-colors hover:text-primary disabled:opacity-30"
 							>
@@ -306,18 +310,23 @@
 								data-move="down"
 								data-section={key}
 								onclick={() => stepSection(key, 1)}
-								disabled={sectionIndex === movableSections.length - 1}
+								disabled={!!pinnedReason || sectionIndex === movableSections.length - 1}
 								aria-label={common_moveColumnDown({ column: heading })}
 								class="rounded-sm p-0.5 transition-colors hover:text-primary disabled:opacity-30"
 							>
 								<ChevronDown class="h-4 w-4" />
 							</button>
-						{/if}
+						</span>
 					</div>
 				{/if}
 				<ul class="space-y-0.5 {key !== null ? 'pl-3' : ''}">
 					{#each sectionColumns as column (column.id)}
 						{@const canMove = isMovableColumn(column)}
+						{@const pinnedReason = canMove
+							? undefined
+							: column.primary
+								? common_columnPinnedFirst({ column: column.label })
+								: common_columnPinnedLast({ column: column.label })}
 						{@const index = movable.indexOf(column.id)}
 						{@const isTarget = dropTarget?.id === column.id && draggingId !== column.id}
 						<li
@@ -333,17 +342,15 @@
 							ondrop={handleDrop}
 							ondragend={clearDrag}
 						>
-							{#if canMove}
-								<span
-									class="cursor-grab text-tertiary"
-									title={common_dragToReorderColumn({ column: column.label })}
-									aria-hidden="true"
-								>
-									<GripVertical class="h-4 w-4" />
-								</span>
-							{:else}
-								<span class="w-4" aria-hidden="true"></span>
-							{/if}
+							<span
+								class="text-tertiary {pinnedReason
+									? 'cursor-not-allowed opacity-30'
+									: 'cursor-grab'}"
+								title={pinnedReason ?? common_dragToReorderColumn({ column: column.label })}
+								aria-hidden="true"
+							>
+								<GripVertical class="h-4 w-4" />
+							</span>
 							<label class="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
 								<input
 									type="checkbox"
@@ -355,13 +362,13 @@
 									>{column.label}</span
 								>
 							</label>
-							{#if canMove}
+							<span class="flex" data-tooltip={pinnedReason} use:tooltip>
 								<button
 									type="button"
 									data-move="up"
 									data-column={column.id}
 									onclick={() => step(column.id, -1)}
-									disabled={index <= 0}
+									disabled={!!pinnedReason || index <= 0}
 									aria-label={common_moveColumnUp({ column: column.label })}
 									class="rounded-sm p-0.5 text-tertiary transition-colors hover:text-primary disabled:opacity-30"
 								>
@@ -372,13 +379,13 @@
 									data-move="down"
 									data-column={column.id}
 									onclick={() => step(column.id, 1)}
-									disabled={index === movable.length - 1}
+									disabled={!!pinnedReason || index === movable.length - 1}
 									aria-label={common_moveColumnDown({ column: column.label })}
 									class="rounded-sm p-0.5 text-tertiary transition-colors hover:text-primary disabled:opacity-30"
 								>
 									<ChevronDown class="h-4 w-4" />
 								</button>
-							{/if}
+							</span>
 						</li>
 					{/each}
 				</ul>
