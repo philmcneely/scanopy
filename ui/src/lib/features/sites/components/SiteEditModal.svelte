@@ -298,7 +298,7 @@
 						placeholder={credentials_selectToAddPlaceholder()}
 						emptyMessage={sites_noCredentialsAssigned()}
 						allowReorder={false}
-						allowItemEdit={() => false}
+						allowItemEdit={false}
 						options={assignableCredentials}
 						items={selectedCredentials}
 						optionDisplayComponent={CredentialDisplay}

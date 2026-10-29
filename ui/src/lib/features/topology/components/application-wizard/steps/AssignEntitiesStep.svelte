@@ -127,8 +127,8 @@
 			allowSelection={true}
 			itemClickAction="select"
 			bind:selectedItems={selectedHosts}
-			allowItemEdit={() => false}
-			allowItemRemove={() => false}
+			allowItemEdit={false}
+			allowItemRemove={false}
 		>
 			{#snippet itemExpandedSnippet({ item })}
 				{@const host = item}
