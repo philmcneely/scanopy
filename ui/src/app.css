@@ -280,7 +280,8 @@
 
 	.sidebar {
 		/* Sidebar component */
-		@apply fixed top-0 left-0 z-10 flex h-dvh w-48 flex-col;
+		/* Fills the row below the app banners, which span the full width above it. */
+		@apply relative z-10 flex h-full w-48 flex-col;
 		border-right: 1px solid var(--color-border);
 		background-color: var(--color-bg-sidebar);
 	}

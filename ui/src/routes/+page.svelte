@@ -468,29 +468,43 @@
 		<EmailVerificationGate isOpen={true} />
 	</div>
 {:else if appInitialized}
-	<div class="flex h-dvh">
-		<!-- Sidebar -->
+	<div class="flex h-dvh flex-col">
+		<!-- Banners span the full width, sidebar included.
+		     Only while the main app is reachable. When it is gated, or the org is on
+		     a licensed plan, the Settings modal carries the same stack in its frame
+		     instead, so exactly one copy is ever mounted: AppBanner holds its
+		     dismissed state locally, and a second copy behind the overlay would not
+		     follow a dismissal. -->
 		<div class="shrink-0">
-			<Sidebar
-				bind:activeTab
-				bind:collapsed={sidebarCollapsed}
-				bind:allTabs
-				bind:showSettings
-				settingsInitialTab={isBillingBlocking
-					? billingBlockingTab
-					: isSelfHostedPlanLocked
-						? licenseLockTab
-						: 'account'}
-				settingsDismissible={!isBillingBlocking}
-				mainAppLocked={isMainAppLocked}
-				showLockedMainNav={isSelfHostedPlanLocked}
-				{mainAppAvailable}
-				licensedPlanPending={licensedPlanJustPicked}
-			/>
+			{#if !isBillingBlocking && !isSelfHostedPlanLocked}
+				<AppBanners />
+			{/if}
+			<ServerUnreachableBanner />
 		</div>
 
-		<!-- Main Content -->
-		<!--
+		<div class="flex min-h-0 flex-1">
+			<!-- Sidebar -->
+			<div class="shrink-0">
+				<Sidebar
+					bind:activeTab
+					bind:collapsed={sidebarCollapsed}
+					bind:allTabs
+					bind:showSettings
+					settingsInitialTab={isBillingBlocking
+						? billingBlockingTab
+						: isSelfHostedPlanLocked
+							? licenseLockTab
+							: 'account'}
+					settingsDismissible={!isBillingBlocking}
+					mainAppLocked={isMainAppLocked}
+					showLockedMainNav={isSelfHostedPlanLocked}
+					{mainAppAvailable}
+					licensedPlanPending={licensedPlanJustPicked}
+				/>
+			</div>
+
+			<!-- Main Content -->
+			<!--
 			min-w-0: a flex child defaults to min-width:auto, so it cannot shrink
 			below its content. Without it a wide table stretches main, then the flex
 			row, and the whole page scrolls sideways instead of the table alone.
@@ -504,22 +518,9 @@
 			`relative` makes main their containing block, so its own overflow contains
 			them and only main scrolls.
 		-->
-		<main
-			class="relative min-w-0 flex-1 overflow-auto transition-all duration-300"
-			class:ml-16={sidebarCollapsed}
-			class:ml-48={!sidebarCollapsed}
-		>
-			<!-- Only while the main app is reachable. When it is gated, or the org is on
-			     a licensed plan, the Settings modal carries the same stack in its frame
-			     instead, so exactly one copy is ever mounted: AppBanner holds its
-			     dismissed state locally, and a second copy behind the overlay would not
-			     follow a dismissal. -->
-			{#if !isBillingBlocking && !isSelfHostedPlanLocked}
-				<AppBanners />
-			{/if}
-			<ServerUnreachableBanner />
-			<div class="p-4 [&_.sticky]:sticky [&_.sticky]:top-0">
-				<!--
+			<main class="relative min-w-0 flex-1 overflow-auto">
+				<div class="p-4 [&_.sticky]:sticky [&_.sticky]:top-0">
+					<!--
 					Programmatically render all tabs based on sidebar config.
 
 					`relative` on the collapsed wrappers is load-bearing, not decoration.
@@ -534,36 +535,37 @@
 					with everything else. `contain: paint` does the same for `position: fixed`
 					descendants, such as a list's bulk-tag island.
 				-->
-				<!-- Main-app tabs mount only once the org is known to be unlocked; their
+					<!-- Main-app tabs mount only once the org is known to be unlocked; their
 				     queries hit routes a licensed self-hosted org is rejected from. -->
-				{#if mainAppAvailable}
-					{#each allTabs as tab (tab.id)}
-						{#if tab.subTabIds && tab.subTabDefs}
-							<div
-								class={!tab.subTabIds.includes(activeTab)
-									? 'relative h-0 overflow-hidden contain-[paint]'
-									: ''}
-							>
-								<ContentSubTabs
-									tabs={tab.subTabDefs}
-									bind:activeTab
-									isReadOnly={tab.isReadOnly}
-									notifications={tab.subTabNotifications}
-								/>
-							</div>
-						{:else}
-							<div
-								class={activeTab !== tab.id ? 'relative h-0 overflow-hidden contain-[paint]' : ''}
-							>
-								<tab.component isReadOnly={tab.isReadOnly} isActive={activeTab === tab.id} />
-							</div>
-						{/if}
-					{/each}
-				{:else if isSelfHostedPlanLocked}
-					<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
-				{/if}
-			</div>
-		</main>
+					{#if mainAppAvailable}
+						{#each allTabs as tab (tab.id)}
+							{#if tab.subTabIds && tab.subTabDefs}
+								<div
+									class={!tab.subTabIds.includes(activeTab)
+										? 'relative h-0 overflow-hidden contain-[paint]'
+										: ''}
+								>
+									<ContentSubTabs
+										tabs={tab.subTabDefs}
+										bind:activeTab
+										isReadOnly={tab.isReadOnly}
+										notifications={tab.subTabNotifications}
+									/>
+								</div>
+							{:else}
+								<div
+									class={activeTab !== tab.id ? 'relative h-0 overflow-hidden contain-[paint]' : ''}
+								>
+									<tab.component isReadOnly={tab.isReadOnly} isActive={activeTab === tab.id} />
+								</div>
+							{/if}
+						{/each}
+					{:else if isSelfHostedPlanLocked}
+						<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
+					{/if}
+				</div>
+			</main>
+		</div>
 	</div>
 
 	<TrialExpiryModal
