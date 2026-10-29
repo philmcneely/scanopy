@@ -40,8 +40,8 @@
     "name_singular": "Site",
     "name_plural": "Sites",
     "description": "Site containers. Top-level organizational unit that contains subnets, hosts, and other entities.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "sites"
   },
   {
@@ -49,8 +49,8 @@
     "name_singular": "Host",
     "name_plural": "Hosts",
     "description": "Network hosts (devices). Manage discovered or manually created hosts on your network.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "hosts"
   },
   {
@@ -58,8 +58,8 @@
     "name_singular": "Subnet",
     "name_plural": "Subnets",
     "description": "IP subnets within sites. Define address ranges and organize hosts by subnet.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "subnets"
   },
   {
@@ -67,8 +67,8 @@
     "name_singular": "IP Address",
     "name_plural": "IP Addresses",
     "description": "IP addresses assigned to hosts. Each address belongs to a host and a subnet, optionally has a MAC address, and represents an observed or configured address on the network.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "ip_addresses"
   },
   {
@@ -76,8 +76,8 @@
     "name_singular": "Port",
     "name_plural": "Ports",
     "description": "Ports that have been scanned and found open on a host.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "ports"
   },
   {
@@ -85,8 +85,8 @@
     "name_singular": "Service",
     "name_plural": "Services",
     "description": "Services running on hosts. Detected or manually added services like databases, web servers, etc.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "services"
   },
   {
@@ -94,8 +94,8 @@
     "name_singular": "Binding",
     "name_plural": "Bindings",
     "description": "Service bindings linking services to IP addresses and/or ports. Defines where a service is accessible.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "bindings"
   },
   {
@@ -103,8 +103,8 @@
     "name_singular": "Interface",
     "name_plural": "Interfaces",
     "description": "SNMP ifTable entries. Physical and logical interfaces discovered via SNMP on hosts.",
-    "category": "assets",
-    "category_display": "Assets",
+    "category": "inventory",
+    "category_display": "Inventory",
     "table_name": "interfaces"
   },
   {
@@ -112,8 +112,8 @@
     "name_singular": "Daemon",
     "name_plural": "Daemons",
     "description": "Daemons are scanning agents that connect to the server to perform network discovery.",
-    "category": "discover",
-    "category_display": "Discover",
+    "category": "discovery",
+    "category_display": "Discovery",
     "table_name": "daemons"
   },
   {
@@ -121,8 +121,8 @@
     "name_singular": "Daemon API Key",
     "name_plural": "Daemon API Keys",
     "description": "API keys for daemon authentication. Create and manage keys that allow daemons to communicate with the server.",
-    "category": "discover",
-    "category_display": "Discover",
+    "category": "discovery",
+    "category_display": "Discovery",
     "table_name": "api_keys"
   },
   {
@@ -130,8 +130,8 @@
     "name_singular": "Discovery",
     "name_plural": "Discoveries",
     "description": "Network discovery operations. Trigger and monitor scans that detect hosts, services, and network topology.",
-    "category": "discover",
-    "category_display": "Discover",
+    "category": "discovery",
+    "category_display": "Discovery",
     "table_name": "discovery"
   },
   {
@@ -139,8 +139,8 @@
     "name_singular": "Dependency",
     "name_plural": "Dependencies",
     "description": "Service dependency relationships. Define how services depend on each other.",
-    "category": "visualization",
-    "category_display": "Visualization",
+    "category": "topology",
+    "category_display": "Topology",
     "table_name": "dependencies"
   },
   {
@@ -148,8 +148,8 @@
     "name_singular": "Topology",
     "name_plural": "Topologies",
     "description": "Network topology maps showing host relationships and connections.",
-    "category": "visualization",
-    "category_display": "Visualization",
+    "category": "topology",
+    "category_display": "Topology",
     "table_name": "topologies"
   },
   {
@@ -157,8 +157,8 @@
     "name_singular": "Share",
     "name_plural": "Shares",
     "description": "Shared network views. Create read-only shareable links to your network topology.",
-    "category": "visualization",
-    "category_display": "Visualization",
+    "category": "topology",
+    "category_display": "Topology",
     "table_name": "shares"
   },
   {
