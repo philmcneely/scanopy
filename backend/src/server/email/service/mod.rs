@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 use super::messages::{
     AirgapExpiring, AirgapRenewal, CancellationInitiated, CheckoutCompleted, DaemonStandby,
-    DaemonSunset, DaemonUnreachable, DiscoveryDigest, DiscoveryGuide, Email, EmailAttachment,
-    EmailCategory, EmailChangedOld, InstallCommand, Invite, InvoiceCredited,
+    DaemonSunset, DaemonUnreachable, DiscoveryDigest, DiscoveryFailing, DiscoveryGuide, Email,
+    EmailAttachment, EmailCategory, EmailChangedOld, InstallCommand, Invite, InvoiceCredited,
     InvoiceFinalizationFailed, InvoiceIssued, InvoiceOverdue, LicensedServerUpgrade, OidcLinked,
     OidcUnlinked, OrganizationDeleted, PasswordChanged, PasswordReset, PaymentActionRequired,
     PaymentFailed, PaymentMethodAdded, PaymentMethodRemoved, PaymentRecovered, PlanChanged,
@@ -902,6 +902,14 @@ impl EmailService {
             },
         )
         .await
+    }
+
+    pub async fn send_discovery_failing_email(
+        &self,
+        to: EmailAddress,
+        email: &DiscoveryFailing<'_>,
+    ) -> Result<()> {
+        self.dispatch(to, email).await
     }
 
     /// Notify a recipient that one or more of their org's daemons will lose

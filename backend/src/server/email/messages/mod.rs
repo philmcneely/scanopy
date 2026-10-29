@@ -15,6 +15,7 @@ mod daemon_standby;
 mod daemon_sunset;
 mod daemon_unreachable;
 mod discovery_digest;
+mod discovery_failing;
 mod discovery_guide;
 mod email_changed_old;
 mod install_command;
@@ -76,6 +77,7 @@ pub use daemon_standby::DaemonStandby;
 pub use daemon_sunset::DaemonSunset;
 pub use daemon_unreachable::DaemonUnreachable;
 pub use discovery_digest::DiscoveryDigest;
+pub use discovery_failing::DiscoveryFailing;
 pub use discovery_guide::DiscoveryGuide;
 pub use email_changed_old::EmailChangedOld;
 pub use install_command::InstallCommand;
@@ -572,6 +574,17 @@ mod tests {
             &DaemonUnreachable {
                 daemon_name: "daemon-1",
                 site_name: "Home",
+            },
+        );
+        f(
+            "discovery_failing",
+            &DiscoveryFailing {
+                discovery_name: "Network Discovery",
+                daemon_name: "daemon-1",
+                site_name: "Home",
+                failed_runs: 3,
+                reason_name: "Daemon offline",
+                reason_description: "The daemon stopped checking in with the server during the scan, so no progress or cancellation could get through. Check that the daemon is running and can reach the server.",
             },
         );
         f(

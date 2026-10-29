@@ -1,5 +1,7 @@
-//! Inactivity standby detection, notifications, and loopback credential scoping.
+//! Inactivity standby detection, daemon alert notifications, and loopback credential scoping.
 use super::*;
+use crate::server::email::messages::DiscoveryFailing;
+use crate::server::shared::types::metadata::TypeMetadataProvider;
 
 impl DaemonService {
     // ========================================================================
@@ -79,50 +81,17 @@ impl DaemonService {
         daemon: &Daemon,
         email_service: &EmailService,
     ) -> Result<()> {
-        let site = self
-            .site_service
-            .get_by_id(&daemon.base.site_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Site not found"))?;
-
-        let org_id = site.base.organization_id;
-        let site_name = &site.base.name;
-        let daemon_name = &daemon.base.name;
-
-        // Daemons left on a cloud org that moved to a self-hosted plan are
-        // expected to go quiet, and the email's link leads into an app the org
-        // is locked out of. The daemon is still put on standby.
-        if email_service
-            .organization_self_hosted_plan_locked(&org_id)
-            .await?
-        {
+        // The daemon is still put on standby when nobody is emailed.
+        let Some((site_name, recipients)) =
+            self.daemon_alert_recipients(daemon, email_service).await?
+        else {
             return Ok(());
-        }
-
-        // Send to org owner
-        let owners = email_service
-            .user_service
-            .get_organization_owners(&org_id)
-            .await?;
-        let owner = owners
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("No owner found for organization {}", org_id))?;
-        email_service
-            .send_daemon_standby_email(owner.base.email.clone(), daemon_name, site_name)
-            .await?;
-
-        // Also send to daemon installer if different from owner
-        if daemon.base.user_id != owner.id
-            && let Some(user) = email_service
-                .user_service
-                .get_by_id(&daemon.base.user_id)
-                .await?
-        {
+        };
+        for to in recipients {
             email_service
-                .send_daemon_standby_email(user.base.email, daemon_name, site_name)
+                .send_daemon_standby_email(to, &daemon.base.name, &site_name)
                 .await?;
         }
-
         Ok(())
     }
 
@@ -132,26 +101,98 @@ impl DaemonService {
         daemon: &Daemon,
         email_service: &EmailService,
     ) -> Result<()> {
+        // The daemon is still marked unreachable when nobody is emailed.
+        let Some((site_name, recipients)) =
+            self.daemon_alert_recipients(daemon, email_service).await?
+        else {
+            return Ok(());
+        };
+        for to in recipients {
+            email_service
+                .send_daemon_unreachable_email(to, &daemon.base.name, &site_name)
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Email the daemon's alert recipients when the failed run recorded for `session_id` makes
+    /// [`FAILURE_STREAK_EMAIL_RUNS`] failures in a row for its discovery. Sent once per streak:
+    /// a later failure in the same streak sends nothing, and only a run that does not fail starts
+    /// a new one.
+    pub(crate) async fn send_failure_streak_notification(
+        &self,
+        session_id: Uuid,
+        daemon_id: Uuid,
+        email_service: &EmailService,
+    ) -> Result<()> {
+        let Some(runs) = self
+            .discovery_service
+            .failure_streak(session_id, FAILURE_STREAK_EMAIL_RUNS)
+            .await?
+        else {
+            return Ok(());
+        };
+        let Some(newest) = runs.first() else {
+            return Ok(());
+        };
+        let Some(reason) = newest
+            .base
+            .run_type
+            .historical_results()
+            .and_then(|results| results.reason)
+        else {
+            return Ok(());
+        };
+        let Some(daemon) = self.get_by_id(&daemon_id).await? else {
+            return Ok(());
+        };
+        let Some((site_name, recipients)) =
+            self.daemon_alert_recipients(&daemon, email_service).await?
+        else {
+            return Ok(());
+        };
+
+        let email = DiscoveryFailing {
+            discovery_name: &newest.base.name,
+            daemon_name: &daemon.base.name,
+            site_name: &site_name,
+            failed_runs: runs.len(),
+            reason_name: reason.name(),
+            reason_description: reason.description(),
+        };
+        for to in recipients {
+            email_service
+                .send_discovery_failing_email(to, &email)
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Who is emailed a daemon's alerts, with the name of its site: the organization's owner, and
+    /// the user who installed the daemon when that is someone else.
+    ///
+    /// `None` for an organization that moved from cloud to a self-hosted plan: the daemons it left
+    /// on the cloud org are expected to go quiet, and every alert's link leads into an app it is
+    /// locked out of.
+    pub(crate) async fn daemon_alert_recipients(
+        &self,
+        daemon: &Daemon,
+        email_service: &EmailService,
+    ) -> Result<Option<(String, Vec<email_address::EmailAddress>)>> {
         let site = self
             .site_service
             .get_by_id(&daemon.base.site_id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Site not found"))?;
-
         let org_id = site.base.organization_id;
-        let site_name = &site.base.name;
-        let daemon_name = &daemon.base.name;
 
-        // Same skip as the standby notification. The daemon is still marked
-        // unreachable.
         if email_service
             .organization_self_hosted_plan_locked(&org_id)
             .await?
         {
-            return Ok(());
+            return Ok(None);
         }
 
-        // Send to org owner
         let owners = email_service
             .user_service
             .get_organization_owners(&org_id)
@@ -159,25 +200,23 @@ impl DaemonService {
         let owner = owners
             .first()
             .ok_or_else(|| anyhow::anyhow!("No owner found for organization {}", org_id))?;
-        email_service
-            .send_daemon_unreachable_email(owner.base.email.clone(), daemon_name, site_name)
-            .await?;
+        let mut recipients = vec![owner.base.email.clone()];
 
-        // Also send to daemon installer if different from owner
         if daemon.base.user_id != owner.id
             && let Some(user) = email_service
                 .user_service
                 .get_by_id(&daemon.base.user_id)
                 .await?
         {
-            email_service
-                .send_daemon_unreachable_email(user.base.email, daemon_name, site_name)
-                .await?;
+            recipients.push(user.base.email);
         }
 
-        Ok(())
+        Ok(Some((site.base.name, recipients)))
     }
 }
+
+/// How many failed runs in a row of one discovery send its daemon's recipients an email.
+const FAILURE_STREAK_EMAIL_RUNS: usize = 3;
 
 /// How recently a daemon must have been seen to count in `scanopy_daemons`.
 const VERSION_GAUGE_WINDOW: chrono::Duration = chrono::Duration::hours(24);
