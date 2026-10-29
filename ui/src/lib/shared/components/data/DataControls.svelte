@@ -1157,12 +1157,13 @@
 
 <div bind:this={rootRef} class="space-y-4">
 	<!-- Sentinel for sticky detection -->
-	<div bind:this={sentinelRef} class="h-0 w-full"></div>
+	<!-- `mb-0!`: `space-y-4` gives every child but the last a bottom margin, so the zero-height
+	     sentinel would otherwise push the toolbar 16px below the sidebar's first row. -->
+	<div bind:this={sentinelRef} class="mb-0! h-0 w-full"></div>
 
-	<!-- Sticky Controls Bar. `mt-0!`: the zero-height sentinel above would otherwise give it the
-	     group's gap, putting the toolbar 16px below the sidebar's first row instead of level. -->
+	<!-- Sticky Controls Bar -->
 	<div
-		class="z-20 -mx-4 mt-0! border-b bg-(--color-bg-body) px-4 pb-4 md:sticky md:top-0 {isStuck
+		class="z-20 -mx-4 border-b bg-(--color-bg-body) px-4 pb-4 md:sticky md:top-0 {isStuck
 			? 'border-(--color-border) pt-4 shadow-lg'
 			: 'border-transparent'}"
 	>
