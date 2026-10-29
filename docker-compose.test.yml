@@ -34,6 +34,8 @@ services:
       - NODE_OPTIONS=--max-old-space-size=4096
     volumes:
       - ./messages:/messages:ro
+      # vite.config.ts reads ../backend/THIRD-PARTY-NOTICES.txt into /third-party-licenses.txt.
+      - ./backend/THIRD-PARTY-NOTICES.txt:/backend/THIRD-PARTY-NOTICES.txt:ro
       - ui-build:/output
     # Wait for the daemon to finish compiling first. The SvelteKit build and a parallel
     # cargo build together exceed the VM's memory, and the loser is whichever the kernel
