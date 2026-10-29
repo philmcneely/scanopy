@@ -3,6 +3,7 @@ use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::chromecast::{CAST_CA, CAST_PORTS};
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{Pattern, Vendor};
 use crate::server::shared::logos::Logo;
@@ -22,8 +23,8 @@ impl ServiceDefinition for NestProtect {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
     }
-    fn device_type(&self) -> Option<DeviceType> {
-        Some(DeviceType::Sensor)
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Is(DeviceType::Sensor)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

@@ -55,6 +55,34 @@ pub enum ConnectOnly {
     NoVerifiableImplementation,
 }
 
+/// What running a service says about the device its host is, and how strongly.
+///
+/// [`crate::server::hosts::r#impl::base::Host::device_type`] ranks each answer on its own rung.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DeviceTypeImplication {
+    /// Running it names what the host is: Synology DSM is a NAS.
+    Is(DeviceType),
+    /// Devices of this type run it, and so do general-purpose computers: Spotify Connect runs on
+    /// receivers, speakers and TVs, and on desktops and servers too. It decides only a host nothing
+    /// else names.
+    Suggests(DeviceType),
+    /// General software: the host is a server unless something else names it.
+    Server,
+    /// Says nothing about the host: plumbing every class of device runs (SSH, SNMP, DHCP).
+    Nothing,
+}
+
+impl DeviceTypeImplication {
+    /// The device type implied, whatever its strength.
+    pub fn device_type(&self) -> Option<DeviceType> {
+        match self {
+            Self::Is(device_type) | Self::Suggests(device_type) => Some(*device_type),
+            Self::Server => Some(DeviceType::Server),
+            Self::Nothing => None,
+        }
+    }
+}
+
 // Main trait used in service definition implementation
 pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
     /// Service name, will also be used as unique identifier. < 40 characters.
@@ -108,10 +136,10 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
         None
     }
 
-    /// The device type this service implies for the host running it. Defaults to the category's;
+    /// What this service implies about the device running it. Defaults to the category's;
     /// override it only where the category holds several roles, as NetworkAccess holds both
     /// access points and gateways, or where the software runs on any host, as Samba does.
-    fn device_type(&self) -> Option<DeviceType> {
+    fn device_type(&self) -> DeviceTypeImplication {
         self.category().device_type()
     }
 }
@@ -158,7 +186,7 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
         ServiceDefinition::connect_only_rationale(&**self)
     }
 
-    fn device_type(&self) -> Option<DeviceType> {
+    fn device_type(&self) -> DeviceTypeImplication {
         ServiceDefinition::device_type(&**self)
     }
 }
@@ -324,7 +352,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "manages_virtualization": role.as_ref().map(<&'static str>::from),
             "virtualization_variant": role.as_ref().map(VirtualizationRole::variant_tag),
             "is_gateway": self.is_gateway(),
-            "device_type": ServiceDefinition::device_type(&**self),
+            "device_type": ServiceDefinition::device_type(&**self).device_type(),
             "is_generic": ServiceDefinition::is_generic(&**self),
             "logo": self.logo(),
             "gated_by_raw_socket_scanning": self.gated_by_raw_socket_scanning(),

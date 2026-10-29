@@ -16,6 +16,8 @@ use crate::daemon::discovery::service::network::mdns::DnsSdHost;
 use crate::daemon::utils::app_probe::{
     AppProbeResult, DeviceIdentity, ProbeContext, identity_field, request_exact,
 };
+use crate::server::hosts::r#impl::device_type::DeviceType;
+use crate::server::hosts::r#impl::os::recog::RecogMatch;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::patterns::{ClientProbe, DnsSdServiceType};
 use crate::server::shared::attribution::AttributeSource;
@@ -40,6 +42,34 @@ struct GetInfo {
     brand_display_name: Option<String>,
     #[serde(rename = "modelDisplayName")]
     model_display_name: Option<String>,
+    #[serde(rename = "deviceType")]
+    device_type: Option<String>,
+}
+
+/// The brand librespot answers with. librespot (and spotifyd, built on it) turns any computer into
+/// a receiver and reports `Speaker` unless configured otherwise, so its `deviceType` names nothing.
+const LIBRESPOT: &str = "librespot";
+
+impl GetInfo {
+    /// The class of device the receiver states it is. Vendor SDKs spell it `AVR`, `SPEAKER`,
+    /// `AUDIO_DONGLE`; librespot spells the same values `Avr`, `Speaker`, `AudioDongle`.
+    fn device_type(&self) -> Option<DeviceType> {
+        if self.brand_display_name.as_deref() == Some(LIBRESPOT) {
+            return None;
+        }
+        let stated = self.device_type.as_deref()?.replace('_', "");
+        match stated.to_ascii_uppercase().as_str() {
+            "AVR" => Some(DeviceType::AvReceiver),
+            "SPEAKER" => Some(DeviceType::Speaker),
+            "TV" => Some(DeviceType::SmartTv),
+            "STB" | "CASTVIDEO" => Some(DeviceType::MediaPlayer),
+            "AUDIODONGLE" | "CASTAUDIO" => Some(DeviceType::NetworkAudio),
+            "SMARTPHONE" => Some(DeviceType::Mobile),
+            "TABLET" => Some(DeviceType::Tablet),
+            "COMPUTER" => Some(DeviceType::Workstation),
+            _ => None,
+        }
+    }
 }
 
 /// Ask the host for `getInfo` where its Spotify Connect advertisement says to, and read its brand
@@ -70,7 +100,17 @@ pub async fn probe_advertised(ctx: &ProbeContext, dns_sd: &DnsSdHost) -> Option<
         port,
         client_probe: Some(ClientProbe::SpotifyConnect),
         identity: Some(DeviceIdentity {
-            matched: None,
+            // The receiver's own statement of its class, offered as a match so it combines with
+            // every other fingerprint rather than overwriting one.
+            matched: info.device_type().map(|device_type| {
+                Box::new((
+                    RecogMatch {
+                        device_type: Some(device_type),
+                        ..Default::default()
+                    },
+                    source,
+                ))
+            }),
             manufacturer: identity_field(info.brand_display_name, source),
             model: identity_field(info.model_display_name, source),
             serial_number: None,
@@ -162,6 +202,48 @@ Connection: close\r\n\r\n\
             assert_eq!(info.brand_display_name.as_deref(), Some(brand));
             assert_eq!(info.model_display_name.as_deref(), Some(model));
         }
+    }
+
+    /// An Onkyo receiver's reply, in the shape the Bose and Sonos captures share.
+    const ONKYO: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+Connection: close\r\n\r\n\
+{\"status\":101,\"statusString\":\"OK\",\"spotifyError\":0,\"version\":\"2.9.0\",\
+\"deviceID\":\"0000000000000000000000000000000000000003\",\"deviceType\":\"AVR\",\
+\"brandDisplayName\":\"Onkyo\",\"modelDisplayName\":\"TX-NR686\",\"remoteName\":\"Lounge\"}";
+
+    /// librespot's reply on a Linux box, with its default `Speaker`.
+    const LIBRESPOT_REPLY: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+Connection: close\r\n\r\n\
+{\"status\":101,\"statusString\":\"OK\",\"spotifyError\":0,\"version\":\"2.9.0\",\
+\"deviceID\":\"0000000000000000000000000000000000000004\",\"deviceType\":\"Speaker\",\
+\"brandDisplayName\":\"librespot\",\"modelDisplayName\":\"librespot\",\"remoteName\":\"nas\"}";
+
+    #[test]
+    fn the_device_type_is_the_receivers_stated_class_unless_librespot_states_it() {
+        for (reply, expected) in [
+            (ONKYO, Some(DeviceType::AvReceiver)),
+            (BOSE, Some(DeviceType::Speaker)),
+            (LIBRESPOT_REPLY, None),
+        ] {
+            let info = parse_reply(reply).expect("a getInfo reply");
+            assert_eq!(info.device_type(), expected);
+        }
+    }
+
+    #[tokio::test]
+    async fn the_stated_class_reaches_the_identity_as_a_match() {
+        let ctx = context(Receiver {
+            port: 8080,
+            path: "/zc",
+            reply: ONKYO,
+        });
+        let identity = probe_advertised(&ctx, &advertising(8080, None))
+            .await
+            .and_then(|result| result.identity)
+            .expect("an identity");
+        let (matched, source) = *identity.matched.expect("a match");
+        assert_eq!(matched.device_type, Some(DeviceType::AvReceiver));
+        assert_eq!(source, AttributeSource::Probe(ClientProbe::SpotifyConnect));
     }
 
     /// What a Bose amp actually sends down the socket: the reply with its `Content-Length`, then,
