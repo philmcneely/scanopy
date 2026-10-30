@@ -229,9 +229,9 @@ impl Feature {
         }
     }
 
-    /// Release maturity. A beta feature opens to beta program members first, so its Beta tag
-    /// links to the beta program sign-up wherever the feature is listed. A beta feature that is
-    /// also coming soon has not opened yet: the sign-up is for hearing when it does.
+    /// Release maturity. A beta feature opens to beta program members first, and its Beta tag
+    /// links to the beta program sign-up. Plan cards hide that tag while the feature is also
+    /// coming soon, and show the Coming Soon tag alone.
     pub fn stability(&self) -> Stability {
         match self {
             Feature::McpServer => Stability::Beta,
