@@ -1170,10 +1170,12 @@ async fn subnets_list_each_seeded_shared_range_once() {
     assert_eq!(count_of("Loopback"), None);
 }
 
-/// Sorting by site lists each site's rows together, in site-name order, not site-id order.
+/// Sorting by site lists each site's rows together, in site-name order, not site-id order, with the
+/// shared Internet and Remote rows first.
 #[tokio::test]
 async fn subnets_sorted_by_site_follow_the_site_name() {
     use crate::server::shared::handlers::query::OrderDirection;
+    use crate::server::shared::storage::seed_data::{create_remote_subnet, create_wan_subnet};
     use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
     use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
 
@@ -1203,24 +1205,47 @@ async fn subnets_sorted_by_site_follow_the_site_name() {
         );
         storage.subnets.create(&s).await.unwrap();
     }
+    for s in [&alpha, &zulu] {
+        storage
+            .subnets
+            .create(&create_wan_subnet(s.id))
+            .await
+            .unwrap();
+        storage
+            .subnets
+            .create(&create_remote_subnet(s.id))
+            .await
+            .unwrap();
+    }
     let scope = list_scope(&[alpha.id, zulu.id], org.id);
 
+    // The shared rows stand for every site, so they lead in both directions.
+    let (shared, a, z) = ("all sites", "Alpha", "Zulu");
     for (direction, expected) in [
-        (OrderDirection::Asc, [alpha.id, alpha.id, zulu.id, zulu.id]),
-        (OrderDirection::Desc, [zulu.id, zulu.id, alpha.id, alpha.id]),
+        (OrderDirection::Asc, [shared, shared, a, a, z, z]),
+        (OrderDirection::Desc, [shared, shared, z, z, a, a]),
     ] {
-        let query = SubnetFilterQuery {
-            order_by: Some(SubnetOrderField::SiteId),
-            order_direction: Some(direction),
-            ..Default::default()
-        };
-        let sites: Vec<Uuid> = list_page::<Subnet>(&state, &scope, &query)
-            .await
-            .unwrap()
-            .data
-            .into_iter()
-            .map(|s| s.subnet.base.site_id)
-            .collect();
-        assert_eq!(sites, expected);
+        for group_by in [None, Some(SubnetOrderField::Cidr)] {
+            let query = SubnetFilterQuery {
+                user_managed: Some(true),
+                include_shared_ranges: Some(true),
+                group_by,
+                order_by: Some(SubnetOrderField::SiteId),
+                order_direction: Some(direction),
+                ..Default::default()
+            };
+            let rows: Vec<&str> = list_page::<Subnet>(&state, &scope, &query)
+                .await
+                .unwrap()
+                .data
+                .into_iter()
+                .map(|s| match s.subnet.base.site_id {
+                    _ if !s.subnet.is_user_managed() => shared,
+                    id if id == alpha.id => a,
+                    _ => z,
+                })
+                .collect();
+            assert_eq!(rows, expected, "{direction:?}, grouped by {group_by:?}");
+        }
     }
 }

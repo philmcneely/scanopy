@@ -5,7 +5,7 @@ use crate::server::openapi::tags as api_tags;
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::list::list_page;
-use crate::server::shared::handlers::ordering::OrderField;
+use crate::server::shared::handlers::ordering::{OrderField, in_sql};
 use crate::server::shared::handlers::query::{
     FilterQueryExtractor, OrderDirection, PaginationParams, on_requested_sites,
 };
@@ -91,6 +91,23 @@ impl OrderField for SubnetOrderField {
 
     fn sorts_by_site_name(&self) -> bool {
         matches!(self, Self::SiteId)
+    }
+
+    /// The seeded Internet and Remote rows stand for every site, so a site sort lists them first
+    /// rather than among the site whose copy is listed.
+    fn leading_sql(&self) -> Option<String> {
+        match self {
+            Self::SiteId => {
+                let seeded = in_sql(
+                    "subnets.subnet_type",
+                    SubnetType::seeded_per_site().iter().map(|t| t.id()),
+                );
+                Some(format!(
+                    "(CASE WHEN subnets.source->>'type' = 'System' AND {seeded} THEN 0 ELSE 1 END)"
+                ))
+            }
+            _ => None,
+        }
     }
 }
 
