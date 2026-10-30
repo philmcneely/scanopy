@@ -8,7 +8,7 @@
  */
 
 import type { HostDeviceFacts, HostFormData } from '$lib/features/hosts/types/base';
-/** Registry ids of the text facts the device-label group edits, in display order. */
+/** Registry ids of the text facts a person can set in the device facts card. */
 export const EDITABLE_TEXT_FACTS = [
 	'manufacturer',
 	'model',
