@@ -94,6 +94,12 @@ pub struct ServerCli {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     disable_update_check: Option<bool>,
 
+    /// Have the daemon install and upgrade commands this server generates download from GitHub
+    /// and ghcr.io instead of get.scanopy.net and docker.scanopy.net. Community Edition servers
+    /// already download from GitHub.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    disable_download_gateway: Option<bool>,
+
     /// Stripe publishable key (exposed to the frontend for Stripe Elements)
     #[arg(long, hide = true)]
     stripe_key: Option<String>,
@@ -220,6 +226,9 @@ pub struct ServerConfig {
     /// `SCANOPY_DISABLE_UPDATE_CHECK`: no GitHub release check, no upgrade banner.
     #[serde(default)]
     pub disable_update_check: bool,
+    /// `SCANOPY_DISABLE_DOWNLOAD_GATEWAY`: generated daemon downloads come from GitHub and GHCR.
+    #[serde(default)]
+    pub disable_download_gateway: bool,
     pub client_ip_source: Option<String>,
     pub smtp_username: Option<String>,
     pub smtp_password: Option<String>,
@@ -466,6 +475,7 @@ impl Default for ServerConfig {
             disable_registration: false,
             disable_password_login: false,
             disable_update_check: false,
+            disable_download_gateway: false,
             stripe_key: None,
             stripe_secret: None,
             stripe_webhook_secret: None,
@@ -604,6 +614,9 @@ impl ServerConfig {
         }
         if let Some(disable_update_check) = cli_args.disable_update_check {
             figment = figment.merge(("disable_update_check", disable_update_check));
+        }
+        if let Some(disable_download_gateway) = cli_args.disable_download_gateway {
+            figment = figment.merge(("disable_download_gateway", disable_download_gateway));
         }
         if let Some(metrics_token) = cli_args.metrics_token {
             figment = figment.merge(("metrics_token", metrics_token));
