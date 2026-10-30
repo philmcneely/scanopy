@@ -19,10 +19,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Files allowed to keep plain dropdowns, keyed by path relative to `src/`. */
 const ALLOWED_PLAIN_DROPDOWNS = new Map<string, string>([
 	[
-		'lib/features/hosts/components/HostEditModal/Details/EditableFactRow.svelte',
-		'Device type: an enum from the device-types fixture, not an entity.'
-	],
-	[
 		'lib/features/daemons/components/DaemonEditModal.svelte',
 		'Daemon mode: disabled, read-only, two fixed values.'
 	],
