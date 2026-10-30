@@ -2140,6 +2140,8 @@
 	"meta_discovery_integrations_WakeOnLan_name": "Wake-on-LAN",
 	"meta_discovery_protocols_CDP_description": "A device's CDP (Cisco Discovery Protocol) neighbor table",
 	"meta_discovery_protocols_CDP_name": "CDP",
+	"meta_discovery_protocols_ForwardingTable_description": "Learned from a switch's forwarding table, which saw the device's MAC behind one of its ports. The device may sit further away than a direct cable",
+	"meta_discovery_protocols_ForwardingTable_name": "Forwarding table",
 	"meta_discovery_protocols_LLDP_description": "A device's LLDP (Link Layer Discovery Protocol) neighbor table",
 	"meta_discovery_protocols_LLDP_name": "LLDP",
 	"meta_discovery_terminal_reasons_Completed_description": "The scan finished normally.",

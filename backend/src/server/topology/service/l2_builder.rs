@@ -125,7 +125,48 @@ impl ViewBuilder for L2Builder {
             }
         }
 
+        // 1c. Links a switch's forwarding table learned, between hosts LLDP/CDP joined nowhere. Both
+        //     ends qualify, so a device known only by the MAC a port learned gets a container.
+        let mut joined_host_pairs = linked_host_pairs;
+        for edge in &neighbor_link_edges {
+            if let EdgeType::NeighborLink {
+                source_host_id,
+                target_host_id,
+                ..
+            } = &edge.edge_type
+            {
+                joined_host_pairs
+                    .insert(EdgeBuilder::host_pair_key(*source_host_id, *target_host_id));
+            }
+        }
+        let forwarding_table_edges = EdgeBuilder::create_forwarding_table_edges(
+            ctx,
+            Self::container_id_for_host,
+            &joined_host_pairs,
+        );
+        for edge in &forwarding_table_edges {
+            match &edge.edge_type {
+                EdgeType::NeighborLink {
+                    source_host_id,
+                    target_host_id,
+                    ..
+                } => {
+                    qualifying_host_ids.insert(*source_host_id);
+                    qualifying_host_ids.insert(*target_host_id);
+                }
+                EdgeType::PhysicalLink {
+                    source_entity_id, ..
+                } => {
+                    if let Some(entry) = ctx.get_interface_by_id(*source_entity_id) {
+                        qualifying_host_ids.insert(entry.base.host_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+
         edges.extend(neighbor_link_edges);
+        edges.extend(forwarding_table_edges);
 
         // Hosts that are targets (look up target interface → host_id)
         for edge in &edges {
@@ -720,6 +761,7 @@ mod tests {
                     neighbours.iter(),
                 ),
             interfaces_learning_known_hosts: Default::default(),
+            interfaces_learned_by_ports: Default::default(),
         };
         let hide_sets =
             crate::server::topology::service::metadata_filter::server_hide_sets(&options);
@@ -909,6 +951,87 @@ mod tests {
         // The edge lands on those containers, not on ports.
         assert!(nodes.iter().any(|n| n.id == edges[0].source));
         assert!(nodes.iter().any(|n| n.id == edges[0].target));
+    }
+
+    /// A port that learned a known device's MAC draws a link to it, marked as forwarding-table
+    /// evidence: to the device's port when the MAC is on an interface, and to the device's
+    /// container when the MAC is only on an address. Both devices are drawn, though neither has
+    /// any LLDP/CDP neighbour.
+    #[test]
+    fn a_port_draws_a_link_to_the_devices_its_forwarding_table_learned() {
+        use crate::server::interfaces::r#impl::base::{FdbMacs, FdbMacsValue};
+
+        const PLC_MAC: &str = "00:80:63:2a:51:07";
+        const NAS_MAC: &str = "f8:bc:12:dc:14:01";
+        let mac = |raw: &str| {
+            MacEvidence::new(
+                MacEvidenceValue(raw.parse().unwrap()),
+                AttributeSource::ArpReply,
+            )
+        };
+        let switch = make_host("switch-01");
+        let plc = make_host("plc-01");
+        let nas = make_host("nas-01");
+
+        let mut plc_access = make_if_entry(switch.id, 8, 6);
+        plc_access.base.fdb_macs = Some(FdbMacs::new(
+            FdbMacsValue(vec![PLC_MAC.to_string()]),
+            AttributeSource::ForwardingTable,
+        ));
+        let mut nas_access = make_if_entry(switch.id, 5, 6);
+        nas_access.base.fdb_macs = Some(FdbMacs::new(
+            FdbMacsValue(vec![NAS_MAC.to_string()]),
+            AttributeSource::ForwardingTable,
+        ));
+        let mut plc_port = make_if_entry(plc.id, 1, 6);
+        plc_port.base.mac_address = Some(mac(PLC_MAC));
+        let nas_address = IPAddress::new(IPAddressBase {
+            host_id: nas.id,
+            mac_address: Some(mac(NAS_MAC)),
+            ..Default::default()
+        });
+
+        let hosts = vec![switch.clone(), plc.clone(), nas.clone()];
+        let interfaces = vec![plc_access.clone(), nas_access.clone(), plc_port.clone()];
+        let ip_addresses = vec![nas_address];
+        let options = TopologyOptions::default();
+        let ctx = TopologyContext::new(
+            &hosts,
+            &ip_addresses,
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &interfaces,
+            &[],
+            &[],
+            &options,
+            crate::server::topology::types::views::TopologyView::L2Physical,
+        );
+
+        let (nodes, edges) = L2Builder.build(&ctx, &l2_grouping());
+
+        assert!(edges.iter().any(|e| matches!(
+            e.edge_type,
+            EdgeType::PhysicalLink {
+                source_entity_id,
+                target_entity_id,
+                protocol: DiscoveryProtocol::ForwardingTable,
+            } if source_entity_id == plc_access.id && target_entity_id == plc_port.id
+        )));
+        assert!(edges.iter().any(|e| matches!(
+            e.edge_type,
+            EdgeType::NeighborLink {
+                source_host_id,
+                target_host_id,
+                protocol: DiscoveryProtocol::ForwardingTable,
+            } if source_host_id == switch.id && target_host_id == nas.id
+        )));
+        for edge in &edges {
+            assert!(nodes.iter().any(|n| n.id == edge.source));
+            assert!(nodes.iter().any(|n| n.id == edge.target));
+        }
     }
 
     /// The precise link supersedes the approximate one: a second neighbour entry between the

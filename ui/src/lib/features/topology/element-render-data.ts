@@ -64,7 +64,6 @@ import type {
 } from '$lib/shared/actions/tooltip';
 import { formatPort } from '$lib/shared/utils/formatting';
 import {
-	collectionLookup,
 	entityDisplayText,
 	entityFieldLabel,
 	entityFields,
@@ -437,22 +436,24 @@ const PORT_TOOLTIP_FIELDS = [
 	'oper_status',
 	'speed_bps',
 	'mac_address',
+	'ip_address_id',
 	'native_vlan_id',
 	'vlan_ids'
 ];
 
 /**
  * A port's hover text: its name as the title, then its status, with a dot in the colour the view's
- * Status mark paints it, and its speed, MAC and VLANs. Labels and formatting are the backend field
- * registry's, as the inspector shows them.
+ * Status mark paints it, and its speed, MAC, address and VLANs. Labels and formatting are the backend
+ * field registry's, as the inspector shows them; the address and VLANs resolve from `topology`.
  */
 export function interfaceTooltip(
 	iface: object,
 	name: string,
-	status: MarkValue | undefined
+	status: MarkValue | undefined,
+	topology: RenderableTopology
 ): TooltipContent {
 	const fields = entityFields('Interface');
-	const lookup = collectionLookup({});
+	const lookup = topologyLookup(topology);
 	return titledTooltip(
 		name,
 		PORT_TOOLTIP_FIELDS.flatMap((id) => {
@@ -522,7 +523,12 @@ export function entityTooltip(
 			});
 		}
 		case 'Interface':
-			return interfaceTooltip(entity, name ?? entityDisplayText('Interface', entity), status);
+			return interfaceTooltip(
+				entity,
+				name ?? entityDisplayText('Interface', entity),
+				status,
+				topology
+			);
 		default: {
 			const type = entityType as EntityType;
 			const title = name ?? entityDisplayText(type, entity);
@@ -570,7 +576,7 @@ function buildIconCard(
 			label,
 			sublabel: null,
 			os: null,
-			tooltip: () => interfaceTooltip(iface, label, marks.Status),
+			tooltip: () => interfaceTooltip(iface, label, marks.Status, inputs.topology),
 			groups: []
 		};
 	}

@@ -13,13 +13,18 @@ use uuid::Uuid;
 
 use crate::server::{interfaces::r#impl::base::Interface, ip_addresses::r#impl::base::IPAddress};
 
-/// A known host a port's forwarding table learned, with the addresses that carry the learned MAC.
+/// A known host a port's forwarding table learned, with the addresses and interfaces that carry
+/// the learned MAC.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LearnedHost {
     pub host_id: Uuid,
     /// The host's addresses whose MAC is the one learned, or, when the MAC is on one of the host's
     /// interfaces, the address that interface holds. Empty when that interface holds none.
     pub ip_address_ids: Vec<Uuid>,
+    /// The host's interfaces the device is reached on: the one carrying the learned MAC, or the
+    /// one holding an address that carries it. Empty when the host has no such interface, and the
+    /// device is known only as a whole.
+    pub interface_ids: Vec<Uuid>,
 }
 
 /// For every port that learned at least one known host's MAC, those hosts.
@@ -39,12 +44,21 @@ pub fn learned_hosts<'a>(
             entry.1.push(ip.id);
         }
     }
-    let mut by_interface_mac: HashMap<MacAddress, (HashSet<Uuid>, Vec<Uuid>)> = HashMap::new();
+    let mut by_interface_mac: HashMap<MacAddress, (HashSet<Uuid>, Vec<Uuid>, Vec<Uuid>)> =
+        HashMap::new();
+    let mut interfaces_of_ip: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
     for interface in interfaces.clone() {
         if let Some(mac) = &interface.base.mac_address {
             let entry = by_interface_mac.entry(mac.value().0).or_default();
             entry.0.insert(interface.base.host_id);
             entry.1.extend(interface.base.ip_address_id);
+            entry.2.push(interface.id);
+        }
+        if let Some(ip_id) = interface.base.ip_address_id {
+            interfaces_of_ip
+                .entry(ip_id)
+                .or_default()
+                .push(interface.id);
         }
     }
     // The one host a set names, or `None` when it names several.
@@ -60,12 +74,17 @@ pub fn learned_hosts<'a>(
             return Some(LearnedHost {
                 host_id: only(hosts)?,
                 ip_address_ids: ip_ids.clone(),
+                interface_ids: ip_ids
+                    .iter()
+                    .flat_map(|ip| interfaces_of_ip.get(ip).into_iter().flatten().copied())
+                    .collect(),
             });
         }
-        let (hosts, ip_ids) = by_interface_mac.get(mac)?;
+        let (hosts, ip_ids, interface_ids) = by_interface_mac.get(mac)?;
         Some(LearnedHost {
             host_id: only(hosts)?,
             ip_address_ids: ip_ids.clone(),
+            interface_ids: interface_ids.clone(),
         })
     };
 
@@ -84,7 +103,10 @@ pub fn learned_hosts<'a>(
                 continue;
             }
             match hosts.iter_mut().find(|h| h.host_id == host.host_id) {
-                Some(existing) => existing.ip_address_ids.extend(host.ip_address_ids),
+                Some(existing) => {
+                    existing.ip_address_ids.extend(host.ip_address_ids);
+                    existing.interface_ids.extend(host.interface_ids);
+                }
                 None => hosts.push(host),
             }
         }
@@ -93,6 +115,15 @@ pub fn learned_hosts<'a>(
         }
     }
     learned
+}
+
+/// The interfaces some port's forwarding table reached: the far ends of the ports in `learned`.
+pub fn learned_interfaces(learned: &HashMap<Uuid, Vec<LearnedHost>>) -> HashSet<Uuid> {
+    learned
+        .values()
+        .flatten()
+        .flat_map(|host| host.interface_ids.iter().copied())
+        .collect()
 }
 
 #[cfg(test)]
@@ -142,6 +173,7 @@ mod tests {
             Some(&vec![LearnedHost {
                 host_id: PLC,
                 ip_address_ids: vec![plc_ip.id],
+                interface_ids: vec![],
             }])
         );
     }

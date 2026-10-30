@@ -145,7 +145,8 @@ impl HasFilterValues for Interface {
         let state = InterfaceLinkState::classify(
             ctx.interfaces_with_neighbours.contains(&self.id)
                 || ctx.interfaces_learning_known_hosts.contains(&self.id),
-            ctx.interfaces_referenced_as_neighbours.contains(&self.id),
+            ctx.interfaces_referenced_as_neighbours.contains(&self.id)
+                || ctx.interfaces_learned_by_ports.contains(&self.id),
         );
         let mut values = BTreeMap::from([(MetadataFilterType::LinkState, state.id().to_string())]);
         // A port whose status was never read (one learned from a neighbour's advertisement) has
