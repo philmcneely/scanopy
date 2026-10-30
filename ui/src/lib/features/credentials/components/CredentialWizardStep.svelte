@@ -23,10 +23,8 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
-	import {
-		daemonOsRefusal,
-		daemonTooOldForCredential
-	} from '$lib/features/credentials/utils/versionGate';
+	import { daemonOsRefusal } from '$lib/features/credentials/utils/versionGate';
+	import { daemonVersionAtOrBelow } from '$lib/features/daemons/utils';
 	import {
 		credentialFieldValues,
 		defaultFieldValue
@@ -217,7 +215,7 @@
 	// pending credential (e.g. a daemon-host proxy). Version takes precedence — a
 	// too-old daemon can't run the type at all.
 	function dropdownDisabledReason(type: TypedTypeMetadata<CredentialTypeMetadata>): string | null {
-		if (daemonTooOldForCredential(type.metadata?.last_unsupported_daemon_version, daemonVersion)) {
+		if (daemonVersionAtOrBelow(type.metadata?.last_unsupported_daemon_version, daemonVersion)) {
 			return credentials_requiresDaemonVersion({
 				version: type.metadata?.last_unsupported_daemon_version ?? '',
 				name: daemonName ?? ''

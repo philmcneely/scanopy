@@ -1,5 +1,6 @@
 //! Inactivity standby detection, daemon alert notifications, and loopback credential scoping.
 use super::*;
+use crate::server::daemons::r#impl::version::tags_log_lines_with_session;
 use crate::server::email::messages::DaemonScansFailing;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 
@@ -159,6 +160,26 @@ impl DaemonService {
             }
         }
 
+        // As the run view decides it: the reason must be one the daemon's logs explain, the run's
+        // own daemon version must have tagged its lines with the session, and the daemon must have
+        // said which OS it runs on, which picks the command.
+        let log_command = newest
+            .base
+            .run_type
+            .historical_results()
+            .filter(|results| {
+                reason.explained_by_daemon_logs()
+                    && tags_log_lines_with_session(
+                        results
+                            .daemon_version
+                            .as_deref()
+                            .and_then(|v| Version::parse(v).ok())
+                            .as_ref(),
+                    )
+            })
+            .zip(daemon.base.os)
+            .map(|(results, os)| os.log_command(&results.session_id.to_string()));
+
         let email = DaemonScansFailing {
             daemon_name: &daemon.base.name,
             site_name: &site_name,
@@ -166,6 +187,7 @@ impl DaemonService {
             discovery_names: &discovery_names,
             reason_name: reason.name(),
             reason_description: reason.description(),
+            log_command: log_command.as_deref(),
         };
         for to in recipients {
             email_service

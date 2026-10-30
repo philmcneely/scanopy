@@ -377,14 +377,27 @@ pub fn resolves_routed_rescan(version: Option<&Version>) -> bool {
     version.is_some_and(|v| v > &last_without_routed_rescan())
 }
 
-/// The gates the UI names in its copy ("installed at v0.17.4 or earlier"), written to
-/// `daemon-version-gates.json` by `generate_ui_data_fixtures` so no version is typed into a
-/// message.
+/// The last release whose log lines do not carry the session they belong to, so a run it made cannot
+/// be picked out of its log by session id.
+pub fn last_without_session_log_lines() -> Version {
+    Version::new(0, 17, 16)
+}
+
+/// Whether a run made by a daemon at this version can be found in its log by session id. The
+/// version is the run's own, as recorded with it: the version that wrote the lines.
+pub fn tags_log_lines_with_session(version: Option<&Version>) -> bool {
+    version.is_some_and(|v| v > &last_without_session_log_lines())
+}
+
+/// The gates the UI names in its copy ("installed at v0.17.4 or earlier") or checks a version
+/// against, written to `daemon-version-gates.json` by `generate_ui_data_fixtures` so no version is
+/// typed into the UI.
 #[derive(Debug, Serialize)]
 pub struct UiVersionGates {
     pub last_without_unified_discovery: String,
     pub last_without_server_provisioned_identity: String,
     pub last_without_install_engine: String,
+    pub last_without_session_log_lines: String,
 }
 
 impl UiVersionGates {
@@ -394,6 +407,7 @@ impl UiVersionGates {
             last_without_server_provisioned_identity: last_without_server_provisioned_identity()
                 .to_string(),
             last_without_install_engine: last_without_install_engine().to_string(),
+            last_without_session_log_lines: last_without_session_log_lines().to_string(),
         }
     }
 }
@@ -428,6 +442,10 @@ fn capability_gates() -> Vec<(String, Version)> {
             last_without_full_server_poll(),
         ),
         ("last_without_ready_for_work", last_without_ready_for_work()),
+        (
+            "last_without_session_log_lines",
+            last_without_session_log_lines(),
+        ),
         ("last_without_version_header", last_without_version_header()),
         (
             "last_without_credential_wire",

@@ -11,6 +11,9 @@ pub struct DaemonScansFailing<'a> {
     pub reason_name: &'a str,
     /// The newest failure's reason, as its metadata describes it: what happened and what to check.
     pub reason_description: &'a str,
+    /// The command that prints the newest failed scan's log lines on the daemon's host, when the
+    /// daemon's logs explain the failure and the scan can be found in them.
+    pub log_command: Option<&'a str>,
 }
 
 impl Email for DaemonScansFailing<'_> {
@@ -27,10 +30,8 @@ impl Email for DaemonScansFailing<'_> {
     }
 
     fn body_html(&self) -> String {
-        Body::new()
-            .content(
-                Content::new()
-                    .heading("Daemon Scans Keep Failing")
+        let mut content = Content::new()
+            .heading("Daemon Scans Keep Failing")
                     .paragraph("Hi there,")
                     .paragraph(&format!(
                         "The last {} scans on your daemon <strong>{}</strong> on <strong>{}</strong> failed ({}). Scanopy has no new results from this daemon until a scan completes.",
@@ -42,12 +43,18 @@ impl Email for DaemonScansFailing<'_> {
                     .paragraph(&format!(
                         "The latest scan ended with <strong>{}</strong>: {}",
                         self.reason_name, self.reason_description
-                    ))
-                    .paragraph(&format!(
-                        r#"The <a href="{}" style="color: #2563eb; text-decoration: none;">troubleshooting guide</a> covers the common causes."#,
-                        links::DOCS_DAEMON_TROUBLESHOOTING
-                    )),
-            )
+                    ));
+        if let Some(command) = self.log_command {
+            content = content
+                .paragraph("To see the latest scan's log lines, run this on the daemon's host:")
+                .code(command);
+        }
+        let content = content.paragraph(&format!(
+            r#"The <a href="{}" style="color: #2563eb; text-decoration: none;">troubleshooting guide</a> covers the common causes."#,
+            links::DOCS_DAEMON_TROUBLESHOOTING
+        ));
+        Body::new()
+            .content(content)
             .cta(links::APP_DAEMONS, "View Daemons")
             .render()
     }
