@@ -13,7 +13,11 @@
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import { Pencil } from 'lucide-svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
-	import SelectInput from '$lib/shared/components/forms/input/SelectInput.svelte';
+	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
+	import {
+		DeviceTypeDisplay,
+		deviceTypeOptions
+	} from '$lib/features/hosts/components/DeviceTypeDisplay';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import { max } from '$lib/shared/components/forms/validators';
 	import { attributeSourceDescription } from '$lib/shared/utils/attribute-source';
@@ -51,13 +55,7 @@
 	});
 
 	let changed = $derived(live !== initial);
-	let options = $derived(
-		kind === 'deviceType'
-			? deviceTypes
-					.getItems()
-					.map((item) => ({ value: item.id, label: deviceTypes.getName(item.id) }))
-			: []
-	);
+	let options = $derived(kind === 'deviceType' ? deviceTypeOptions() : []);
 	let liveText = $derived(kind === 'deviceType' ? deviceTypes.getName(live) : live.trim());
 </script>
 
@@ -99,9 +97,6 @@
 			oninput={(event) => {
 				if (event.target instanceof HTMLInputElement) live = event.target.value;
 			}}
-			onchange={(event) => {
-				if (event.target instanceof HTMLSelectElement) live = event.target.value;
-			}}
 		>
 			<form.Field
 				{name}
@@ -111,7 +106,17 @@
 			>
 				{#snippet children(field: AnyFieldApi)}
 					{#if kind === 'deviceType'}
-						<SelectInput {label} id={name} {field} {options} />
+						<RichSelect
+							{label}
+							selectedValue={live}
+							{options}
+							showSearch
+							displayComponent={DeviceTypeDisplay}
+							onSelect={(value) => {
+								field.handleChange(value);
+								live = value;
+							}}
+						/>
 					{:else}
 						<TextInput {label} id={name} {field} />
 					{/if}
