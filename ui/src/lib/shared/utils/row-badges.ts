@@ -24,6 +24,6 @@ export function rowStatusBadges<
 			getFreshnessTag(entity, site, { entityTypeLabel: entities.getName(entityType) || undefined })
 		]
 			.filter((tag): tag is TagProps => tag !== null)
-			.map(({ label: _label, ...tag }) => tag);
+			.map((tag) => ({ ...tag, label: undefined }));
 	};
 }

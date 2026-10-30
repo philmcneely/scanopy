@@ -22,8 +22,6 @@ import { Clock } from '@lucide/svelte';
 import type { components } from '$lib/api/schema';
 import type { Site } from '$lib/features/sites/types';
 import type { TagProps } from '$lib/shared/components/data/types';
-import type { EntityDiscriminants } from '$lib/api/entities';
-import { entities } from '$lib/shared/stores/metadata';
 import { toColor } from '$lib/shared/utils/styling';
 import { formatRelativeTime } from '$lib/shared/utils/formatting';
 import {

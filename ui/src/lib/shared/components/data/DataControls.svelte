@@ -86,7 +86,7 @@
 		withTagColumn,
 		type EntityColumn
 	} from './table/columns';
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		common_all,
 		common_clear,

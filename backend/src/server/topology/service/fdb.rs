@@ -46,8 +46,9 @@ pub fn learned_hosts<'a>(
             entry.1.push(ip.id);
         }
     }
-    let mut by_interface_mac: HashMap<MacAddress, (HashSet<Uuid>, Vec<Uuid>, Vec<Uuid>)> =
-        HashMap::new();
+    // Per MAC: the hosts whose interfaces carry it, those interfaces' addresses, the interfaces.
+    type InterfaceMacClaims = (HashSet<Uuid>, Vec<Uuid>, Vec<Uuid>);
+    let mut by_interface_mac: HashMap<MacAddress, InterfaceMacClaims> = HashMap::new();
     let mut interfaces_of_ip: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
     for interface in interfaces.clone() {
         if let Some(mac) = &interface.base.mac_address {

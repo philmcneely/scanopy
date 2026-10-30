@@ -752,6 +752,32 @@ fn macs_match(
     }
 }
 
+impl HostService {
+    /// Live, confirmed hosts on these sites: what the dashboard counts. An unconfirmed host is a
+    /// report awaiting a person, not a device in the inventory yet.
+    pub async fn confirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
+        self.storage
+            .count(
+                StorableFilter::<Host>::new_from_site_ids(site_ids)
+                    .live()
+                    .unconfirmed(false),
+            )
+            .await
+    }
+
+    /// Live hosts on these sites waiting for a person to confirm, merge or dismiss them.
+    pub async fn unconfirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
+        self.storage
+            .count(
+                StorableFilter::<Host>::new_from_site_ids(site_ids)
+                    .live()
+                    .not_dismissed()
+                    .unconfirmed(true),
+            )
+            .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1898,31 +1924,5 @@ mod tests {
             resolve_by_mac(&arp, &[link_v6], &[], &[unreported]),
             Some(vm)
         );
-    }
-}
-
-impl HostService {
-    /// Live, confirmed hosts on these sites: what the dashboard counts. An unconfirmed host is a
-    /// report awaiting a person, not a device in the inventory yet.
-    pub async fn confirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
-        self.storage
-            .count(
-                StorableFilter::<Host>::new_from_site_ids(site_ids)
-                    .live()
-                    .unconfirmed(false),
-            )
-            .await
-    }
-
-    /// Live hosts on these sites waiting for a person to confirm, merge or dismiss them.
-    pub async fn unconfirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
-        self.storage
-            .count(
-                StorableFilter::<Host>::new_from_site_ids(site_ids)
-                    .live()
-                    .not_dismissed()
-                    .unconfirmed(true),
-            )
-            .await
     }
 }
