@@ -4,6 +4,7 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 /// Matched by Recog's fingerprints of its web interface (`Pattern::Recog`).
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -25,6 +26,10 @@ impl ServiceDefinition for BlueCoatProxy {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Recog(&[("Blue Coat", "Proxy")], &[443, 8082])
+    }
+
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Broadcom)
     }
 }
 

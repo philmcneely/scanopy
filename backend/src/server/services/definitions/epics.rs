@@ -6,6 +6,7 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
+use crate::server::shared::logos::Logo;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Epics;
@@ -31,6 +32,10 @@ impl ServiceDefinition for Epics {
     }
     fn is_generic(&self) -> bool {
         true
+    }
+
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Epics)
     }
 }
 

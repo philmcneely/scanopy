@@ -4,6 +4,7 @@ use crate::server::services::definitions::{ServiceDefinitionFactory, create_serv
 use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 /// The printer's TLS listeners: FTPS on 990, MQTT control on 8883, and the slicer's bind port on
 /// 3002. Each presents the unit's certificate under Bambu's own CA.
@@ -39,6 +40,10 @@ impl ServiceDefinition for BambuLabPrinter {
                 Pattern::Port(PortType::new_tcp(6000)),
             ]))),
         ])
+    }
+
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::BambuLab)
     }
 }
 

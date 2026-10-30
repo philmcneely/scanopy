@@ -3,6 +3,7 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 /// Matched by Recog's fingerprints of its web interface (`Pattern::Recog`).
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -27,6 +28,10 @@ impl ServiceDefinition for OpenStackHorizon {
             &[("OpenStack", "Horizon"), ("OpenStack", "Dashboard")],
             &[80, 443],
         )
+    }
+
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::OpenStack)
     }
 }
 
