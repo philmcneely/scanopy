@@ -2,6 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::docker_swarm::DockerSwarmProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 use crate::server::shared::logos::Logo;
@@ -18,6 +19,9 @@ impl ServiceDefinition for DockerSwarm {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Orchestrator
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
 
     /// Matches on the probe's answer. The raft port speaks mutual TLS, and the certificate the server

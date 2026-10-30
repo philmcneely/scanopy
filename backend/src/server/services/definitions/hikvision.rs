@@ -19,8 +19,9 @@ impl ServiceDefinition for Hikvision {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
     }
+    // The pattern matches DVRs and IP cameras alike, and most Hikvision hosts are cameras.
     fn device_type(&self) -> DeviceTypeImplication {
-        DeviceTypeImplication::Is(DeviceType::Dvr)
+        DeviceTypeImplication::Is(DeviceType::Camera)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {

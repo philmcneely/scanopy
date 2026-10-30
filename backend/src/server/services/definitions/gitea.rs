@@ -1,6 +1,7 @@
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
 use crate::server::shared::logos::Logo;
@@ -17,6 +18,9 @@ impl ServiceDefinition for Gitea {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Development
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
     /// A set-up instance serves its pages on `/explore/repos`. Until setup is done, every path but
     /// the installer at `/` answers 404, so a fresh install is found by its installer page.

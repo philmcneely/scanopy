@@ -3,7 +3,7 @@ use crate::server::hosts::r#impl::base::{Host, HostBase};
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
 use crate::server::services::r#impl::base::{Service, ServiceBase};
 use crate::server::services::r#impl::categories::ServiceCategory;
-use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
 use crate::server::services::r#impl::patterns::Pattern;
 use crate::server::services::r#impl::virtualization::{
     DockerVirtualization, ServiceVirtualization,
@@ -30,6 +30,9 @@ impl ServiceDefinition for ReverseProxyServiceDef {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::ReverseProxy
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::None

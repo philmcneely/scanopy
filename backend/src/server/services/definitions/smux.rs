@@ -2,7 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::smux::SmuxProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
-use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -17,6 +17,9 @@ impl ServiceDefinition for Smux {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Nothing
     }
     /// A separate protocol from SNMP on the same agent: subagents connect to it, managers never do.
     /// net-snmp opens it on every address by default, so it can answer where the agent's own UDP

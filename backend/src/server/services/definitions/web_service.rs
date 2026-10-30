@@ -2,6 +2,7 @@ use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::base::DiscoverySessionServiceMatchParams;
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{MatchConfidence, Pattern};
 
@@ -18,6 +19,10 @@ impl ServiceDefinition for WebService {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Unknown
     }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Nothing
+    }
+
     /// The unbound ports that answered an HTTP request, whatever the status. Matching runs this
     /// after every other definition but "Unclaimed Open Ports", so a port reaches it only when no
     /// product claimed what it served, and it never takes a port another service holds.

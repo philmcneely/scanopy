@@ -2,6 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::kerberos::KerberosProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
@@ -17,6 +18,9 @@ impl ServiceDefinition for Kerberos {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IdentityAndAccess
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
     /// Matches on the probe's answer. A KDC answers an `AS-REQ` from anyone, because that is the message
     /// a client sends before it has any ticket; a listener on 88 that does not is not claimed as

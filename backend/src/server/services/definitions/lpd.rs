@@ -2,7 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::lpd::LpdProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
-use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -17,6 +17,9 @@ impl ServiceDefinition for Lpd {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Printer
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Nothing
     }
     /// Matches on the probe's answer, so a listener on 515 that does not return a queue status is
     /// not claimed. No device type: a print server or a Linux host running `cups-lpd` answers the
