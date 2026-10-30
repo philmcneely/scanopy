@@ -1,6 +1,8 @@
 use super::*;
 use crate::daemon::discovery::types::base::DiscoveryTerminalReason;
-use crate::daemon::discovery::types::warnings::{ClaimSource, DiscoveryWarning, SnmpWalkGroup};
+use crate::daemon::discovery::types::warnings::{
+    ClaimSource, DiscoveryWarning, ProvisionalSubnet, SnmpWalkGroup,
+};
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
 use crate::server::credentials::r#impl::run_results::{
     CredentialRunOutcome, CredentialRunResult, WakeOnLanResult,
@@ -218,7 +220,13 @@ pub(super) fn generate_discoveries(
                                 credential_id: Some(network_devices_cred_id),
                                 snmp_version: None,
                             },
-                        ],
+                        ]
+                        .into_iter()
+                        // The annex range, assumed around the address the HQ switch's LLDP table
+                        // heard the annex uplink advertise. The subnet's resolve modal reads its
+                        // evidence from this warning.
+                        .chain(annex_range_warning(subnets, hosts))
+                        .collect(),
                         // What each credential produced: SNMP collected from the network devices,
                         // the inventory script ran on jenkins-ci, and the backup NAS woke for the scan.
                         credential_results: vec![
@@ -384,4 +392,25 @@ pub(super) fn generate_discoveries(
     }
 
     discoveries
+}
+
+/// The warning the HQ scan raised when it assumed the annex's range: the address the annex uplink
+/// advertised over LLDP, and the HQ switch that heard it.
+fn annex_range_warning(subnets: &[Subnet], hosts: &[&Host]) -> Option<DiscoveryWarning> {
+    let annex = subnets
+        .iter()
+        .find(|s| s.base.name().contains("HQ Annex"))?;
+    let switch = hosts
+        .iter()
+        .find(|h| h.base.name.value().as_str() == "unifi-usw-48")?;
+    Some(DiscoveryWarning::ProvisionalSubnetInferred(
+        ProvisionalSubnet {
+            cidr: annex.base.cidr.value().to_string(),
+            subnet_id: Some(annex.id),
+            addresses: vec!["10.0.50.1".to_string()],
+            sys_names: vec![],
+            seen_by_host_ids: vec![switch.id],
+            widened_by_vlan: false,
+        },
+    ))
 }

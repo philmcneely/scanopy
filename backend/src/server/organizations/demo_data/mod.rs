@@ -109,9 +109,10 @@ pub struct NeighborUpdate {
     /// Source interface identifier
     pub source_host_name: String,
     pub source_if_index: i32,
-    /// Target interface identifier (for Interface neighbors)
+    /// Target interface identifier (for Interface neighbors). `None` names an interface with no
+    /// ifIndex: a far end known only from what it advertised, never walked itself.
     pub target_host_name: String,
-    pub target_if_index: i32,
+    pub target_if_index: Option<i32>,
 }
 
 /// Site-to-credential association for junction table seeding

@@ -268,11 +268,12 @@ pub struct TopologyData {
     /// matches any of them. Nodes with none are absent.
     #[serde(default)]
     pub node_entities: HashMap<TopologyView, HashMap<Uuid, Vec<Uuid>>>,
-    /// How many entities of each type a Visibility tag left out of this bundle. They never reach
-    /// the browser, so this is how the filter panel knows to offer the Visibility filter only for
-    /// a type it actually hid something of. Types with none are absent.
+    /// Per view, how many entities of each type a Visibility tag left out that the view would
+    /// have drawn. They never reach the browser, so this is how the filter panel knows to offer
+    /// the Visibility filter only in a view, and for a type, where it hid something. Views and
+    /// types with none are absent.
     #[serde(default)]
-    pub hidden_by_tag: HashMap<EntityDiscriminants, usize>,
+    pub hidden_by_tag: HashMap<TopologyView, HashMap<EntityDiscriminants, usize>>,
     /// How many entities of each type a server-side metadata filter removed, by the filter that
     /// removed them.
     ///

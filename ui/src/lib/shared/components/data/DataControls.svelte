@@ -66,12 +66,7 @@
 		PAGE_PARAM,
 		type ServerQuery
 	} from './controls/listQuery';
-	import {
-		queuedInitialParams,
-		registerUrlOwner,
-		syncUrl,
-		takeInitialParams
-	} from '$lib/shared/stores/url-state';
+	import { registerUrlOwner, syncUrl, takeInitialParams } from '$lib/shared/stores/url-state';
 	import ControlsBar from './controls/ControlsBar.svelte';
 	import ColumnControlsMenu from './table/ColumnControlsMenu.svelte';
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
@@ -209,7 +204,7 @@
 		onExportClick?: (() => void | Promise<void>) | null;
 		// Row actions.
 		getActions?: ((item: T) => CardAction[]) | null;
-		/** Icon-only status badges beside each row's name, whatever columns are shown. */
+		/** Icon-only status badges ahead of each row's name, whatever columns are shown. */
 		getRowBadges?: ((item: T) => TagProps[]) | null;
 		// Accessible name for the table, e.g. "Hosts".
 		entityLabel?: string | null;
@@ -319,8 +314,11 @@
 	 */
 	function loadUrlView() {
 		if (!isOnVisiblePage(rootRef)) return;
+		applyLinkView(takeInitialParams('list'));
+	}
 
-		const params = takeInitialParams('list');
+	/** Apply a link's list view: one the page loaded with, or an in-app link to this tab. */
+	function applyLinkView(params: URLSearchParams) {
 		if (params.size === 0) return;
 		linkParams = params;
 		// Plain on purpose: the late-field effect writes it, so tracking it would re-run that effect.
@@ -767,18 +765,14 @@
 		return params;
 	});
 
-	// A link opened from inside the app (a nudge's filtered list) queues its params while this list
-	// is already mounted, so the list on screen takes them when they arrive.
-	$effect(() => {
-		if ($queuedInitialParams > 0) untrack(loadUrlView);
-	});
-
 	$effect(() =>
 		registerUrlOwner({
 			scope: 'list',
 			isActive: () => isOnVisiblePage(rootRef),
 			params: () => urlView,
-			keys: () => listParamKeys(fields)
+			keys: () => listParamKeys(fields),
+			// An in-app link to this tab (a nudge's filtered list), taken as the tab comes on screen.
+			restore: (params) => applyLinkView(params)
 		})
 	);
 

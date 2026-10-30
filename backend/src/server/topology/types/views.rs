@@ -396,7 +396,7 @@ impl EntityMetadataProvider for ConfirmationFilterValue {
     fn icon(&self) -> Icon {
         match self {
             Self::Confirmed => Icon::CircleCheck,
-            Self::Unconfirmed => Icon::CircleDashed,
+            Self::Unconfirmed => Icon::CircleDashedCheck,
         }
     }
 }

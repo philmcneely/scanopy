@@ -20301,37 +20301,50 @@
               },
               "hidden_by_tag": {
                 "type": "object",
-                "description": "How many entities of each type a Visibility tag left out of this bundle. They never reach\nthe browser, so this is how the filter panel knows to offer the Visibility filter only for\na type it actually hid something of. Types with none are absent.",
+                "description": "Per view, how many entities of each type a Visibility tag left out that the view would\nhave drawn. They never reach the browser, so this is how the filter panel knows to offer\nthe Visibility filter only in a view, and for a type, where it hid something. Views and\ntypes with none are absent.",
                 "additionalProperties": {
-                  "type": "integer",
-                  "minimum": 0
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "Topology",
+                      "Snapshot",
+                      "Share",
+                      "Dependency",
+                      "Site",
+                      "Vlan",
+                      "Subnet",
+                      "Host",
+                      "Service",
+                      "IPAddress",
+                      "Interface",
+                      "Port",
+                      "Binding",
+                      "Discovery",
+                      "Daemon",
+                      "DaemonApiKey",
+                      "Credential",
+                      "Tag",
+                      "TagGroup",
+                      "User",
+                      "UserApiKey",
+                      "Organization",
+                      "Invite"
+                    ]
+                  }
                 },
                 "propertyNames": {
                   "type": "string",
+                  "description": "Which topology view is being rendered",
                   "enum": [
-                    "Topology",
-                    "Snapshot",
-                    "Share",
-                    "Dependency",
-                    "Site",
-                    "Vlan",
-                    "Subnet",
-                    "Host",
-                    "Service",
-                    "IPAddress",
-                    "Interface",
-                    "Port",
-                    "Binding",
-                    "Discovery",
-                    "Daemon",
-                    "DaemonApiKey",
-                    "Credential",
-                    "Tag",
-                    "TagGroup",
-                    "User",
-                    "UserApiKey",
-                    "Organization",
-                    "Invite"
+                    "L2Physical",
+                    "L3Logical",
+                    "Workloads",
+                    "Application"
                   ]
                 }
               },
@@ -41078,37 +41091,50 @@
           },
           "hidden_by_tag": {
             "type": "object",
-            "description": "How many entities of each type a Visibility tag left out of this bundle. They never reach\nthe browser, so this is how the filter panel knows to offer the Visibility filter only for\na type it actually hid something of. Types with none are absent.",
+            "description": "Per view, how many entities of each type a Visibility tag left out that the view would\nhave drawn. They never reach the browser, so this is how the filter panel knows to offer\nthe Visibility filter only in a view, and for a type, where it hid something. Views and\ntypes with none are absent.",
             "additionalProperties": {
-              "type": "integer",
-              "minimum": 0
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "Topology",
+                  "Snapshot",
+                  "Share",
+                  "Dependency",
+                  "Site",
+                  "Vlan",
+                  "Subnet",
+                  "Host",
+                  "Service",
+                  "IPAddress",
+                  "Interface",
+                  "Port",
+                  "Binding",
+                  "Discovery",
+                  "Daemon",
+                  "DaemonApiKey",
+                  "Credential",
+                  "Tag",
+                  "TagGroup",
+                  "User",
+                  "UserApiKey",
+                  "Organization",
+                  "Invite"
+                ]
+              }
             },
             "propertyNames": {
               "type": "string",
+              "description": "Which topology view is being rendered",
               "enum": [
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency",
-                "Site",
-                "Vlan",
-                "Subnet",
-                "Host",
-                "Service",
-                "IPAddress",
-                "Interface",
-                "Port",
-                "Binding",
-                "Discovery",
-                "Daemon",
-                "DaemonApiKey",
-                "Credential",
-                "Tag",
-                "TagGroup",
-                "User",
-                "UserApiKey",
-                "Organization",
-                "Invite"
+                "L2Physical",
+                "L3Logical",
+                "Workloads",
+                "Application"
               ]
             }
           },

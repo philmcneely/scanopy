@@ -12,7 +12,7 @@
  * Stale's amber or a daemon's red: nothing is behind and nothing is broken; a guess awaits a person.
  */
 
-import { CircleDashed } from '@lucide/svelte';
+import { CircleDashedCheck } from '@lucide/svelte';
 
 import type { components } from '$lib/api/schema';
 import type { TagProps } from '$lib/shared/components/data/types';
@@ -65,7 +65,7 @@ export function getConfirmationTag(entity: ConfirmationSubject): TagProps | null
 	return {
 		label: common_unconfirmed(),
 		color: toColor('violet'),
-		icon: CircleDashed,
+		icon: CircleDashedCheck,
 		title: unconfirmedReason(via)
 	};
 }

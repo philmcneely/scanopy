@@ -4,7 +4,7 @@
 	(`confirmation.ts`), so a host and a subnet say it the same way.
 -->
 <script lang="ts">
-	import { CircleDashed } from '@lucide/svelte';
+	import { CircleDashedCheck } from '@lucide/svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import {
 		unconfirmedReason,
@@ -36,7 +36,7 @@
 				class="btn-secondary flex items-center gap-1 text-xs"
 				onclick={onResolve}
 			>
-				<CircleDashed class="h-3.5 w-3.5" />
+				<CircleDashedCheck class="h-3.5 w-3.5" />
 				{resolveLabel}
 			</button>
 		{/if}

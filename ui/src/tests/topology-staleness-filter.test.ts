@@ -219,6 +219,15 @@ describe('topology staleness filter', () => {
 		expect([...present].sort()).toEqual(['current', 'stale']);
 	});
 
+	// Workloads leaves out a host with nothing to draw. It is still in the bundle, but its value is
+	// not one the user can see, so it must not turn the filter on.
+	it('counts only the entities the view draws', () => {
+		const topo = buildTopology();
+		topo.nodes = topo.nodes.filter((node) => node.id !== 'stale-host');
+		updateTagFilter(topo, undefined, 'Workloads', {}, [], site);
+		expect(get(presentFilterValues).Host?.Staleness).toEqual(['current']);
+	});
+
 	it('reports a single value when every entity of the type agrees', () => {
 		const topo = buildTopology();
 		// Make both services stale, so the filter offers no discrimination.
