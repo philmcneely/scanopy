@@ -28,33 +28,22 @@ impl DiscoveryService {
         format!("{} \u{2014} {}", session.discovery_type, site_name)
     }
 
-    /// The historical rows of a streak of `runs` failed runs in a row, newest first, when the run
-    /// recorded for `session_id` is the one that brought its discovery's streak to `runs`. `None`
-    /// otherwise, including for every later failure in the same streak, so a caller acting on it
-    /// acts once per streak.
+    /// The historical rows of a streak of `runs` failed runs in a row on one daemon, newest first,
+    /// when the run recorded for `session_id` is the one that brought the daemon's streak to
+    /// `runs`. Every run on the daemon counts, whichever discovery it ran for, so a run of any
+    /// discovery that does not fail ends the streak. `None` otherwise, including for every later
+    /// failure in the same streak, so a caller acting on it acts once per streak.
     ///
+    /// A daemon runs one session at a time, so its runs ordered by start are also ordered by end.
     /// Reads the run history, so call it once the session's historical row is written.
     pub async fn failure_streak(
         &self,
+        daemon_id: Uuid,
         session_id: Uuid,
         runs: usize,
     ) -> Result<Option<Vec<Discovery>>> {
-        let filter = StorableFilter::<Discovery>::new()
-            .historical_session(session_id)
-            .limit(1);
-        let Some(discovery_id) = self
-            .discovery_storage
-            .get_all(filter)
-            .await?
-            .first()
-            .and_then(|run| run.base.run_type.historical_results())
-            .and_then(|results| results.discovery_id)
-        else {
-            return Ok(None);
-        };
-
-        let filter = StorableFilter::<Discovery>::new()
-            .historical_runs_of(discovery_id)
+        let filter = StorableFilter::<Discovery>::new_from_uuid_column("daemon_id", &daemon_id)
+            .historical_discovery()
             .limit(runs as u32 + 1);
         let history = self
             .discovery_storage

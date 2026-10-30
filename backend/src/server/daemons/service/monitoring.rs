@@ -1,6 +1,6 @@
 //! Inactivity standby detection, daemon alert notifications, and loopback credential scoping.
 use super::*;
-use crate::server::email::messages::DiscoveryFailing;
+use crate::server::email::messages::DaemonScansFailing;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 
 impl DaemonService {
@@ -116,9 +116,9 @@ impl DaemonService {
     }
 
     /// Email the daemon's alert recipients when the failed run recorded for `session_id` makes
-    /// [`FAILURE_STREAK_EMAIL_RUNS`] failures in a row for its discovery. Sent once per streak:
-    /// a later failure in the same streak sends nothing, and only a run that does not fail starts
-    /// a new one.
+    /// [`FAILURE_STREAK_EMAIL_RUNS`] failed runs in a row on the daemon, of any discoveries. Sent
+    /// once per streak: a later failure in the same streak sends nothing, and only a run that does
+    /// not fail starts a new one.
     pub(crate) async fn send_failure_streak_notification(
         &self,
         session_id: Uuid,
@@ -127,7 +127,7 @@ impl DaemonService {
     ) -> Result<()> {
         let Some(runs) = self
             .discovery_service
-            .failure_streak(session_id, FAILURE_STREAK_EMAIL_RUNS)
+            .failure_streak(daemon_id, session_id, FAILURE_STREAK_EMAIL_RUNS)
             .await?
         else {
             return Ok(());
@@ -152,17 +152,24 @@ impl DaemonService {
             return Ok(());
         };
 
-        let email = DiscoveryFailing {
-            discovery_name: &newest.base.name,
+        let mut discovery_names: Vec<&str> = Vec::new();
+        for run in &runs {
+            if !discovery_names.contains(&run.base.name.as_str()) {
+                discovery_names.push(&run.base.name);
+            }
+        }
+
+        let email = DaemonScansFailing {
             daemon_name: &daemon.base.name,
             site_name: &site_name,
             failed_runs: runs.len(),
+            discovery_names: &discovery_names,
             reason_name: reason.name(),
             reason_description: reason.description(),
         };
         for to in recipients {
             email_service
-                .send_discovery_failing_email(to, &email)
+                .send_daemon_scans_failing_email(to, &email)
                 .await?;
         }
         Ok(())
@@ -215,7 +222,7 @@ impl DaemonService {
     }
 }
 
-/// How many failed runs in a row of one discovery send its daemon's recipients an email.
+/// How many failed runs in a row on one daemon send its recipients an email.
 const FAILURE_STREAK_EMAIL_RUNS: usize = 3;
 
 /// How recently a daemon must have been seen to count in `scanopy_daemons`.
