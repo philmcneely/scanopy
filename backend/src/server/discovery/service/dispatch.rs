@@ -547,26 +547,9 @@ impl DiscoveryService {
             .await;
 
             // Create historical discovery record
-            let site_name = match self.site_service.get_by_id(&session.site_id).await {
-                Ok(Some(site)) => site.base.name,
-                _ => "Unknown Site".to_string(),
-            };
-
-            // Inherit the transient parent's name for a rescan — it was minted as
-            // "Rescan of <host> (<ip>)", the only place host name and address are
-            // both known, and the parent is deleted moments from now. Frozen at
-            // scan time on purpose: a historical record should read as what was
-            // true then, even if the host is later renamed or removed.
-            let rescan_name = match (is_rescan, parent_discovery_id) {
-                (true, Some(parent_id)) => self
-                    .discovery_storage
-                    .get_by_id(&parent_id)
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|parent| parent.base.name),
-                _ => None,
-            };
+            let name = self
+                .historical_run_name(&session, parent_discovery_id)
+                .await;
 
             let historical_discovery = Discovery {
                 id: Uuid::new_v4(),
@@ -575,13 +558,7 @@ impl DiscoveryService {
                 base: DiscoveryBase {
                     daemon_id: session.daemon_id,
                     site_id: session.site_id,
-                    name: if let Some(name) = rescan_name {
-                        name
-                    } else if matches!(session.discovery_type, DiscoveryType::Unified { .. }) {
-                        "Discovery".to_string()
-                    } else {
-                        format!("{} \u{2014} {}", session.discovery_type, site_name)
-                    },
+                    name,
                     tags: Vec::new(),
                     discovery_type: session.discovery_type.clone(),
                     run_type: RunType::Historical {

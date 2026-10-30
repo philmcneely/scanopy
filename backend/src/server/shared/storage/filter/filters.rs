@@ -492,19 +492,6 @@ impl<T: Storable> StorableFilter<T> {
         self
     }
 
-    /// The historical rows recording runs of one discovery configuration, keyed on the discovery
-    /// id inside each recorded payload.
-    pub fn historical_runs_of(mut self, discovery_id: Uuid) -> Self {
-        self.conditions
-            .push("run_type->>'type' = 'Historical'".to_string());
-        self.conditions.push(format!(
-            "run_type->'results'->>'discovery_id' = ${}",
-            self.values.len() + 1
-        ));
-        self.values.push(SqlValue::String(discovery_id.to_string()));
-        self
-    }
-
     pub fn exclude_historical(mut self) -> Self {
         self.conditions
             .push("run_type->>'type' != 'Historical'".to_string());

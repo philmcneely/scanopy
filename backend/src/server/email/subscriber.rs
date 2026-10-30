@@ -786,7 +786,7 @@ impl Subscriber<DiscoveryPhase> for EmailService {
         EventFilter::ops(vec![DiscoveryPhaseDiscriminants::Failed])
     }
 
-    /// A failed run that brings its discovery to several failures in a row emails the daemon's
+    /// A failed run that brings its daemon to several failures in a row emails the daemon's
     /// recipients. Every `Failed` event is a finished run, published once its historical row is
     /// written. Not retried: a re-run would mail recipients that already got it.
     async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {

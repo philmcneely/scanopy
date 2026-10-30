@@ -9,8 +9,8 @@ use semver::Version;
 use uuid::Uuid;
 
 use super::messages::{
-    AirgapExpiring, AirgapRenewal, CancellationInitiated, CheckoutCompleted, DaemonStandby,
-    DaemonSunset, DaemonUnreachable, DiscoveryDigest, DiscoveryFailing, DiscoveryGuide, Email,
+    AirgapExpiring, AirgapRenewal, CancellationInitiated, CheckoutCompleted, DaemonScansFailing,
+    DaemonStandby, DaemonSunset, DaemonUnreachable, DiscoveryDigest, DiscoveryGuide, Email,
     EmailAttachment, EmailCategory, EmailChangedOld, InstallCommand, Invite, InvoiceCredited,
     InvoiceFinalizationFailed, InvoiceIssued, InvoiceOverdue, LicensedServerUpgrade, OidcLinked,
     OidcUnlinked, OrganizationDeleted, PasswordChanged, PasswordReset, PaymentActionRequired,
@@ -904,10 +904,10 @@ impl EmailService {
         .await
     }
 
-    pub async fn send_discovery_failing_email(
+    pub async fn send_daemon_scans_failing_email(
         &self,
         to: EmailAddress,
-        email: &DiscoveryFailing<'_>,
+        email: &DaemonScansFailing<'_>,
     ) -> Result<()> {
         self.dispatch(to, email).await
     }
