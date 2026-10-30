@@ -1,3 +1,11 @@
+<script lang="ts" module>
+	/** One of a nudge's buttons. */
+	export interface NudgeAction {
+		label: string;
+		onAction: () => void;
+	}
+</script>
+
 <script lang="ts">
 	import { X, ArrowRight } from '@lucide/svelte';
 	import { onMount } from 'svelte';
@@ -9,8 +17,7 @@
 		id,
 		title,
 		description,
-		actionLabel,
-		onAction,
+		actions,
 		onDismiss,
 		iconColor,
 		Icon,
@@ -20,8 +27,8 @@
 		id: string;
 		title: string;
 		description: string;
-		actionLabel: string;
-		onAction: () => void;
+		/** One button per action, in order. */
+		actions: NudgeAction[];
 		onDismiss?: () => void;
 		dismissable?: boolean;
 		/** Whether acting on the nudge also dismisses it. Off for a nudge that clears on its own
@@ -45,10 +52,10 @@
 		onDismiss?.();
 	}
 
-	function handleAction() {
+	function handleAction(action: NudgeAction) {
 		trackEvent('nudge_action_clicked', { nudge_id: id });
 		if (dismissOnAction) dismiss();
-		onAction();
+		action.onAction();
 	}
 </script>
 
@@ -64,13 +71,17 @@
 				<h4 class="mb-1 text-sm font-semibold text-primary">{title}</h4>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -- description is developer-provided, not user input -->
 				<p class="text-sm text-tertiary">{@html description}</p>
-				<button
-					onclick={handleAction}
-					class="mt-2 inline-flex items-center gap-1 text-sm font-medium text-blue-400 transition-colors hover:text-blue-300"
-				>
-					{actionLabel}
-					<ArrowRight class="h-3.5 w-3.5" />
-				</button>
+				<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+					{#each actions as action (action.label)}
+						<button
+							onclick={() => handleAction(action)}
+							class="inline-flex items-center gap-1 text-sm font-medium text-blue-400 transition-colors hover:text-blue-300"
+						>
+							{action.label}
+							<ArrowRight class="h-3.5 w-3.5" />
+						</button>
+					{/each}
+				</div>
 			</div>
 			{#if dismissable}
 				<button

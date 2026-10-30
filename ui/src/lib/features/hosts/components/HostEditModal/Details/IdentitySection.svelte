@@ -8,7 +8,7 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import AttributeSourceTag from '$lib/shared/components/data/AttributeSourceTag.svelte';
-	import { attributeSourceDescription } from '$lib/shared/utils/attribute-source';
+	import { attributeSourceTag } from '$lib/shared/utils/attribute-source';
 	import {
 		common_hostname,
 		common_name,
@@ -16,7 +16,6 @@
 		hosts_details_namePlaceholder,
 		hosts_identity_editName,
 		hosts_identity_fromRung,
-		hosts_identity_manualOverride,
 		hosts_identity_nothingDiscovered,
 		hosts_identity_overrideHelp,
 		hosts_identity_overrideLabel,
@@ -57,11 +56,7 @@
 		<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 			{#if liveOverride.trim()}
 				<span class="text-lg font-semibold break-all text-primary">{liveOverride}</span>
-				<Tag
-					label={hosts_identity_manualOverride()}
-					color="Gray"
-					title={attributeSourceDescription('Manual')}
-				/>
+				<Tag {...attributeSourceTag('Manual')} />
 			{:else if discovered}
 				<span class="text-lg font-semibold break-all text-primary">{discovered.value}</span>
 				{#if discovered.rung !== 'Name'}

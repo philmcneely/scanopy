@@ -1,5 +1,5 @@
 /**
- * The icon-only status badges a list row carries beside its name: Unconfirmed and Stale.
+ * The icon-only status badges a list row carries ahead of its name: Unconfirmed and Stale.
  *
  * Shown whatever columns the table displays, so a row says it is stale or awaiting confirmation
  * even with Last seen and Source hidden. Each is the shared tag (`getConfirmationTag`,

@@ -280,7 +280,7 @@
               },
               {
                 "color": "Violet",
-                "icon": "circle-dashed",
+                "icon": "circle-dashed-check",
                 "id": "unconfirmed",
                 "label": "Unconfirmed"
               }
@@ -757,7 +757,7 @@
               },
               {
                 "color": "Violet",
-                "icon": "circle-dashed",
+                "icon": "circle-dashed-check",
                 "id": "unconfirmed",
                 "label": "Unconfirmed"
               }
@@ -1323,7 +1323,7 @@
               },
               {
                 "color": "Violet",
-                "icon": "circle-dashed",
+                "icon": "circle-dashed-check",
                 "id": "unconfirmed",
                 "label": "Unconfirmed"
               }

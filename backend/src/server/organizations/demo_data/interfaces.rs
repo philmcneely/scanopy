@@ -14,6 +14,9 @@ const SNMP: AttributeSource = AttributeSource::Probe(ClientProbe::Snmp);
 const SHOP_FLOOR_SWITCH_MAC: &str = "00:80:63:2a:51:07";
 const LINE_2_SWITCH_MAC: &str = "00:80:63:2a:51:3c";
 
+/// The HQ switch port cabled to the annex, which LLDP is the only record of.
+const ANNEX_UPLINK_PORT: i32 = 48;
+
 /// Build the SNMP interface rows for the demo hosts, plus the neighbor links
 /// that `run_populate_demo` resolves to IDs once the hosts exist.
 ///
@@ -150,7 +153,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "pfsense-fw01".to_string(),
             source_if_index: 2,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // OPT1 interface (disabled)
@@ -239,7 +242,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "truenas-primary".to_string(),
             source_if_index: 1,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 2,
+            target_if_index: Some(2),
         });
 
         // Management NIC — carries the HQ Management address, connected to switch port 7
@@ -286,7 +289,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "truenas-primary".to_string(),
             source_if_index: 2,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 7,
+            target_if_index: Some(7),
         });
     }
 
@@ -337,7 +340,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "proxmox-hv01".to_string(),
             source_if_index: 1,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 3,
+            target_if_index: Some(3),
         });
 
         // Loopback
@@ -423,7 +426,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "proxmox-hv02".to_string(),
             source_if_index: 1,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 4,
+            target_if_index: Some(4),
         });
     }
 
@@ -474,7 +477,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "docker-prod01".to_string(),
             source_if_index: 1,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 5,
+            target_if_index: Some(5),
         });
     }
 
@@ -526,7 +529,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 1,
             target_host_name: "pfsense-fw01".to_string(),
-            target_if_index: 2,
+            target_if_index: Some(2),
         });
 
         // Port 2 ↔ truenas-primary
@@ -570,7 +573,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 2,
             target_host_name: "truenas-primary".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 3 ↔ proxmox-hv01
@@ -614,7 +617,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 3,
             target_host_name: "proxmox-hv01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 4 ↔ proxmox-hv02
@@ -658,7 +661,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 4,
             target_host_name: "proxmox-hv02".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 5 ↔ docker-prod01
@@ -702,7 +705,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 5,
             target_host_name: "docker-prod01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 6 ↔ unifi-ap-lobby (deferred via NeighborUpdate)
@@ -746,7 +749,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 6,
             target_host_name: "unifi-ap-lobby".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 7 ↔ truenas-primary management NIC
@@ -790,12 +793,13 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-usw-48".to_string(),
             source_if_index: 7,
             target_host_name: "truenas-primary".to_string(),
-            target_if_index: 2,
+            target_if_index: Some(2),
         });
 
-        // Ports 8-48 — empty/down, except ports 8 and 9: Hirschmann industrial switches on the
-        // shop floor that answer no scan. Their MACs are what the HQ switch's forwarding table
-        // knows of them (see the shop-floor hosts in generate_hosts_and_services).
+        // Ports 8-48 — empty/down, except ports 8, 9 and 48. Ports 8 and 9 face Hirschmann
+        // industrial switches on the shop floor that answer no scan. Their MACs are what the HQ
+        // switch's forwarding table knows of them (see the shop-floor hosts in
+        // generate_hosts_and_services). Port 48 is the annex uplink, known only by LLDP.
         for port_num in 8..=48 {
             let learned = match port_num {
                 8 => Some(SHOP_FLOOR_SWITCH_MAC),
@@ -824,7 +828,7 @@ pub(super) fn generate_interfaces(
                     if_type: Some(6),
                     speed_bps: Some(1_000_000_000),
                     admin_status: Some(IfAdminStatus::Up),
-                    oper_status: Some(if learned.is_some() {
+                    oper_status: Some(if learned.is_some() || port_num == ANNEX_UPLINK_PORT {
                         IfOperStatus::Up
                     } else {
                         IfOperStatus::Down
@@ -851,6 +855,12 @@ pub(super) fn generate_interfaces(
                 },
             });
         }
+        neighbor_updates.push(NeighborUpdate {
+            source_host_name: "unifi-usw-48".to_string(),
+            source_if_index: ANNEX_UPLINK_PORT,
+            target_host_name: "hq-annex-uplink".to_string(),
+            target_if_index: None,
+        });
     }
 
     // ========================================================================
@@ -900,7 +910,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "unifi-ap-lobby".to_string(),
             source_if_index: 1,
             target_host_name: "unifi-usw-48".to_string(),
-            target_if_index: 6,
+            target_if_index: Some(6),
         });
     }
 
@@ -1049,7 +1059,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-fw01".to_string(),
             source_if_index: 1,
             target_host_name: "dc-switch-01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
     }
 
@@ -1100,7 +1110,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-proxmox-hv01".to_string(),
             source_if_index: 1,
             target_host_name: "dc-switch-01".to_string(),
-            target_if_index: 2,
+            target_if_index: Some(2),
         });
     }
 
@@ -1151,7 +1161,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-docker01".to_string(),
             source_if_index: 1,
             target_host_name: "dc-switch-01".to_string(),
-            target_if_index: 3,
+            target_if_index: Some(3),
         });
     }
 
@@ -1202,7 +1212,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "haproxy-lb01".to_string(),
             source_if_index: 1,
             target_host_name: "dc-switch-01".to_string(),
-            target_if_index: 4,
+            target_if_index: Some(4),
         });
     }
 
@@ -1254,7 +1264,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-switch-01".to_string(),
             source_if_index: 1,
             target_host_name: "dc-fw01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 2 ↔ dc-proxmox-hv01
@@ -1298,7 +1308,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-switch-01".to_string(),
             source_if_index: 2,
             target_host_name: "dc-proxmox-hv01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 3 ↔ dc-docker01
@@ -1342,7 +1352,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-switch-01".to_string(),
             source_if_index: 3,
             target_host_name: "dc-docker01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Port 4 ↔ haproxy-lb01
@@ -1386,7 +1396,7 @@ pub(super) fn generate_interfaces(
             source_host_name: "dc-switch-01".to_string(),
             source_if_index: 4,
             target_host_name: "haproxy-lb01".to_string(),
-            target_if_index: 1,
+            target_if_index: Some(1),
         });
 
         // Ports 5-6 — access ports in Servers (VLAN 20) for the storage nodes. Neither node is

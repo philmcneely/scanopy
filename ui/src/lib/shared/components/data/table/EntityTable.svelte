@@ -94,7 +94,7 @@
 		getItemId: (item: T) => string;
 		getActions: ((item: T) => CardAction[]) | null;
 		/**
-		 * Icon-only status badges drawn beside the row's name (Stale, Unconfirmed), whatever columns
+		 * Icon-only status badges drawn ahead of the row's name (Stale, Unconfirmed), whatever columns
 		 * are shown. Each badge says what it means in its tooltip.
 		 */
 		getRowBadges?: ((item: T) => TagProps[]) | null;
@@ -637,14 +637,15 @@
 	</tr>
 {/snippet}
 
-<!-- A tree row's chevron, or the same width of space for a row with no children, so names line
-     up across a level. A parent's chevron collapses its children and shows how many there are. -->
+<!-- A row's status badges, icon-only, ahead of its name. -->
 {#snippet rowBadges(item: T)}
 	{#each getRowBadges?.(item) ?? [] as badge, index (index)}
 		<span class="shrink-0"><Tag {...badge} label={undefined} /></span>
 	{/each}
 {/snippet}
 
+<!-- A tree row's chevron, or the same width of space for a row with no children, so names line
+     up across a level. A parent's chevron collapses its children and shows how many there are. -->
 {#snippet treeToggle(tree: TreeCell<T>)}
 	{#if tree.section}
 		{@const section = tree.section}
@@ -748,18 +749,18 @@
 							{/if}
 							<div class="flex items-center gap-1.5" style="padding-left: {depth}rem">
 								{@render treeToggle(tree)}
+								{@render rowBadges(item)}
 								<div class="min-w-0" style={contentMaxWidth(column)}>
 									<FieldValue {item} {column} />
 								</div>
-								{@render rowBadges(item)}
 								{@render treeCount(tree)}
 							</div>
 						{:else}
 							<div class="flex items-center gap-1.5">
+								{@render rowBadges(item)}
 								<div class="min-w-0" style={contentMaxWidth(column)}>
 									<FieldValue {item} {column} />
 								</div>
-								{@render rowBadges(item)}
 							</div>
 						{/if}
 					</th>

@@ -408,9 +408,6 @@
 	// Only the commented-out resize controls used this.
 	// const grayColorHelper = createColorHelper('Gray');
 
-	// Track pointer position to distinguish clicks from drags
-	let pointerDownPos: { x: number; y: number } | null = null;
-
 	function handleChevronClick(event: MouseEvent | KeyboardEvent) {
 		if ($editModeEnabled) return;
 		event.stopPropagation();
@@ -446,29 +443,12 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- A container is collapsed by its title's chevron and selected by its title chip, the way a card
+     is selected by clicking it. The body holds the children, so a click on it lands on the canvas. -->
 <div
 	class="relative"
 	class:entity-type-hover-active={isEntityTypeHover}
-	style="{nodeStyle} opacity: {nodeOpacity};{isSubcontainer ? ' cursor: pointer;' : ''}"
-	onpointerdown={isSubcontainer
-		? (e) => {
-				pointerDownPos = { x: e.clientX, y: e.clientY };
-			}
-		: undefined}
-	onpointerup={isSubcontainer
-		? (e) => {
-				if (pointerDownPos) {
-					const dx = Math.abs(e.clientX - pointerDownPos.x);
-					const dy = Math.abs(e.clientY - pointerDownPos.y);
-					if (dx < 5 && dy < 5) {
-						e.stopPropagation();
-						handleChevronClick(e);
-					}
-				}
-				pointerDownPos = null;
-			}
-		: undefined}
+	style="{nodeStyle} opacity: {nodeOpacity};"
 >
 	<!-- TITLE: External (card/pill above container) -->
 	<!-- Rendered in both states: the pill is where a root container is named, collapsed or not. -->

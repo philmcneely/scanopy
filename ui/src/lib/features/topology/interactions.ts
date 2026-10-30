@@ -19,6 +19,7 @@ import {
 	ENTITY_COLLECTIONS,
 	buildEntityNodeIndex,
 	entityCollection,
+	nodeEntity,
 	type EntityNodeIndex
 } from './resolvers';
 import {
@@ -363,18 +364,46 @@ export const hiddenEntityIdsByType = writable<Map<string, Set<string>>>(new Map(
 
 export const presentFilterValues = writable<Record<string, Record<string, string[]>>>({});
 
+/**
+ * For each entity type the view draws as nodes, the ids it draws: node entities, and the members
+ * of their inline groups. A type left out (a service drawn as a row on an address card) is drawn
+ * wherever the bundle holds it.
+ */
+function drawnEntityIds(topology: RenderableTopology): Map<string, Set<string>> {
+	const drawn = new Map<string, Set<string>>();
+	for (const node of topology.nodes) {
+		const resolved = nodeEntity(node, topology);
+		if (!resolved) continue;
+		const ids = drawn.get(resolved.entityType) ?? new Set<string>();
+		ids.add(resolved.entity.id);
+		drawn.set(resolved.entityType, ids);
+	}
+	for (const node of topology.nodes) {
+		if (node.node_type !== 'Element') continue;
+		for (const group of node.inline_groups ?? []) {
+			drawn.get(group.entity_type)?.add(group.entity_id);
+		}
+	}
+	return drawn;
+}
+
 function computePresentFilterValues(
 	topology: RenderableTopology,
 	view: string | undefined,
 	site: Site | undefined
 ): Record<string, Record<string, string[]>> {
 	const out: Record<string, Record<string, string[]>> = {};
+	// Only what the view draws offers a choice: Workloads leaves out a host with no workloads, so
+	// an unconfirmed host there must not bring the Confirmation filter with it.
+	const drawn = drawnEntityIds(topology);
 	for (const filter of view ? declaredMetadataFilters(view) : []) {
 		for (const entityType of filter.entities) {
 			const collection = entityCollection(topology, entityType);
 			if (!collection) continue;
+			const drawnOfType = drawn.get(entityType);
 			const seen = new Set<string>();
 			for (const entity of collection) {
+				if (drawnOfType && !drawnOfType.has(entity.id)) continue;
 				const value = filterValueOf(entity, filter.filter_type, site);
 				if (value) seen.add(value);
 			}

@@ -6892,12 +6892,15 @@ export interface components {
                     };
                 };
                 /**
-                 * @description How many entities of each type a Visibility tag left out of this bundle. They never reach
-                 *     the browser, so this is how the filter panel knows to offer the Visibility filter only for
-                 *     a type it actually hid something of. Types with none are absent.
+                 * @description Per view, how many entities of each type a Visibility tag left out that the view would
+                 *     have drawn. They never reach the browser, so this is how the filter panel knows to offer
+                 *     the Visibility filter only in a view, and for a type, where it hid something. Views and
+                 *     types with none are absent.
                  */
                 hidden_by_tag?: {
-                    [key: string]: number;
+                    [key: string]: {
+                        [key: string]: number;
+                    };
                 };
                 /** @description Hosts included in this topology, each carrying the title the map and the host list share. */
                 hosts: components["schemas"]["TopologyHost"][];
@@ -15932,12 +15935,15 @@ export interface components {
                 };
             };
             /**
-             * @description How many entities of each type a Visibility tag left out of this bundle. They never reach
-             *     the browser, so this is how the filter panel knows to offer the Visibility filter only for
-             *     a type it actually hid something of. Types with none are absent.
+             * @description Per view, how many entities of each type a Visibility tag left out that the view would
+             *     have drawn. They never reach the browser, so this is how the filter panel knows to offer
+             *     the Visibility filter only in a view, and for a type, where it hid something. Views and
+             *     types with none are absent.
              */
             hidden_by_tag?: {
-                [key: string]: number;
+                [key: string]: {
+                    [key: string]: number;
+                };
             };
             /** @description Hosts included in this topology, each carrying the title the map and the host list share. */
             hosts: components["schemas"]["TopologyHost"][];

@@ -12,8 +12,6 @@
  * query string sent to the endpoint returns what the page shows.
  */
 
-import { writable } from 'svelte/store';
-
 export type UrlScope = 'modal' | 'topology' | 'search' | 'list';
 
 interface ScopeRule {
@@ -168,6 +166,7 @@ function flush() {
 	flushQueued = false;
 	if (!attached) return;
 
+	applyPendingOpen(pendingTab ?? tabOf(new URL(window.location.href)));
 	const url = buildUrl(new URL(window.location.href), owners, pendingTab, handedOut);
 	const push = pendingPush;
 	pendingTab = null;
@@ -206,21 +205,36 @@ function handlePopState() {
 	}
 }
 
-/** Bumped each time params are queued, so a list already mounted takes them when it is on screen. */
-export const queuedInitialParams = writable(0);
+/** A tab an in-app link opened, with the list view it carries, until that tab's list takes it. */
+let pendingOpen: { tab: string; params: URLSearchParams } | null = null;
 
 /**
- * Hand `params` to the next owner that takes its initial params, as though the page had loaded
- * with them. For an in-app link that opens a tab already filtered (a nudge's "show the unconfirmed
- * hosts"): queue the list's params, then switch tabs, and the list hydrates them as it mounts.
+ * Open `tab` with `params` as its list's view, the same as following a link that carries them:
+ * a nudge's "Review hosts" opens `?sources=Inferred#hosts`, and Back returns to where it was.
+ *
+ * Every list tab stays mounted, so the list on `tab` takes the params as the tab comes on screen
+ * (`flush`). A list that isn't mounted yet takes them as it hydrates, like a pasted link.
  */
-export function queueInitialParams(params: URLSearchParams): void {
+export function openTab(tab: string, params: URLSearchParams): void {
+	pendingOpen = { tab, params };
 	if (!initialParams) initialParams = new URLSearchParams();
+	for (const key of scopeKeysIn('list', initialParams)) initialParams.delete(key);
 	for (const [key, value] of params) {
 		initialParams.append(key, value);
 		handedOut.delete(key);
 	}
-	queuedInitialParams.update((n) => n + 1);
+	// Moving the hash adds the history entry; the flush that follows writes the params into it.
+	window.location.hash = tab;
+}
+
+/** Hand a pending link's view to the list now on its tab. */
+function applyPendingOpen(tab: string) {
+	if (!pendingOpen || pendingOpen.tab !== tab) return;
+	const list = shownOwners(owners, tab).find((owner) => owner.scope === 'list' && owner.restore);
+	if (!list) return;
+	list.restore?.(pendingOpen.params);
+	for (const key of pendingOpen.params.keys()) initialParams?.delete(key);
+	pendingOpen = null;
 }
 
 /**

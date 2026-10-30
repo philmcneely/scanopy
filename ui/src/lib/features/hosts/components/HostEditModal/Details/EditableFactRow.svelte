@@ -20,9 +20,9 @@
 	} from '$lib/features/hosts/components/DeviceTypeDisplay';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import { max } from '$lib/shared/components/forms/validators';
-	import { attributeSourceDescription } from '$lib/shared/utils/attribute-source';
+	import { attributeSourceTag } from '$lib/shared/utils/attribute-source';
 	import { deviceTypes } from '$lib/shared/stores/metadata';
-	import { hosts_deviceFacts_edit, hosts_identity_manualOverride } from '$lib/paraglide/messages';
+	import { hosts_deviceFacts_edit } from '$lib/paraglide/messages';
 
 	interface Props {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,11 +71,7 @@
 		</span>
 		<span class="shrink-0">
 			{#if changed}
-				<Tag
-					label={hosts_identity_manualOverride()}
-					color="Gray"
-					title={attributeSourceDescription('Manual')}
-				/>
+				<Tag {...attributeSourceTag('Manual')} />
 			{:else}
 				{@render source()}
 			{/if}

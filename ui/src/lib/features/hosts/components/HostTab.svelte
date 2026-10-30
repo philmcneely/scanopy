@@ -23,7 +23,7 @@
 	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { hostColumns } from './HostTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, RefreshCw, Replace, Edit, CircleDashed } from '@lucide/svelte';
+	import { Trash2, RefreshCw, Replace, Edit, CircleDashedCheck } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import type { TabProps } from '$lib/shared/types';
@@ -386,7 +386,7 @@
 			// Only where there is something to resolve, as on the Subnets tab.
 			{
 				label: hosts_resolveUnconfirmed(),
-				icon: CircleDashed,
+				icon: CircleDashedCheck,
 				onClick: () => handleResolveHost(host),
 				unavailable: hiddenWhen(!isUnconfirmed(host), hosts_alreadyConfirmed())
 			},

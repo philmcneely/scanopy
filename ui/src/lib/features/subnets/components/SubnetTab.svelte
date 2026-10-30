@@ -19,7 +19,7 @@
 	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { subnetColumns } from './SubnetTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, Edit, CircleDashed } from '@lucide/svelte';
+	import { Trash2, Edit, CircleDashedCheck } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import {
@@ -235,7 +235,7 @@
 			// which is exactly what an assumed range is not.
 			{
 				label: subnets_resolveRange(),
-				icon: CircleDashed,
+				icon: CircleDashedCheck,
 				onClick: () => handleResolveRange(subnet),
 				unavailable: hiddenWhen(!isProvisionalCidr(subnet), subnets_rangeSettled())
 			},

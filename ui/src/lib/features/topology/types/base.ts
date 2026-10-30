@@ -68,7 +68,7 @@ export interface RenderableTopology extends Topology {
 	 * only record that they exist at all.
 	 */
 	filtered_out: FilteredOutCounts;
-	/** How many entities of each type a Visibility tag left out of the bundle. */
+	/** For this view, how many entities of each type a Visibility tag left out that it would draw. */
 	hidden_by_tag: Partial<Record<string, number>>;
 	dependencies: Dependency[];
 	vlans: Vlan[];

@@ -17,8 +17,8 @@ use crate::server::{interfaces::r#impl::base::Interface, ip_addresses::r#impl::b
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LearnedHost {
     pub host_id: Uuid,
-    /// The host's addresses whose MAC is the one learned. Empty when the MAC is on one of the
-    /// host's interfaces rather than an address.
+    /// The host's addresses whose MAC is the one learned, or, when the MAC is on one of the host's
+    /// interfaces, the address that interface holds. Empty when that interface holds none.
     pub ip_address_ids: Vec<Uuid>,
 }
 
@@ -39,13 +39,12 @@ pub fn learned_hosts<'a>(
             entry.1.push(ip.id);
         }
     }
-    let mut by_interface_mac: HashMap<MacAddress, HashSet<Uuid>> = HashMap::new();
+    let mut by_interface_mac: HashMap<MacAddress, (HashSet<Uuid>, Vec<Uuid>)> = HashMap::new();
     for interface in interfaces.clone() {
         if let Some(mac) = &interface.base.mac_address {
-            by_interface_mac
-                .entry(mac.value().0)
-                .or_default()
-                .insert(interface.base.host_id);
+            let entry = by_interface_mac.entry(mac.value().0).or_default();
+            entry.0.insert(interface.base.host_id);
+            entry.1.extend(interface.base.ip_address_id);
         }
     }
     // The one host a set names, or `None` when it names several.
@@ -63,9 +62,10 @@ pub fn learned_hosts<'a>(
                 ip_address_ids: ip_ids.clone(),
             });
         }
+        let (hosts, ip_ids) = by_interface_mac.get(mac)?;
         Some(LearnedHost {
-            host_id: only(by_interface_mac.get(mac)?)?,
-            ip_address_ids: Vec::new(),
+            host_id: only(hosts)?,
+            ip_address_ids: ip_ids.clone(),
         })
     };
 

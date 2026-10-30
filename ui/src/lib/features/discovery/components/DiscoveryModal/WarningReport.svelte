@@ -292,7 +292,7 @@
 			if (subnetIds.length === 0) return null;
 			return {
 				label: subnets_resolveRange(),
-				icon: createIconComponent('circle-dashed'),
+				icon: createIconComponent('circle-dashed-check'),
 				run: () => {
 					window.location.hash = 'subnets';
 					// One range resolves in place; several is a trip to the list, because the
@@ -313,7 +313,7 @@
 			if (hostIds.length === 0) return null;
 			return {
 				label: hosts_resolveUnconfirmed(),
-				icon: createIconComponent('circle-dashed'),
+				icon: createIconComponent('circle-dashed-check'),
 				run: () => {
 					window.location.hash = 'hosts';
 					if (hostIds.length === 1) openModal('unconfirmed-host', { id: hostIds[0] });

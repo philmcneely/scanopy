@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { buildUrl, scopeKeysIn, type UrlOwner } from '$lib/shared/stores/url-state';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import {
+	attachUrlState,
+	buildUrl,
+	openTab,
+	registerUrlOwner,
+	scopeKeysIn,
+	setActiveTab,
+	type UrlOwner
+} from '$lib/shared/stores/url-state';
 
 function owner(
 	scope: UrlOwner['scope'],
@@ -87,5 +95,71 @@ describe('scopeKeysIn', () => {
 		const list = new URLSearchParams('tag_ids=t1');
 		expect(scopeKeysIn('search', list)).toEqual([]);
 		expect(scopeKeysIn('list', list)).toEqual(['tag_ids']);
+	});
+});
+
+describe('openTab', () => {
+	let href = 'http://localhost/#home';
+	let detach: () => void;
+	beforeEach(() => {
+		vi.stubGlobal('window', {
+			get location() {
+				const url = new URL(href);
+				return {
+					href,
+					search: url.search,
+					get hash() {
+						return url.hash;
+					},
+					set hash(value: string) {
+						url.hash = value;
+						href = url.toString();
+					}
+				};
+			},
+			history: {
+				state: null,
+				pushState: (_: unknown, __: string, next: string) => {
+					href = next;
+				},
+				replaceState: (_: unknown, __: string, next: string) => {
+					href = next;
+				}
+			},
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		});
+		detach = attachUrlState();
+	});
+	afterEach(() => {
+		detach();
+		vi.unstubAllGlobals();
+		href = 'http://localhost/#home';
+	});
+
+	// Every list tab stays mounted, so the hosts list is registered before the nudge is clicked, and
+	// is on screen only once the tab switches.
+	it('hands the view to the mounted list on the tab and writes it into the URL', async () => {
+		let onScreen = false;
+		let view = new URLSearchParams();
+		const unregister = registerUrlOwner({
+			scope: 'list',
+			isActive: () => onScreen,
+			params: () => view,
+			keys: () => ['sources'],
+			restore: (params) => {
+				view = new URLSearchParams(params);
+			}
+		});
+
+		openTab('hosts', new URLSearchParams({ sources: 'Inferred' }));
+		onScreen = true;
+		setActiveTab('hosts');
+		await Promise.resolve();
+
+		const url = new URL(href);
+		expect(url.hash).toBe('#hosts');
+		expect(url.searchParams.get('sources')).toBe('Inferred');
+		unregister();
 	});
 });
