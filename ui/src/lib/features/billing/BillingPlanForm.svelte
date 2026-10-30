@@ -216,8 +216,12 @@
 		return featureHelpers.getMetadata(featureKey)?.is_coming_soon === true;
 	}
 
-	/** A beta feature's tag, linking to the beta program sign-up; `null` for a stable feature. */
+	/**
+	 * A beta feature's tag, linking to the beta program sign-up; `null` for a stable feature, and
+	 * for one still coming soon, which carries the Coming Soon tag instead.
+	 */
 	function betaTag(featureKey: string) {
+		if (isComingSoon(featureKey)) return null;
 		const cloud = configQuery.data ? isCloud(configQuery.data) : false;
 		return getStabilityTagProps(
 			featureHelpers.getMetadata(featureKey)?.stability,
