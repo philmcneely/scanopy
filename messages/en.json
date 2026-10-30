@@ -2305,6 +2305,7 @@
 	"meta_entities_Interface_field_if_index_label": "Index",
 	"meta_entities_Interface_field_if_name_label": "ifName",
 	"meta_entities_Interface_field_if_type_label": "ifType",
+	"meta_entities_Interface_field_interface_source_label": "Source",
 	"meta_entities_Interface_field_ip_address_id_label": "IP Address",
 	"meta_entities_Interface_field_ip_configured_label": "IP Configured",
 	"meta_entities_Interface_field_mac_address_label": "MAC Address",
