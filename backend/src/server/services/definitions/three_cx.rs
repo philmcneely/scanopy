@@ -3,6 +3,7 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 /// Matched by Recog's fingerprints of its web interface (`Pattern::Recog`).
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -24,6 +25,10 @@ impl ServiceDefinition for ThreeCx {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Recog(&[("3CX", "3CX Web Server")], &[5000, 5001])
+    }
+
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::ThreeCx)
     }
 }
 

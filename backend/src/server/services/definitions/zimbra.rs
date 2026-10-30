@@ -3,6 +3,7 @@ use crate::server::services::r#impl::categories::ServiceCategory;
 use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
+use crate::server::shared::logos::Logo;
 
 /// Matched by Recog's fingerprints of its web interface (`Pattern::Recog`).
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -30,6 +31,10 @@ impl ServiceDefinition for Zimbra {
             ],
             &[443, 7071],
         )
+    }
+
+    fn logo(&self) -> Option<Logo> {
+        Some(Logo::Zimbra)
     }
 }
 
