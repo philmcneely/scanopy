@@ -2,6 +2,32 @@
 use super::*;
 
 impl DiscoveryService {
+    /// The name a run's historical row is recorded under: its discovery's name, frozen at scan
+    /// time, so the history and anything quoting it read as what was true then even if the
+    /// discovery is later renamed or removed. A rescan's transient parent was minted as
+    /// "Rescan of <host> (<ip>)", the only place host name and address are both known, and is
+    /// deleted moments after. A run whose discovery is already gone falls back to a name from its
+    /// type.
+    pub(crate) async fn historical_run_name(
+        &self,
+        session: &DiscoveryUpdatePayload,
+        discovery_id: Option<Uuid>,
+    ) -> String {
+        if let Some(discovery_id) = discovery_id
+            && let Ok(Some(discovery)) = self.discovery_storage.get_by_id(&discovery_id).await
+        {
+            return discovery.base.name;
+        }
+        if matches!(session.discovery_type, DiscoveryType::Unified { .. }) {
+            return "Discovery".to_string();
+        }
+        let site_name = match self.site_service.get_by_id(&session.site_id).await {
+            Ok(Some(site)) => site.base.name,
+            _ => "Unknown Site".to_string(),
+        };
+        format!("{} \u{2014} {}", session.discovery_type, site_name)
+    }
+
     /// The historical rows of a streak of `runs` failed runs in a row, newest first, when the run
     /// recorded for `session_id` is the one that brought its discovery's streak to `runs`. `None`
     /// otherwise, including for every later failure in the same streak, so a caller acting on it

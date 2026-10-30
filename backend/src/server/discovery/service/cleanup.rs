@@ -290,10 +290,9 @@ impl DiscoveryService {
         };
         session.daemon_version = daemon.base.version.map(|v| v.to_string());
 
-        let site_name = match self.site_service.get_by_id(&session.site_id).await {
-            Ok(Some(site)) => site.base.name,
-            _ => "Unknown Site".to_string(),
-        };
+        let name = self
+            .historical_run_name(&session, session.discovery_id)
+            .await;
 
         let historical_discovery = Discovery {
             id: Uuid::new_v4(),
@@ -303,11 +302,7 @@ impl DiscoveryService {
                 daemon_id: session.daemon_id,
                 site_id: session.site_id,
                 tags: Vec::new(),
-                name: if matches!(session.discovery_type, DiscoveryType::Unified { .. }) {
-                    "Discovery".to_string()
-                } else {
-                    format!("{} \u{2014} {}", session.discovery_type, site_name)
-                },
+                name,
                 discovery_type: session.discovery_type.clone(),
                 run_type: RunType::Historical {
                     results: Box::new(session),
