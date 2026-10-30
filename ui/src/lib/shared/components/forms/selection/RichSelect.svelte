@@ -198,6 +198,9 @@
 		return sortedEntries.map(([category, options]) => ({ category, options }));
 	});
 
+	/** Whether a sticky category header pins to the top of the list, so the scroll fade starts below it. */
+	let hasCategoryHeaders = $derived(groupedOptions.some((group) => group.category !== null));
+
 	async function handleToggle(e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
@@ -357,7 +360,9 @@
 	<div class="relative flex min-h-0 flex-col">
 		{#if canScrollUp}
 			<div
-				class="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 rounded-t-md bg-linear-to-b from-(--color-bg-elevated) to-transparent"
+				class="pointer-events-none absolute inset-x-0 z-10 h-6 bg-linear-to-b {hasCategoryHeaders
+					? 'top-9'
+					: 'top-0 rounded-t-md'} from-(--color-bg-elevated) to-transparent"
 			></div>
 		{/if}
 		<div
@@ -377,7 +382,7 @@
 						<!-- Category Header -->
 						{#if group.category !== null}
 							<div
-								class="sticky top-0 border-b px-3 py-2 text-xs font-semibold tracking-wide text-secondary uppercase"
+								class="sticky top-0 z-20 border-b px-3 py-2 text-xs font-semibold tracking-wide text-secondary uppercase"
 								style="border-color: var(--color-border); background: var(--color-bg-surface)"
 							>
 								{group.category}
