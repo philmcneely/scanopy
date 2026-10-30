@@ -212,6 +212,7 @@ impl DaemonResponse for HostResponse {
             first_discovery_id: _,
             dismissed_at: _,
             reported_by_host_ids: _,
+            found_by_discovery_id: _,
             last_discovery_id: _,
             name: _,
             display_name: _,

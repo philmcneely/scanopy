@@ -19,11 +19,7 @@
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import { entities } from '$lib/shared/stores/metadata';
 	import type { Subnet, SubnetResponse } from '../types/base';
-	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
-	import { entityRef } from '$lib/shared/components/data/types';
-	import { useHostsByIds } from '$lib/features/hosts/queries';
-	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 	import {
 		subnets_confirmRange,
 		subnets_confirmRangeDetail,
@@ -34,8 +30,6 @@
 		subnets_mergeInto,
 		subnets_mergeIntoDetail,
 		subnets_rangeEvidenceAddresses,
-		subnets_rangeEvidenceOpenScan,
-		common_reportedBy,
 		subnets_resolveRange,
 		subnets_resolveRangeIntro
 	} from '$lib/paraglide/messages';
@@ -75,21 +69,12 @@
 
 	/**
 	 * Where the range came from, carried on the subnet itself: the devices that saw the far ends and
-	 * what those far ends published. Absent for a range no scan created. A device deleted since then
-	 * resolves to nothing and is left out.
+	 * what those far ends published. Absent for a range no scan created.
 	 */
 	let rangeEvidence = $derived(subnet?.range_evidence ?? null);
-	const seenByQuery = useHostsByIds(() => rangeEvidence?.seen_by_host_ids ?? []);
-	let seenBy = $derived(seenByQuery.data ?? []);
 	let published = $derived(
 		rangeEvidence ? [...rangeEvidence.addresses, ...rangeEvidence.sys_names] : []
 	);
-
-	function openSourceScan(discoveryId: string) {
-		onClose();
-		window.location.hash = 'discovery-history';
-		openModal('discovery-history-detail', { id: discoveryId });
-	}
 
 	let actions = $derived.by<ConfirmAction[]>(() => {
 		if (!subnet) return [];
@@ -153,37 +138,16 @@
 	{actions}
 	{isOpen}
 	{onClose}
+	reportedByHostIds={rangeEvidence?.seen_by_host_ids ?? []}
+	sourceDiscoveryId={rangeEvidence?.discovery_id ?? null}
 >
 	{#snippet evidence()}
-		{#if subnet && rangeEvidence}
-			<div class="space-y-2 text-sm">
-				{#if seenBy.length > 0}
-					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-secondary">{common_reportedBy()}</span>
-						{#each seenBy as host (host.id)}
-							<EntityTag
-								entityRef={entityRef('Host', host.id, host)}
-								label={hostDisplayName(host)}
-								color={entities.getColorHelper('Host').color}
-							/>
-						{/each}
-					</div>
-				{/if}
-				{#if published.length > 0}
-					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-secondary">{subnets_rangeEvidenceAddresses()}</span>
-						{#each published as label (label)}
-							<Tag {label} color={null} />
-						{/each}
-					</div>
-				{/if}
-				<button
-					type="button"
-					class="text-sm text-link hover:underline"
-					onclick={() => rangeEvidence && openSourceScan(rangeEvidence.discovery_id)}
-				>
-					{subnets_rangeEvidenceOpenScan()}
-				</button>
+		{#if published.length > 0}
+			<div class="flex flex-wrap items-center gap-2">
+				<span class="text-secondary">{subnets_rangeEvidenceAddresses()}</span>
+				{#each published as label (label)}
+					<Tag {label} color={null} />
+				{/each}
 			</div>
 		{/if}
 	{/snippet}

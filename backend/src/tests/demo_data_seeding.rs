@@ -297,7 +297,7 @@ async fn demo_seed_writes_daemon_subnets_and_the_demo_logins_api_keys() {
 }
 
 /// The resolve modal names who reported each unconfirmed host, and it reads that off the list
-/// response. Red while `host_responses`, the list endpoint's builder, skipped `fill_reported_by`:
+/// response. Red while `host_responses`, the list endpoint's builder, skipped `fill_unconfirmed_evidence`:
 /// the demo's two unconfirmed hosts came back with no reporter though the HQ switch named both,
 /// one over LLDP and one by the MAC its forwarding table learned.
 #[tokio::test]

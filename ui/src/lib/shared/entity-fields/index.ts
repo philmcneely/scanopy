@@ -14,7 +14,7 @@ import { metaFieldLabel } from '$lib/i18n/metadata';
 import { formatBitsPerSecond, formatPort, formatTimestamp } from '$lib/shared/utils/formatting';
 import { hostOsLabel } from '$lib/features/hosts/host-os';
 import type { Port } from '$lib/features/hosts/types/base';
-import type { AttributeSource } from '$lib/shared/utils/attribute-source';
+import { attributeSourceLabel, type AttributeSource } from '$lib/shared/utils/attribute-source';
 import type { FieldGroup } from '$lib/shared/components/data/types';
 
 export type EntityField = components['schemas']['EntityField'];
@@ -141,6 +141,8 @@ export function formatFieldValue(field: EntityField, value: unknown): string {
 			return typeof value === 'string' ? formatTimestamp(value) : String(value);
 		case 'Metadata':
 			return metadataName(format.fixture, String(value));
+		case 'AttributeSource':
+			return value ? attributeSourceLabel(value as AttributeSource) : '';
 		case 'Text':
 		case 'Prose':
 		case 'Number':

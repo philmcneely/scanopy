@@ -19,6 +19,7 @@ impl HostResponse {
             first_discovery_id,
             dismissed_at,
             reported_by_host_ids: _,
+            found_by_discovery_id: _,
             last_discovery_id,
             name,
             // Derived from the fields below on the way out; nothing to carry back in.
@@ -261,6 +262,7 @@ impl HostResponse {
             description,
             dismissed_at,
             reported_by_host_ids: Vec::new(),
+            found_by_discovery_id: None,
             source,
             virtualization_metadata,
             virtualization_service_id,

@@ -172,6 +172,114 @@ impl HostService {
         }
         Ok(minted)
     }
+
+    /// An inferred port on each known device a switch's forwarding table reaches without one: its
+    /// MAC is on an address, and none of its interfaces carries the MAC or holds that address.
+    ///
+    /// A MAC learned behind a switch port is a NIC on the device, so the port is recorded where
+    /// the link ends: the MAC, the address it carries, and `ForwardingTable` as the source. This is
+    /// the recoverable case GH #668 allows (evidence attached to a host that exists), not a host
+    /// conjured from a third party's report. Uses the port `fdb::learned_hosts` places each MAC
+    /// on, which is the port L2 draws the link from. Idempotent: the new port holds the address,
+    /// so the next pass reaches the device through it.
+    ///
+    /// A port that already names the device with a host-level row (an earlier pass placed it there
+    /// with no port to point at) is moved to the new port, so the link is drawn port to port.
+    pub(super) async fn mint_forwarding_table_ports(
+        &self,
+        site_id: Uuid,
+        scan_time: DateTime<Utc>,
+    ) -> Result<u32> {
+        let interfaces = self
+            .interface_service
+            .get_all(StorableFilter::<Interface>::new_from_site_ids(&[site_id]).live())
+            .await?;
+        if !interfaces
+            .iter()
+            .any(|i| i.base.fdb_macs().is_some_and(|m| !m.is_empty()))
+        {
+            return Ok(0);
+        }
+        let ip_addresses = self
+            .ip_address_service
+            .get_all(StorableFilter::<IPAddress>::new_from_site_ids(&[site_id]).live())
+            .await?;
+        let learned = crate::server::topology::service::fdb::learned_hosts(&interfaces, &ip_addresses);
+
+        let mut host_rows: HashMap<Uuid, Vec<Neighbor>> = HashMap::new();
+        for row in self
+            .interface_neighbor_service
+            .resolved_for_site(site_id, None)
+            .await?
+        {
+            host_rows.entry(row.interface_id).or_default().push(row.neighbor);
+        }
+
+        let mut ports: Vec<_> = learned.iter().collect();
+        ports.sort_by_key(|(port_id, _)| **port_id);
+        let mut minted = 0;
+        for (port_id, devices) in ports {
+            for device in devices.iter().filter(|d| d.interface_ids.is_empty()) {
+                for mac in &device.macs {
+                    let address = ip_addresses.iter().find(|ip| {
+                        ip.base.host_id == device.host_id
+                            && ip.base.mac_address.as_ref().map(|m| m.value().0) == Some(*mac)
+                    });
+                    let mut interface = Interface::new(InterfaceBase {
+                        site_id,
+                        host_id: device.host_id,
+                        if_descr: Some(mac.to_string()),
+                        mac_address: Some(MacEvidence::new(
+                            MacEvidenceValue(*mac),
+                            AttributeSource::ForwardingTable,
+                        )),
+                        interface_source: AttributeSource::ForwardingTable,
+                        ip_address_id: address.map(|a| a.id),
+                        ..Default::default()
+                    });
+                    interface.refresh_scan_timestamps(scan_time);
+                    interface.originate_scan_timestamps(scan_time);
+                    let created = match self
+                        .interface_service
+                        .create(interface, AuthenticatedEntity::System)
+                        .await
+                    {
+                        Ok(created) => created,
+                        Err(e) => {
+                            tracing::warn!(
+                                site_id = %site_id,
+                                host_id = %device.host_id,
+                                %mac,
+                                error = %e,
+                                "Could not record the port a forwarding table reached"
+                            );
+                            continue;
+                        }
+                    };
+                    minted += 1;
+
+                    if host_rows.get(port_id).map(Vec::as_slice)
+                        == Some(&[Neighbor::Host(device.host_id)])
+                    {
+                        self.interface_neighbor_service
+                            .reconcile_interface_neighbors(
+                                site_id,
+                                *port_id,
+                                &[(Neighbor::Interface(created.id), Some(scan_time))],
+                                scan_time,
+                                None,
+                            )
+                            .await?;
+                    }
+                }
+            }
+        }
+
+        if minted > 0 {
+            tracing::debug!(site_id = %site_id, minted, "Recorded forwarding-table ports");
+        }
+        Ok(minted)
+    }
 }
 
 #[cfg(test)]

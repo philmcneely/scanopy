@@ -164,6 +164,7 @@ const INTERFACE: &[F] = &[
         .source("fdb_macs_source")
         .format(FieldFormat::Identifier)
         .many(),
+    F::new("interface_source", "Source", G::Identity).format(FieldFormat::AttributeSource),
     SITE,
 ];
 

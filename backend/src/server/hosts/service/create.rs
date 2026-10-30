@@ -51,6 +51,28 @@ pub(crate) fn resolve_owner_service_id(
 }
 
 impl HostService {
+    /// Whether `interface` is a port the forwarding-table pass recorded that a switch port on its
+    /// site still learns. A device's own walk doesn't report such a port (a virtual MAC, a NIC the
+    /// walk missed), so pruning it there would only see the next pass record it again; it goes
+    /// once no switch learns its MAC.
+    pub(crate) async fn still_learned_by_a_switch(&self, interface: &Interface) -> Result<bool> {
+        if interface.base.interface_source != AttributeSource::ForwardingTable {
+            return Ok(false);
+        }
+        let Some(mac) = &interface.base.mac_address else {
+            return Ok(false);
+        };
+        let learning = self
+            .interface_service
+            .get_all(
+                StorableFilter::<Interface>::new_from_site_ids(&[interface.base.site_id])
+                    .live()
+                    .fdb_macs_contain(&[mac.value().0.to_string().to_lowercase()]),
+            )
+            .await?;
+        Ok(!learning.is_empty())
+    }
+
     /// Keep a discovery-supplied hypervisor service only if it is a real service on the host's
     /// own site; otherwise drop it and say so.
     ///
@@ -1806,8 +1828,12 @@ impl HostService {
                 .get_for_host(&created_host.id)
                 .await?;
             for iface in existing {
-                if !kept_ids.contains(&iface.id)
-                    && let Err(e) = self
+                if kept_ids.contains(&iface.id)
+                    || self.still_learned_by_a_switch(&iface).await?
+                {
+                    continue;
+                }
+                if let Err(e) = self
                         .interface_service
                         .delete(
                             &iface.id,

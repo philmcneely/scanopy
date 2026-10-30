@@ -1,7 +1,7 @@
 use super::*;
 use crate::daemon::discovery::types::base::DiscoveryTerminalReason;
 use crate::daemon::discovery::types::warnings::{
-    ClaimSource, DiscoveryWarning, ProvisionalSubnet, SnmpWalkGroup,
+    ClaimSource, DiscoveryWarning, ProvisionalSubnet, SnmpWalkGroup, UnconfirmedHost,
 };
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
 use crate::server::credentials::r#impl::run_results::{
@@ -226,6 +226,9 @@ pub(super) fn generate_discoveries(
                         // heard the annex uplink advertise. The subnet's resolve modal reads its
                         // evidence from this warning.
                         .chain(annex_range_warning(subnets, hosts))
+                        // The two hosts it knew only from other devices' reports, which each
+                        // resolve modal links back to as the scan that found it.
+                        .chain(unconfirmed_host_warnings(hosts))
                         .collect(),
                         // What each credential produced: SNMP collected from the network devices,
                         // the inventory script ran on jenkins-ci, and the backup NAS woke for the scan.
@@ -413,4 +416,29 @@ fn annex_range_warning(subnets: &[Subnet], hosts: &[&Host]) -> Option<DiscoveryW
             widened_by_vlan: false,
         },
     ))
+}
+
+/// One `UnconfirmedHostInferred` warning per unconfirmed demo host: the HQ scan reported each one,
+/// by the chassis ID a neighbour advertised or the MAC a switch learned.
+fn unconfirmed_host_warnings(hosts: &[&Host]) -> Vec<DiscoveryWarning> {
+    hosts
+        .iter()
+        .filter_map(|host| {
+            let EntitySource::Inferred { via } = host.base.source else {
+                return None;
+            };
+            let identifier = host
+                .base
+                .chassis_id
+                .as_ref()
+                .map(|c| c.value().to_string())
+                .or_else(|| host.display_name(&[]))?;
+            Some(DiscoveryWarning::UnconfirmedHostInferred(UnconfirmedHost {
+                host_id: Some(host.id),
+                via,
+                identifier,
+                sys_name: None,
+            }))
+        })
+        .collect()
 }

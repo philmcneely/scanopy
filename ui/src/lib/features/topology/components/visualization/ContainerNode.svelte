@@ -469,6 +469,7 @@
 			{childCount}
 			{childSummary}
 			tooltip={headerTooltip}
+			{entityColor}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>

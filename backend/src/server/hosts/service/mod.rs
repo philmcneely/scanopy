@@ -99,6 +99,8 @@ pub struct HostService {
     organization_service: Arc<OrganizationService>,
     event_bus: Arc<EventBus>,
     entity_tag_service: Arc<EntityTagService>,
+    /// Reads the scan warnings that say which scan found an unconfirmed host.
+    warning_service: Arc<crate::server::discovery_warnings::service::DiscoveryWarningService>,
 }
 
 impl EventBusService<Host> for HostService {
