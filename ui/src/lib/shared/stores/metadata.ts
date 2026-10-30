@@ -314,6 +314,8 @@ export interface DiscoveryPhaseMetadata {
 export interface DiscoveryTerminalReasonMetadata {
 	/** The run stopped making progress rather than failing outright. */
 	is_stall: boolean;
+	/** The daemon's own log lines for the run say what happened. */
+	explained_by_daemon_logs: boolean;
 }
 
 export interface ContainerTypeMetadata {

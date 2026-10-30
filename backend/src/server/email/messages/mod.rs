@@ -585,6 +585,9 @@ mod tests {
                 discovery_names: &["Office LAN", "Server VLAN"],
                 reason_name: "Daemon offline",
                 reason_description: "The daemon stopped checking in with the server during the scan, so no progress or cancellation could get through. Check that the daemon is running and can reach the server.",
+                log_command: Some(
+                    "sudo grep -h '0b8f7c52-4d1e-4f3a-9a77-1c2d3e4f5a6b' /var/log/scanopy/*.log | sort -u",
+                ),
             },
         );
         f(

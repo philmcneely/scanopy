@@ -1,3 +1,4 @@
+import { coerce, gt } from 'semver';
 import { fieldDefs } from './config';
 import type { components } from '$lib/api/schema';
 import daemonOsMetadata from '$lib/data/daemon-os.json';
@@ -290,3 +291,29 @@ export function osLabel(os: DaemonOS): string {
 /** Every OS a daemon can report. Fixture ids are `DaemonOs` names, emitted from that enum, so
  *  each is a valid `DaemonOS` by construction. */
 export const daemonOsIds: DaemonOS[] = daemonOsMetadata.map((entry) => entry.id as DaemonOS);
+
+/**
+ * Whether a daemon at `daemonVersion` is at or below the release `lastWithout`, the last one
+ * without some capability (the server's `last_without_*` gates).
+ *
+ * `coerce` tolerates partial/odd version strings; a missing daemon version or a missing gate means
+ * there is nothing to gate on (returns false).
+ */
+export function daemonVersionAtOrBelow(
+	lastWithout: string | undefined | null,
+	daemonVersion: string | undefined | null
+): boolean {
+	if (!lastWithout || !daemonVersion) return false;
+	const dv = coerce(daemonVersion);
+	return dv ? !gt(dv, lastWithout) : false;
+}
+
+/**
+ * The command that prints one run's log lines on its daemon's host, from the daemon OS's
+ * `log_command` in `daemon-os.json` with the run's session id swapped in.
+ */
+export function runLogCommand(os: DaemonOS, sessionId: string): string | null {
+	const metadata = daemonOsMetadata.find((entry) => entry.id === os)?.metadata;
+	if (!metadata) return null;
+	return metadata.log_command.replaceAll(metadata.log_command_session_placeholder, sessionId);
+}

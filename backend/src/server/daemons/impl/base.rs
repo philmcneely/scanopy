@@ -198,7 +198,31 @@ impl DaemonOs {
             Self::Linux
         }
     }
+
+    /// The command that prints one run's log lines on a daemon host of this OS.
+    ///
+    /// Every log file of an installed daemon sits in one directory: a service writes
+    /// `<slot>.log` there (`AppConfig::default_system_log_path`, which this server binary cannot
+    /// call for another OS), and a Docker install mounts the same directory for `<name>.log`. Every
+    /// line of a run carries its session id, so one search across the directory finds that run's
+    /// lines whatever the slot, without the server knowing it. On macOS launchd also copies stdout
+    /// to `<slot>.out.log`; `sort -u` drops those duplicates and keeps the lines in time order,
+    /// since each starts with its timestamp.
+    pub fn log_command(&self, session_id: &str) -> String {
+        match OsFamily::from(*self) {
+            OsFamily::Unix => {
+                format!("sudo grep -h '{session_id}' /var/log/scanopy/*.log | sort -u")
+            }
+            OsFamily::Windows => format!(
+                "Select-String -Path \"$env:ProgramData\\scanopy\\*.log\" -Pattern '{session_id}' -SimpleMatch | ForEach-Object Line"
+            ),
+        }
+    }
 }
+
+/// Stands in for the session id in the `log_command` that `daemon-os.json` carries; the UI swaps
+/// in the run's.
+const LOG_COMMAND_SESSION_PLACEHOLDER: &str = "<SESSION_ID>";
 
 impl From<DaemonOs> for OsFamily {
     fn from(os: DaemonOs) -> Self {
@@ -226,7 +250,8 @@ impl EntityMetadataProvider for DaemonOs {
 }
 
 /// Emitted as `daemon-os.json`: the OS family each install OS maps to, so the create-daemon modal
-/// stamps credentials and checks existing ones without its own copy of the mapping.
+/// stamps credentials and checks existing ones without its own copy of the mapping; and the
+/// command that prints a run's log lines on that OS, with the placeholder to swap the run in for.
 impl TypeMetadataProvider for DaemonOs {
     fn name(&self) -> &'static str {
         match self {
@@ -242,7 +267,11 @@ impl TypeMetadataProvider for DaemonOs {
     }
 
     fn metadata(&self) -> serde_json::Value {
-        serde_json::json!({ "os_family": OsFamily::from(*self) })
+        serde_json::json!({
+            "os_family": OsFamily::from(*self),
+            "log_command": self.log_command(LOG_COMMAND_SESSION_PLACEHOLDER),
+            "log_command_session_placeholder": LOG_COMMAND_SESSION_PLACEHOLDER,
+        })
     }
 }
 
@@ -507,5 +536,44 @@ mod tests {
         let request: crate::server::daemons::r#impl::api::DaemonStartupRequest =
             serde_json::from_str(&format!(r#"{{"daemon_version":"0.18.0","os":{json}}}"#)).unwrap();
         assert_eq!(request.os, Some(DaemonOs::FreeBsd));
+    }
+
+    /// The command prints one run's lines from every daemon log in the directory, once each and in
+    /// time order, including the copy launchd keeps of a macOS daemon's stdout.
+    #[cfg(unix)]
+    #[test]
+    fn the_log_command_prints_one_runs_lines_once_in_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let run = "0b8f7c52-4d1e-4f3a-9a77-1c2d3e4f5a6b";
+        let other = "9c1d2e3f-0000-4000-8000-123456789abc";
+        let write = |name: &str, lines: &[String]| {
+            std::fs::write(dir.path().join(name), lines.join("\n") + "\n").unwrap()
+        };
+        let line = |at: &str, session: &str| {
+            format!("2026-10-30T03:{at}Z  INFO discovery{{session_id={session}}}: step")
+        };
+        write(
+            "scanopy-daemon.log",
+            &[line("39:01", run), line("39:02", other), line("39:05", run)],
+        );
+        write(
+            "scanopy-daemon.out.log",
+            &[line("39:01", run), line("39:05", run)],
+        );
+        write("scanopy-daemon-2.log", &[line("39:03", other)]);
+
+        let command = DaemonOs::Linux
+            .log_command(run)
+            .replace("sudo ", "")
+            .replace("/var/log/scanopy", &dir.path().display().to_string());
+        let output = std::process::Command::new("sh")
+            .args(["-c", &command])
+            .output()
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!("{}\n{}\n", line("39:01", run), line("39:05", run))
+        );
     }
 }

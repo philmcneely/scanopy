@@ -241,6 +241,22 @@ impl DiscoveryTerminalReason {
                 | DiscoveryTerminalReason::SessionSilent
         )
     }
+
+    /// The daemon's own log lines for the run say what happened. Not for a run the server could
+    /// not reach the daemon about, one the daemon refused, or one that ended normally: the daemon
+    /// logged nothing for those that explains them.
+    pub fn explained_by_daemon_logs(self) -> bool {
+        matches!(
+            self,
+            DiscoveryTerminalReason::DaemonReportedFailure
+                | DiscoveryTerminalReason::DaemonRestarted
+                | DiscoveryTerminalReason::WatchdogTimeout
+                | DiscoveryTerminalReason::DaemonOffline
+                | DiscoveryTerminalReason::SessionSilent
+                | DiscoveryTerminalReason::DaemonDroppedSession
+                | DiscoveryTerminalReason::StalledNoUpdates
+        )
+    }
 }
 
 impl HasId for DiscoveryTerminalReason {
@@ -349,7 +365,10 @@ impl TypeMetadataProvider for DiscoveryTerminalReason {
     }
 
     fn metadata(&self) -> serde_json::Value {
-        serde_json::json!({ "is_stall": self.is_stall() })
+        serde_json::json!({
+            "is_stall": self.is_stall(),
+            "explained_by_daemon_logs": self.explained_by_daemon_logs(),
+        })
     }
 }
 

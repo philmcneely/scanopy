@@ -43,7 +43,11 @@
 	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
 	import { closeModal, navigateToEntity, openModal } from '$lib/shared/stores/modal-registry';
-	import { credentialIntegrations, entities } from '$lib/shared/stores/metadata';
+	import {
+		credentialIntegrations,
+		discoveryTerminalReasons,
+		entities
+	} from '$lib/shared/stores/metadata';
 	import {
 		createIntegrationCredentialLabel,
 		openCredentialCreate
@@ -55,6 +59,8 @@
 		common_credentials,
 		common_warnings,
 		daemons_upgradeDaemon,
+		discovery_daemonLogsHint,
+		discovery_daemonLogsTitle,
 		discovery_noWarnings,
 		discovery_noWarningsBeforeStop,
 		discovery_noWarningsSubtitle,
@@ -68,6 +74,9 @@
 	import type { EntityDiscriminants } from '$lib/api/entities';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { runOutcomeReason } from '../../utils/outcome';
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
+	import { useDaemonsQuery } from '$lib/features/daemons/queries';
+	import { daemonVersionAtOrBelow, runLogCommand } from '$lib/features/daemons/utils';
 	import {
 		buildWarningReport,
 		credentialIdsOf,
@@ -108,6 +117,29 @@
 			label: reason?.name ?? payload.phase,
 			body: [payload.error, reason?.description].filter(Boolean).join(' ') || null
 		};
+	});
+
+	const daemonsQuery = useDaemonsQuery();
+
+	/**
+	 * The command that prints this run's log lines on its daemon's host, for a failure the daemon's
+	 * logs explain. Only when the run's own daemon version tagged its lines with the session, and the
+	 * daemon has said which OS it runs on, which picks the command. Read from the daemons list, so a
+	 * daemon deleted since simply shows none.
+	 */
+	let logCommand = $derived.by(() => {
+		if (payload.phase !== 'Failed' || !payload.reason || !payload.daemon_version) return null;
+		if (!discoveryTerminalReasons.getMetadata(payload.reason).explained_by_daemon_logs) return null;
+		if (
+			daemonVersionAtOrBelow(
+				daemonVersionGates.last_without_session_log_lines,
+				payload.daemon_version
+			)
+		) {
+			return null;
+		}
+		const os = (daemonsQuery.data ?? []).find((d) => d.id === payload.daemon_id)?.os;
+		return os ? runLogCommand(os, payload.session_id) : null;
 	});
 
 	/**
@@ -365,6 +397,14 @@
 	{:else}
 		<InlineWarning title={outcome.label} body={outcome.body} />
 	{/if}
+{/if}
+
+{#if logCommand}
+	<div class="space-y-1">
+		<p class="text-sm font-medium text-primary">{discovery_daemonLogsTitle()}</p>
+		<p class="text-xs text-tertiary">{discovery_daemonLogsHint()}</p>
+		<CodeContainer code={logCommand} language="bash" expandable={false} />
+	</div>
 {/if}
 
 {#if sections.length === 0}

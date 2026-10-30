@@ -91,6 +91,18 @@ impl Content {
         ))
     }
 
+    /// A command or other preformatted text in a dark monospace block, escaped.
+    pub fn code(mut self, text: &str) -> Self {
+        self.inner.push_str(&format!(
+            r#"{CHILD}<div style="margin: 0 0 20px 0; padding: 16px; background-color: #1e293b; border-radius: 6px; overflow-x: auto;">
+{CHILD}    <pre style="margin: 0; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 13px; line-height: 20px; color: #e2e8f0; white-space: pre-wrap; word-break: break-all;">{}</pre>
+{CHILD}</div>
+"#,
+            html_escape(text)
+        ));
+        self
+    }
+
     /// Append a fully-formed, already-indented inline block verbatim — for
     /// bespoke content (lists, tables, code blocks) the typed helpers don't
     /// cover. The caller supplies exact 28-space indentation and a trailing
