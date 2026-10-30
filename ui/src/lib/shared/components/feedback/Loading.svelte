@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Radar } from 'lucide-svelte';
+	import { Radar } from '@lucide/svelte';
 	import { common_loading } from '$lib/paraglide/messages';
 
 	export let message: string | undefined = undefined;

@@ -6,7 +6,7 @@
 	import { apiClient } from '$lib/api/client';
 	import type { User } from '$lib/features/users/types';
 	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
-	import { Link, Key, LogOut, Mail, Shield } from 'lucide-svelte';
+	import { Link, Key, LogOut, Mail, Shield } from '@lucide/svelte';
 	import CookieSettingsPanel from '$lib/shared/components/feedback/CookieSettingsPanel.svelte';
 	import { createForm } from '@tanstack/svelte-form';
 	import { submitForm } from '$lib/shared/components/forms/form-context';

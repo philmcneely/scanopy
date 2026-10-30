@@ -11,7 +11,7 @@
 	a deployment, and the docs for pointing an existing daemon at a segment it can route to.
 -->
 <script lang="ts">
-	import { Check, Edit, Merge } from 'lucide-svelte';
+	import { Check, Edit, Merge } from '@lucide/svelte';
 
 	import ConfirmEntityModal, {
 		type ConfirmAction

@@ -20,7 +20,7 @@
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { tagColumns } from './TagTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { permissions, billingPlans } from '$lib/shared/stores/metadata';

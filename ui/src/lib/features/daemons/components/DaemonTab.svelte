@@ -23,7 +23,7 @@
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import { isUserManagedSubnet, useSubnetsQuery } from '$lib/features/subnets/queries';
 	import type { Subnet } from '$lib/features/subnets/types/base';
-	import { Trash2, Edit, ArrowBigUp, RefreshCw } from 'lucide-svelte';
+	import { Trash2, Edit, ArrowBigUp, RefreshCw } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
 		useDaemonsQuery,

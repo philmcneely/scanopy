@@ -12,7 +12,7 @@
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';

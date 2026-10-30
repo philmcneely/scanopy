@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { common_dismiss } from '$lib/paraglide/messages';
 

@@ -12,7 +12,7 @@
 		ShareDisplay,
 		type ShareDisplayContext
 	} from '$lib/shared/components/forms/selection/display/ShareDisplay.svelte';
-	import { Share2 } from 'lucide-svelte';
+	import { Share2 } from '@lucide/svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import type { Share } from '../types/base';
 	import { createEmptyShare, defaultShareOptions } from '../types/base';

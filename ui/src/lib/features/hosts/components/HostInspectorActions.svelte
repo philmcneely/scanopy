@@ -4,7 +4,7 @@
 	the resolve modal live, with a way back to the map.
 -->
 <script lang="ts">
-	import { Edit } from 'lucide-svelte';
+	import { Edit } from '@lucide/svelte';
 	import UnconfirmedNotice from '$lib/shared/components/confirmation/UnconfirmedNotice.svelte';
 	import { navigateToEntity, openModal } from '$lib/shared/stores/modal-registry';
 	import type { Host } from '../types/base';

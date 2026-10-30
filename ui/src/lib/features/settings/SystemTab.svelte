@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Monitor, Sun, Moon, ChevronRight } from 'lucide-svelte';
+	import { Monitor, Sun, Moon, ChevronRight } from '@lucide/svelte';
 	import { createForm } from '@tanstack/svelte-form';
 	import { themeStore } from '$lib/shared/stores/theme.svelte';
 	import { VERSION } from '$lib/version';

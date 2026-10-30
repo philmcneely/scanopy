@@ -26,7 +26,7 @@
 	import { hasSunsetWarning } from '$lib/features/daemons/utils';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { onMount, tick } from 'svelte';
-	import { CircleDashed } from 'lucide-svelte';
+	import { CircleDashed } from '@lucide/svelte';
 	import { queueInitialParams } from '$lib/shared/stores/url-state';
 	import {
 		common_getStarted,

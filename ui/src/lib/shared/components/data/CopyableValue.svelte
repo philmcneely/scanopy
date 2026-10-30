@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Copy } from 'lucide-svelte';
+	import { Copy } from '@lucide/svelte';
 	import { pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 	import { copyText } from '$lib/shared/utils/clipboard';
 	import { common_clickToCopy, common_copied, common_failedToCopy } from '$lib/paraglide/messages';

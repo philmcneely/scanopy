@@ -1,5 +1,5 @@
 <script lang="ts" generics="V, OC">
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import ListSelectItem from './ListSelectItem.svelte';
 	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import { tooltip, tooltipLabel } from '$lib/shared/actions/tooltip';

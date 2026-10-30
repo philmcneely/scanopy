@@ -11,7 +11,7 @@
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { ArrowBigUpDash } from 'lucide-svelte';
+	import { ArrowBigUpDash } from '@lucide/svelte';
 	import type { Daemon, UpgradeStep } from '../types/base';
 	import { VERSION } from '$lib/version';
 	import { type DaemonOS, detectOS, isPreUnifiedDaemon } from '../utils';

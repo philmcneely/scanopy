@@ -39,7 +39,7 @@
 	} from '../../viewport-fit';
 	import '@xyflow/svelte/dist/style.css';
 	import './topology-viewer.css';
-	import { Minimize2, Map as MapIcon } from 'lucide-svelte';
+	import { Minimize2, Map as MapIcon } from '@lucide/svelte';
 	import TopologySidebarButton from './TopologySidebarButton.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
 	import {

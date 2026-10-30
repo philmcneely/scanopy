@@ -12,7 +12,7 @@
  * Stale's amber or a daemon's red: nothing is behind and nothing is broken; a guess awaits a person.
  */
 
-import { CircleDashed } from 'lucide-svelte';
+import { CircleDashed } from '@lucide/svelte';
 
 import type { components } from '$lib/api/schema';
 import type { TagProps } from '$lib/shared/components/data/types';

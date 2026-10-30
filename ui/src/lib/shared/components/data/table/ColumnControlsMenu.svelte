@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-	import { Filter, Group } from 'lucide-svelte';
+	import { Filter, Group } from '@lucide/svelte';
 	import Popover from '../Popover.svelte';
 	import FieldFilter from '../controls/FieldFilter.svelte';
 	import { getFieldKey, type FieldConfig } from '../types';

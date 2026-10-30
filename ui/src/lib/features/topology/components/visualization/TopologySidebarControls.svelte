@@ -9,7 +9,7 @@
 		ZoomOut,
 		Maximize,
 		Search
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import {
 		topology_shortcutsTitle,
 		topology_editModeTooltip,

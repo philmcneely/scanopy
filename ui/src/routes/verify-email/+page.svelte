@@ -12,7 +12,7 @@
 	import { fetchOrganization } from '$lib/features/organizations/queries';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-	import { Mail } from 'lucide-svelte';
+	import { Mail } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import {
 		auth_backToLogin,

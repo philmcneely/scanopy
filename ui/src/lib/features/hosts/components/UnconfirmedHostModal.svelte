@@ -7,7 +7,7 @@
 	already own them: the host editor for labelling, the merge modal for a merge.
 -->
 <script lang="ts">
-	import { Check, EyeOff, Replace } from 'lucide-svelte';
+	import { Check, EyeOff, Replace } from '@lucide/svelte';
 
 	import ConfirmEntityModal, {
 		type ConfirmAction

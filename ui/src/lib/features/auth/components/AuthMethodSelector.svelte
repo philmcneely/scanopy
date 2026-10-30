@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Loader2 } from 'lucide-svelte';
+	import { Loader2 } from '@lucide/svelte';
 	import type { OidcProviderMetadata } from '$lib/shared/stores/config-query';
 	import OidcProviderLogo from './OidcProviderLogo.svelte';
 	import {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
-	import { AlertTriangle, CreditCard } from 'lucide-svelte';
+	import { AlertTriangle, CreditCard } from '@lucide/svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { hasLicensedPlan } from '$lib/features/organizations/types';

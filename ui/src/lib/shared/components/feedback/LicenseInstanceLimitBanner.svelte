@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Server } from 'lucide-svelte';
+	import { Server } from '@lucide/svelte';
 	import { license_instanceLimitBanner } from '$lib/paraglide/messages';
 	import AppBanner from './AppBanner.svelte';
 

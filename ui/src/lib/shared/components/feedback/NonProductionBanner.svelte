@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FlaskConical } from 'lucide-svelte';
+	import { FlaskConical } from '@lucide/svelte';
 	import { license_nonProductionBanner } from '$lib/paraglide/messages';
 	import AppBanner from './AppBanner.svelte';
 </script>

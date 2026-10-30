@@ -13,7 +13,7 @@
 </script>
 
 <script lang="ts">
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import { common_selectOption, common_noOptionsAvailable } from '$lib/paraglide/messages';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Server } from 'lucide-svelte';
+	import { Server } from '@lucide/svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';

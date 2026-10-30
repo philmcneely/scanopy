@@ -2,7 +2,7 @@
 	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { createForm } from '@tanstack/svelte-form';
 	import { validateForm, clearStaleFieldInfo } from '$lib/shared/components/forms/form-context';
-	import { Info } from 'lucide-svelte';
+	import { Info } from '@lucide/svelte';
 	import { hostDisplayName } from '../../host-display-name';
 	import { nameToSubmit, overrideOf } from '../../host-identity';
 	import type {

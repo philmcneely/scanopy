@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CloudOff } from 'lucide-svelte';
+	import { CloudOff } from '@lucide/svelte';
 	import EmptyState from './EmptyState.svelte';
 	import {
 		common_loadFailedSubtitle,

@@ -36,7 +36,7 @@
 	import { common_collapse, common_expand } from '$lib/paraglide/messages';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { hostOsIcon } from '$lib/features/hosts/host-os';
-	import { ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { ChevronDown, ChevronRight } from '@lucide/svelte';
 	import { ELEMENT_HANDLE_SIZE_PX, ICON_ELEMENT_WIDTH_PX } from '../../pipeline/build-flow-nodes';
 
 	// A service badge's size, and the icon card's width inside its px-2 padding: the badge fan

@@ -16,7 +16,7 @@
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { startSetupPayment } from '$lib/shared/billing/setup-payment';
 	import type { IconComponent } from '$lib/shared/utils/types';
-	import { Menu, ChevronDown, History, Settings, Clock, Home, Search } from 'lucide-svelte';
+	import { Menu, ChevronDown, History, Settings, Clock, Home, Search } from '@lucide/svelte';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import PaidCrown from '$lib/shared/components/PaidCrown.svelte';
 	import { GLOBAL_SEARCH_KEY, globalSearchOpen } from '$lib/features/search/results';

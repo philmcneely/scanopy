@@ -23,7 +23,7 @@
 	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { hostColumns } from './HostTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, RefreshCw, Replace, Edit, CircleDashed } from 'lucide-svelte';
+	import { Trash2, RefreshCw, Replace, Edit, CircleDashed } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import type { TabProps } from '$lib/shared/types';

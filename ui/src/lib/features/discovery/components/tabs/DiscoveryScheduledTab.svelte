@@ -15,7 +15,7 @@
 	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import { discoveryScheduledColumns } from './DiscoveryScheduledTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Play, Power, Edit, Trash2, Ban } from 'lucide-svelte';
+	import { Play, Power, Edit, Trash2, Ban } from '@lucide/svelte';
 	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {

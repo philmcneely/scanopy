@@ -1,5 +1,5 @@
 import type { Component } from 'svelte';
-import type { CircleQuestionMark } from 'lucide-svelte';
+import type { CircleQuestionMark } from '@lucide/svelte';
 
 export type IconComponent =
 	| typeof CircleQuestionMark

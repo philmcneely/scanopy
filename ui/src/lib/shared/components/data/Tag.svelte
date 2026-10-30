@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import { common_remove, common_unknown } from '$lib/paraglide/messages';
 	import type { IconComponent } from '$lib/shared/utils/types';

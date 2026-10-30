@@ -2,7 +2,7 @@
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import { dependencyColors } from '../../utils';
 	import type { Dependency, EdgeStyle } from '../../types/base';
-	import { Edit } from 'lucide-svelte';
+	import { Edit } from '@lucide/svelte';
 	import {
 		common_bezier,
 		common_color,

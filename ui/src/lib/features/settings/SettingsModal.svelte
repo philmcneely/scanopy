@@ -10,7 +10,7 @@
 		Settings,
 		Monitor,
 		LifeBuoy
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import {

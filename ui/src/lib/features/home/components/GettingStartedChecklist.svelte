@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { components } from '$lib/api/schema';
-	import { Check, Circle, Info, Loader2, ExternalLink } from 'lucide-svelte';
+	import { Check, Circle, Info, Loader2, ExternalLink } from '@lucide/svelte';
 	import ChecklistItem from '$lib/shared/components/data/ChecklistItem.svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import { onMount } from 'svelte';

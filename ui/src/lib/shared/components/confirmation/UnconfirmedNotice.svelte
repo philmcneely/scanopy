@@ -4,7 +4,7 @@
 	(`confirmation.ts`), so a host and a subnet say it the same way.
 -->
 <script lang="ts">
-	import { CircleDashed } from 'lucide-svelte';
+	import { CircleDashed } from '@lucide/svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import {
 		unconfirmedReason,

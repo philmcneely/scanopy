@@ -6,7 +6,7 @@
 	sentences and only the detail the collapsed row does not already show.
 -->
 <script lang="ts">
-	import { ChevronRight } from 'lucide-svelte';
+	import { ChevronRight } from '@lucide/svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bug, BookOpen, Mail, MessageCircle } from 'lucide-svelte';
+	import { Bug, BookOpen, Mail, MessageCircle } from '@lucide/svelte';
 	import { logoPath } from '$lib/shared/utils/logos';
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';

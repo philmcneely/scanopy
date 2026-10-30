@@ -2,7 +2,7 @@
 	import { getContext, setContext } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import type { Node, Edge } from '@xyflow/svelte';
-	import { ChevronLeft, ChevronRight, Info } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, Info } from '@lucide/svelte';
 	import InspectorNode from '$lib/features/topology/components/panel/inspectors/InspectorNode.svelte';
 	import InspectorEdge from '$lib/features/topology/components/panel/inspectors/InspectorEdge.svelte';
 	import { optionsPanelExpanded, MINIMAP_FITVIEW_BOTTOM_PX } from '$lib/features/topology/queries';

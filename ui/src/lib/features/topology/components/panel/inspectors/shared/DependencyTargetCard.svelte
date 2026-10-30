@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import { entityRef } from '$lib/shared/components/data/types';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';

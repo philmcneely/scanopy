@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { FunnelX } from 'lucide-svelte';
+	import { FunnelX } from '@lucide/svelte';
 	import type { components } from '$lib/api/schema';
 	import {
 		topologyOptions,
