@@ -269,14 +269,17 @@
 {/snippet}
 
 {#if variant === 'external'}
-	<!-- External title pill: card above container. Its pointer handlers only keep a press on the
-	     pill from panning the canvas. -->
+	{@const chip = entityColor ? createColorHelper(entityColor) : null}
+	<!-- External title pill above the container. One standing for an entity (a subnet, a host, an
+	     application) is that entity's pill, as entity references are drawn elsewhere; a grouping
+	     keeps the plain card. Its pointer handlers only keep a press on the pill from panning the
+	     canvas. -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		data-container-title
-		class="nopan nodrag card absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 py-1 pr-2 text-secondary shadow-lg backdrop-blur-xs {isCollapsible
-			? 'pl-0'
-			: 'pl-2'}"
+		class="nopan nodrag absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 py-1 pr-2 shadow-lg backdrop-blur-xs {chip
+			? `rounded-full ${chip.bg} ${chip.text}`
+			: 'card text-secondary'} {isCollapsible ? 'pl-0' : 'pl-2'}"
 		style:top="-{EXTERNAL_TITLE_OFFSET}px"
 		use:tooltipAction={{ content: tooltip }}
 		onmousedown={(e) => e.stopPropagation()}
@@ -284,7 +287,9 @@
 	>
 		{#if isCollapsible}
 			<!-- Fills the pill's left end, so the whole rounded end collapses it. -->
-			{@render collapseToggle('-my-1 rounded-l-[inherit] py-1 pr-1 pl-2 text-secondary')}
+			{@render collapseToggle(
+				`-my-1 rounded-l-[inherit] py-1 pr-1 pl-2 ${chip ? '' : 'text-secondary'}`
+			)}
 		{/if}
 
 		{@render statusBadge()}
@@ -299,7 +304,10 @@
 		{/if}
 
 		{#if headerText}
-			<span data-entity-header class="text-s min-w-0 truncate font-medium text-secondary">
+			<span
+				data-entity-header
+				class="text-s min-w-0 truncate font-medium {chip ? '' : 'text-secondary'}"
+			>
 				{headerText}
 			</span>
 		{/if}

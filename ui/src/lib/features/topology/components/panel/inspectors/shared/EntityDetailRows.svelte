@@ -87,7 +87,10 @@
 	);
 
 	function included(entityType: Entity, field: EntityField): boolean {
-		if (!(allFields ? !field.many : field.summary)) return false;
+		// A list of related entities (a VLAN's interfaces) is shown here, where it has room; the
+		// hover tooltip leaves it out.
+		const relatedList = field.many && field.format.type === 'Entity';
+		if (!relatedList && !(allFields ? !field.many : field.summary)) return false;
 		if (DRAWN_BY_CARD[entityType]?.has(field.id)) return false;
 		const target = fieldEntityType(field);
 		return !(target && shownElsewhere.has(target));

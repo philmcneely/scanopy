@@ -734,15 +734,16 @@ impl EdgeBuilder {
     }
 
     /// Links a switch's forwarding table learned: a port that learned a known device's MAC, to the
-    /// device. Drawn with the same edges as LLDP/CDP links, which carry `ForwardingTable` as the
-    /// evidence, since the device may sit further behind the port than a cable away.
+    /// device's port. Drawn as the same `PhysicalLink` LLDP/CDP links use, carrying
+    /// `ForwardingTable` as the evidence, since the device may sit further behind the port than a
+    /// cable away.
     ///
-    /// Ends on the device's port when the MAC is on one of its interfaces (a `PhysicalLink`), and
-    /// on the device's node otherwise (a `NeighborLink` between the two hosts). `joined_host_pairs`
-    /// are pairs already linked by LLDP/CDP: that evidence is stronger, so those are skipped.
+    /// The device's port is the interface carrying the MAC or holding the address that does. A
+    /// device with neither gets one minted by the forwarding-table pass, so until that pass runs it
+    /// has no link here. `joined_host_pairs` are pairs already linked by LLDP/CDP: that evidence is
+    /// stronger, so those are skipped.
     pub fn create_forwarding_table_edges(
         ctx: &TopologyContext,
-        node_for_host: impl Fn(Uuid) -> Uuid,
         joined_host_pairs: &HashSet<(Uuid, Uuid)>,
     ) -> Vec<Edge> {
         let mut processed_pairs: HashSet<(Uuid, Uuid)> = HashSet::new();
@@ -754,69 +755,36 @@ impl EdgeBuilder {
             let Some(port) = ctx.get_interface_by_id(*port_id) else {
                 continue;
             };
-            let source_host_id = port.base.host_id;
-            let Some(source_host) = ctx.get_host_by_id(source_host_id) else {
-                continue;
-            };
             for device in learned {
-                let Some(target_host) = ctx.get_host_by_id(device.host_id) else {
+                let Some(target_port) = device
+                    .interface_ids
+                    .iter()
+                    .find_map(|id| ctx.get_interface_by_id(*id))
+                else {
                     continue;
                 };
-                let pair_key = Self::host_pair_key(source_host_id, device.host_id);
+                let pair_key = Self::host_pair_key(port.base.host_id, device.host_id);
                 if joined_host_pairs.contains(&pair_key) || !processed_pairs.insert(pair_key) {
                     continue;
                 }
-
-                let target_port = device
-                    .interface_ids
-                    .iter()
-                    .find_map(|id| ctx.get_interface_by_id(*id));
-                let edge = match target_port {
-                    Some(target_port) => {
-                        let endpoint_labels = [port.display_name(), target_port.display_name()];
-                        Edge {
-                            id: Uuid::new_v4(),
-                            source: port.id,
-                            target: target_port.id,
-                            edge_type: EdgeType::PhysicalLink {
-                                source_entity_id: port.id,
-                                target_entity_id: target_port.id,
-                                protocol: DiscoveryProtocol::ForwardingTable,
-                            },
-                            label: Some(endpoint_labels.join(" ↔ ")),
-                            endpoint_labels: Some(endpoint_labels),
-                            source_handle: EdgeHandle::Bottom,
-                            target_handle: EdgeHandle::Top,
-                            is_multi_hop: false,
-                            view_config: EdgeViewConfig::default(),
-                            relation_key: None,
-                        }
-                    }
-                    None => {
-                        let endpoint_labels = [
-                            ctx.host_container_header(source_host).unwrap_or_default(),
-                            ctx.host_container_header(target_host).unwrap_or_default(),
-                        ];
-                        Edge {
-                            id: Uuid::new_v4(),
-                            source: node_for_host(source_host_id),
-                            target: node_for_host(device.host_id),
-                            edge_type: EdgeType::NeighborLink {
-                                source_host_id,
-                                target_host_id: device.host_id,
-                                protocol: DiscoveryProtocol::ForwardingTable,
-                            },
-                            label: Some(endpoint_labels.join(" ↔ ")),
-                            endpoint_labels: Some(endpoint_labels),
-                            source_handle: EdgeHandle::Bottom,
-                            target_handle: EdgeHandle::Top,
-                            is_multi_hop: false,
-                            view_config: EdgeViewConfig::default(),
-                            relation_key: None,
-                        }
-                    }
-                };
-                edges.push(edge);
+                let endpoint_labels = [port.display_name(), target_port.display_name()];
+                edges.push(Edge {
+                    id: Uuid::new_v4(),
+                    source: port.id,
+                    target: target_port.id,
+                    edge_type: EdgeType::PhysicalLink {
+                        source_entity_id: port.id,
+                        target_entity_id: target_port.id,
+                        protocol: DiscoveryProtocol::ForwardingTable,
+                    },
+                    label: Some(endpoint_labels.join(" ↔ ")),
+                    endpoint_labels: Some(endpoint_labels),
+                    source_handle: EdgeHandle::Bottom,
+                    target_handle: EdgeHandle::Top,
+                    is_multi_hop: false,
+                    view_config: EdgeViewConfig::default(),
+                    relation_key: None,
+                });
             }
         }
         edges

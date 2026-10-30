@@ -190,6 +190,10 @@ pub enum FieldFormat {
     /// An enum value, named through a metadata fixture.
     #[schema(title = "Metadata")]
     Metadata { fixture: MetadataFixture },
+    /// Where a value came from (an `AttributeSource`), named as the UI names sources elsewhere:
+    /// "SNMP", "Forwarding table".
+    #[schema(title = "AttributeSource")]
+    AttributeSource,
     /// A related entity. The UI links it; CSV writes its id; text-only outputs write its display
     /// field.
     #[schema(title = "Entity")]

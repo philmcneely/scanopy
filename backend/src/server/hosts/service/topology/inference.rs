@@ -193,11 +193,15 @@ impl HostService {
 }
 
 impl HostService {
-    /// Fill `reported_by_host_ids` on the unconfirmed hosts among `responses`: the hosts whose
-    /// report each one is known from. A forwarding-table host is reported by the switches whose
-    /// ports learned one of its MACs; a neighbour-advertised host by the hosts whose resolved
+    /// Fill what the resolve modal shows on the unconfirmed hosts among `responses`: the hosts
+    /// whose report each one is known from (`reported_by_host_ids`), and the scan that first
+    /// reported it (`found_by_discovery_id`). A forwarding-table host is reported by the switches
+    /// whose ports learned one of its MACs; a neighbour-advertised host by the hosts whose resolved
     /// neighbour rows name it or one of its interfaces.
-    pub(crate) async fn fill_reported_by(&self, responses: &mut [HostResponse]) -> Result<()> {
+    pub(crate) async fn fill_unconfirmed_evidence(
+        &self,
+        responses: &mut [HostResponse],
+    ) -> Result<()> {
         let unconfirmed: Vec<(Uuid, Uuid, InferredVia)> = responses
             .iter()
             .filter_map(|r| match r.source {
@@ -207,6 +211,18 @@ impl HostService {
             .collect();
         if unconfirmed.is_empty() {
             return Ok(());
+        }
+        let found_by = self
+            .warning_service
+            .unconfirmed_host_discoveries(
+                &unconfirmed
+                    .iter()
+                    .map(|(id, site, _)| (*id, *site))
+                    .collect::<Vec<_>>(),
+            )
+            .await?;
+        for response in responses.iter_mut() {
+            response.found_by_discovery_id = found_by.get(&response.id).copied();
         }
         let host_ids: Vec<Uuid> = unconfirmed.iter().map(|(id, _, _)| *id).collect();
         let own_interfaces = self

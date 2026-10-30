@@ -22,14 +22,11 @@
 		hosts_mergeUnconfirmed,
 		hosts_mergeUnconfirmedDetail,
 		hosts_resolveUnconfirmed,
-		common_reportedBy,
-		hosts_unconfirmedIdentity
+		hosts_unconfirmedChassisId,
+		hosts_unconfirmedMac,
+		hosts_unconfirmedMacs,
+		hosts_unconfirmedSysName
 	} from '$lib/paraglide/messages';
-	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
-	import { entityRef } from '$lib/shared/components/data/types';
-	import { entities } from '$lib/shared/stores/metadata';
-	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
-	import { useHostsByIds } from '../queries';
 
 	interface Props {
 		/** A listed host, which carries its interfaces: a learned MAC is on one. */
@@ -37,6 +34,7 @@
 			| (Host & {
 					interfaces?: { mac_address?: string | null }[];
 					reported_by_host_ids?: string[];
+					found_by_discovery_id?: string | null;
 			  })
 			| null;
 		isOpen?: boolean;
@@ -52,35 +50,23 @@
 
 	let via = $derived(host ? unconfirmedVia(host) : null);
 
-	/** What the host is known by: the chassis id a neighbour advertised, or the learned MAC. */
-	let identifiers = $derived.by(() => {
+	/** What the host is known by, each named for what it is: what it advertised, or its MAC. */
+	let identity = $derived.by(() => {
 		if (!host) return [];
-		const values = new Set<string>();
-		if (host.chassis_id) values.add(host.chassis_id);
-		if (host.sys_name) values.add(host.sys_name);
-		for (const iface of host.interfaces ?? []) {
-			if (iface.mac_address) values.add(iface.mac_address);
+		const sentences: string[] = [];
+		if (host.chassis_id) sentences.push(hosts_unconfirmedChassisId({ id: host.chassis_id }));
+		if (host.sys_name && host.sys_name !== host.chassis_id) {
+			sentences.push(hosts_unconfirmedSysName({ name: host.sys_name }));
 		}
-		return [...values];
+		const macs = [
+			...new Set((host.interfaces ?? []).flatMap((i) => (i.mac_address ? [i.mac_address] : [])))
+		];
+		if (macs.length === 1) sentences.push(hosts_unconfirmedMac({ mac: macs[0] }));
+		if (macs.length > 1) sentences.push(hosts_unconfirmedMacs({ macs: macs.join(', ') }));
+		return sentences;
 	});
 
-	// The hosts whose report this one is known from: the switch that learned its MAC, or the
-	// neighbour that advertised it, as entity links the way an assumed range names its reporters.
-	const reportersQuery = useHostsByIds(() => host?.reported_by_host_ids ?? []);
-	let reporters = $derived(reportersQuery.data ?? []);
-
-	let intro = $derived(
-		via
-			? [
-					unconfirmedReason(via),
-					identifiers.length
-						? hosts_unconfirmedIdentity({ identifiers: identifiers.join(', ') })
-						: ''
-				]
-					.filter(Boolean)
-					.join(' ')
-			: ''
-	);
+	let intro = $derived(via ? [unconfirmedReason(via), ...identity].join(' ') : '');
 
 	let actions = $derived.by<ConfirmAction[]>(() => {
 		if (!host) return [];
@@ -122,19 +108,6 @@
 	{actions}
 	{isOpen}
 	{onClose}
->
-	{#snippet evidence()}
-		{#if reporters.length > 0}
-			<div class="flex flex-wrap items-center gap-2 text-sm">
-				<span class="text-secondary">{common_reportedBy()}</span>
-				{#each reporters as reporter (reporter.id)}
-					<EntityTag
-						entityRef={entityRef('Host', reporter.id, reporter)}
-						label={hostDisplayName(reporter)}
-						color={entities.getColorHelper('Host').color}
-					/>
-				{/each}
-			</div>
-		{/if}
-	{/snippet}
-</ConfirmEntityModal>
+	reportedByHostIds={host?.reported_by_host_ids ?? []}
+	sourceDiscoveryId={host?.found_by_discovery_id ?? null}
+/>

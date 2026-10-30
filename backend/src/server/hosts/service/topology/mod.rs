@@ -1132,6 +1132,8 @@ impl HostService {
     pub async fn resolve_fdb_links(&self, site_id: Uuid, scan_time: DateTime<Utc>) -> Result<u32> {
         // First, so a device known only to its switch is a host this pass can place.
         self.mint_forwarding_table_hosts(site_id, scan_time).await?;
+        // Then a port on each known device the table reaches without one, so links end on a port.
+        self.mint_forwarding_table_ports(site_id, scan_time).await?;
 
         let resolver = LldpResolverImpl::new(
             self.interface_service.clone(),

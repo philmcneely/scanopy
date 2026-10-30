@@ -24,7 +24,14 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
+	import { entityRef } from '$lib/shared/components/data/types';
 	import { createColorHelper } from '$lib/shared/utils/styling';
+	import { entities } from '$lib/shared/stores/metadata';
+	import { openModal } from '$lib/shared/stores/modal-registry';
+	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
+	import { useHostsByIds } from '$lib/features/hosts/queries';
+	import { common_openScanThatFoundIt, common_reportedBy } from '$lib/paraglide/messages';
 
 	interface Props {
 		name: string;
@@ -34,7 +41,11 @@
 		actions: ConfirmAction[];
 		isOpen?: boolean;
 		onClose: () => void;
-		/** What the inference rests on, between the intro and the actions. */
+		/** The devices whose report the entity is known from, drawn as host links. */
+		reportedByHostIds?: string[];
+		/** The scan that inferred the entity, opened by the link under the evidence. */
+		sourceDiscoveryId?: string | null;
+		/** Further evidence particular to the entity type, after who reported it. */
 		evidence?: Snippet;
 	}
 
@@ -46,8 +57,20 @@
 		actions,
 		isOpen = false,
 		onClose,
+		reportedByHostIds = [],
+		sourceDiscoveryId = null,
 		evidence
 	}: Props = $props();
+
+	// A reporter deleted since resolves to nothing and is left out.
+	const reportersQuery = useHostsByIds(() => reportedByHostIds);
+	let reporters = $derived(reportersQuery.data ?? []);
+
+	function openSourceScan(discoveryId: string) {
+		onClose();
+		window.location.hash = 'discovery-history';
+		openModal('discovery-history-detail', { id: discoveryId });
+	}
 </script>
 
 <GenericModal {name} {entityId} {title} {isOpen} {onClose} size="md">
@@ -58,7 +81,33 @@
 			<div class="space-y-4">
 				<p class="text-sm text-secondary">{intro}</p>
 
-				{@render evidence?.()}
+				{#if reporters.length > 0 || evidence || sourceDiscoveryId}
+					<div class="space-y-2 text-sm">
+						{#if reporters.length > 0}
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="text-secondary">{common_reportedBy()}</span>
+								{#each reporters as reporter (reporter.id)}
+									<EntityTag
+										entityRef={entityRef('Host', reporter.id, reporter)}
+										label={hostDisplayName(reporter)}
+										color={entities.getColorHelper('Host').color}
+									/>
+								{/each}
+							</div>
+						{/if}
+						{@render evidence?.()}
+						{#if sourceDiscoveryId}
+							{@const discoveryId = sourceDiscoveryId}
+							<button
+								type="button"
+								class="text-sm text-link hover:underline"
+								onclick={() => openSourceScan(discoveryId)}
+							>
+								{common_openScanThatFoundIt()}
+							</button>
+						{/if}
+					</div>
+				{/if}
 
 				<div class="flex flex-col gap-3">
 					{#each actions as action (action.id)}

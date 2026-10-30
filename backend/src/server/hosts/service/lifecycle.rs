@@ -18,6 +18,7 @@ impl HostService {
         organization_service: Arc<OrganizationService>,
         event_bus: Arc<EventBus>,
         entity_tag_service: Arc<EntityTagService>,
+        warning_service: Arc<crate::server::discovery_warnings::service::DiscoveryWarningService>,
     ) -> Self {
         Self {
             storage,
@@ -34,6 +35,7 @@ impl HostService {
             organization_service,
             event_bus,
             entity_tag_service,
+            warning_service,
         }
     }
 
@@ -75,7 +77,7 @@ impl HostService {
             interfaces,
         )];
         self.place_in_virtualization_trees(&mut response).await?;
-        self.fill_reported_by(&mut response).await?;
+        self.fill_unconfirmed_evidence(&mut response).await?;
         let [response] = response;
         Ok(Some(response))
     }
@@ -122,7 +124,7 @@ impl HostService {
             .collect::<Vec<_>>();
         let mut responses = responses;
         self.place_in_virtualization_trees(&mut responses).await?;
-        self.fill_reported_by(&mut responses).await?;
+        self.fill_unconfirmed_evidence(&mut responses).await?;
 
         Ok(responses)
     }
@@ -239,7 +241,7 @@ impl HostService {
             .collect::<Vec<_>>();
         let mut responses = responses;
         self.place_in_virtualization_trees(&mut responses).await?;
-        self.fill_reported_by(&mut responses).await?;
+        self.fill_unconfirmed_evidence(&mut responses).await?;
         Ok(responses)
     }
 

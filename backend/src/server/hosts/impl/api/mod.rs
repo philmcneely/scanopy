@@ -999,6 +999,11 @@ pub struct HostResponse {
     #[serde(default)]
     #[schema(read_only)]
     pub reported_by_host_ids: Vec<Uuid>,
+    /// For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+    /// one no scan reported. Read-only.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub found_by_discovery_id: Option<Uuid>,
     /// How the host is virtualized, when it is a VM or container guest.
     #[serde(
         default,

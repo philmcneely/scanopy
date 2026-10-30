@@ -1013,6 +1013,59 @@ pub(super) fn generate_interfaces(
     }
 
     // ========================================================================
+    // DC: minio-storage and ceph-node01 — no walk lists their ports. dc-switch-01 ports 5 and 6
+    // learned the MAC each one's address carries, so the forwarding-table pass recorded the port
+    // that NIC is: the MAC, the address it holds, and the forwarding table as its source.
+    // ========================================================================
+    for host in ["minio-storage", "ceph-node01"]
+        .into_iter()
+        .filter_map(&find_host)
+    {
+        let Some(address) = find_ip_address(host.id) else {
+            continue;
+        };
+        let Some(mac) = address.base.mac_address.as_ref().map(|m| m.value().0) else {
+            continue;
+        };
+        interfaces.push(Interface {
+            display_name: None,
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: InterfaceBase {
+                neighbor_candidates: Default::default(),
+                host_id: host.id,
+                site_id: host.base.site_id,
+                if_index: None,
+                if_descr: Some(mac.to_string()),
+                if_name: None,
+                if_alias: None,
+                if_type: None,
+                speed_bps: None,
+                admin_status: None,
+                oper_status: None,
+                mac_address: Some(MacEvidence::new(
+                    MacEvidenceValue(mac),
+                    AttributeSource::ForwardingTable,
+                )),
+                ip_address_id: Some(address.id),
+                ip_configured: false,
+                fdb_macs: None,
+                interface_source: AttributeSource::ForwardingTable,
+                vlan_membership_source: AttributeSource::ForwardingTable,
+                native_vlan_id: None,
+                vlan_ids: None,
+            },
+        });
+    }
+
+    // ========================================================================
     // DC: dc-fw01 — connected to DC switch port 1
     // ========================================================================
     if let Some(host) = find_host("dc-fw01") {

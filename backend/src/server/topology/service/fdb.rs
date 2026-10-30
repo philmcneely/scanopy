@@ -25,6 +25,8 @@ pub struct LearnedHost {
     /// one holding an address that carries it. Empty when the host has no such interface, and the
     /// device is known only as a whole.
     pub interface_ids: Vec<Uuid>,
+    /// The learned MACs that named this host.
+    pub macs: Vec<MacAddress>,
 }
 
 /// For every port that learned at least one known host's MAC, those hosts.
@@ -78,6 +80,7 @@ pub fn learned_hosts<'a>(
                     .iter()
                     .flat_map(|ip| interfaces_of_ip.get(ip).into_iter().flatten().copied())
                     .collect(),
+                macs: vec![*mac],
             });
         }
         let (hosts, ip_ids, interface_ids) = by_interface_mac.get(mac)?;
@@ -85,20 +88,44 @@ pub fn learned_hosts<'a>(
             host_id: only(hosts)?,
             ip_address_ids: ip_ids.clone(),
             interface_ids: interface_ids.clone(),
+            macs: vec![*mac],
         })
     };
 
+    // Each MAC is placed on one port: of the ports that learned it, the one that learned the
+    // fewest MACs, which is the port closest to the device. An uplink learns every MAC behind the
+    // next switch, so without this each device would be reached through every port on the path.
+    let learning: Vec<(&Interface, Vec<MacAddress>)> = interfaces
+        .into_iter()
+        .filter_map(|interface| {
+            let macs: Vec<MacAddress> = interface
+                .base
+                .fdb_macs()?
+                .iter()
+                .filter_map(|raw| raw.parse().ok())
+                .collect();
+            Some((interface, macs))
+        })
+        .collect();
+    let mut closest: HashMap<MacAddress, (usize, Uuid)> = HashMap::new();
+    for (interface, macs) in &learning {
+        for mac in macs {
+            let candidate = (macs.len(), interface.id);
+            closest
+                .entry(*mac)
+                .and_modify(|best| *best = (*best).min(candidate))
+                .or_insert(candidate);
+        }
+    }
+
     let mut learned = HashMap::new();
-    for interface in interfaces {
-        let Some(macs) = interface.base.fdb_macs() else {
-            continue;
-        };
+    for (interface, macs) in &learning {
         let mut hosts: Vec<LearnedHost> = Vec::new();
-        for raw in macs {
-            let Ok(mac) = raw.parse::<MacAddress>() else {
+        for mac in macs {
+            if closest.get(mac).map(|(_, port)| *port) != Some(interface.id) {
                 continue;
-            };
-            let Some(host) = resolve(&mac) else { continue };
+            }
+            let Some(host) = resolve(mac) else { continue };
             if host.host_id == interface.base.host_id {
                 continue;
             }
@@ -106,6 +133,7 @@ pub fn learned_hosts<'a>(
                 Some(existing) => {
                     existing.ip_address_ids.extend(host.ip_address_ids);
                     existing.interface_ids.extend(host.interface_ids);
+                    existing.macs.extend(host.macs);
                 }
                 None => hosts.push(host),
             }
@@ -174,6 +202,7 @@ mod tests {
                 host_id: PLC,
                 ip_address_ids: vec![plc_ip.id],
                 interface_ids: vec![],
+                macs: vec![PLC_MAC.parse().unwrap()],
             }])
         );
     }
@@ -201,5 +230,17 @@ mod tests {
         });
         let learned = learned_hosts(&[access.clone(), plc_port], &[]);
         assert_eq!(learned.get(&access.id).map(|h| h[0].host_id), Some(PLC));
+    }
+
+    /// An uplink learns every MAC behind the next switch. The device is reached through the access
+    /// port that learned it with the fewest neighbours, not through every port on the path.
+    #[test]
+    fn a_mac_learned_on_an_uplink_and_an_access_port_is_reached_only_through_the_access_port() {
+        let access = port(SWITCH, &[PLC_MAC]);
+        let uplink = port(Uuid::from_u128(3), &[PLC_MAC, "00:80:63:00:00:01"]);
+        let plc_ip = address(PLC, PLC_MAC);
+        let learned = learned_hosts(&[access.clone(), uplink.clone()], std::slice::from_ref(&plc_ip));
+        assert_eq!(learned.get(&access.id).map(|h| h[0].host_id), Some(PLC));
+        assert!(!learned.contains_key(&uplink.id));
     }
 }

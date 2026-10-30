@@ -533,15 +533,18 @@ export function entityTooltip(
 			const type = entityType as EntityType;
 			const title = name ?? entityDisplayText(type, entity);
 			const lookup = topologyLookup(topology);
-			// The entity's own summary fields, then the related entities the topology carries (a
-			// subnet's VLANs, the service managing it). A relation into a collection the topology
-			// does not load would read as empty, so it is left out.
+			// The entity's own summary fields, then the single related entities the topology carries
+			// (the service managing it). A relation into a collection the topology does not load would
+			// read as empty, so it is left out, and a list of related entities (a VLAN's interfaces)
+			// is the inspector's to show.
 			const fields = entityFields(type);
 			const reachable = (f: (typeof fields)[number]) =>
 				f.path.every((hop) => hop.type === 'Embedded' || hop.entity in ENTITY_COLLECTIONS);
 			const rows = fields
 				.filter(
-					(f) => (f.summary && f.path.length === 0) || (f.format.type === 'Entity' && reachable(f))
+					(f) =>
+						(f.summary && f.path.length === 0) ||
+						(f.format.type === 'Entity' && !f.many && reachable(f))
 				)
 				.map((f) => ({ label: entityFieldLabel(type, f), value: fieldText(f, entity, lookup) }))
 				.filter((row) => row.value !== title);
