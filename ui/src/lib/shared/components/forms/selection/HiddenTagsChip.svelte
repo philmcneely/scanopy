@@ -8,7 +8,7 @@
 	import { tooltip, tooltipLabel } from '$lib/shared/actions/tooltip';
 	import { common_moreTags, common_oneMoreTag } from '$lib/paraglide/messages';
 	import DisplayTag from './DisplayTag.svelte';
-	import { Info } from 'lucide-svelte';
+	import { Info } from '@lucide/svelte';
 
 	let { tags, interactive }: { tags: TagProps[]; interactive: boolean } = $props();
 

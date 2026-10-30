@@ -11,7 +11,7 @@
 	import type { Snippet } from 'svelte';
 	import { untrack } from 'svelte';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
-	import { Pencil } from 'lucide-svelte';
+	import { Pencil } from '@lucide/svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import {

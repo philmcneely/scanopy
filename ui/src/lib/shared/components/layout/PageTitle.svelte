@@ -30,7 +30,7 @@
 </script>
 
 <script lang="ts">
-	import { Info } from 'lucide-svelte';
+	import { Info } from '@lucide/svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { common_contentTabs } from '$lib/paraglide/messages';
 

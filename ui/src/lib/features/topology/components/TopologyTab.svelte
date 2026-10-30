@@ -7,7 +7,7 @@
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 	import TopologyViewer from './visualization/TopologyViewer.svelte';
 	import TopologyOptionsPanel from './panel/TopologyOptionsPanel.svelte';
-	import { Camera, Radar, Share2, Trash2 } from 'lucide-svelte';
+	import { Camera, Radar, Share2, Trash2 } from '@lucide/svelte';
 	import LiveDot from './LiveDot.svelte';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { createColorHelper } from '$lib/shared/utils/styling';

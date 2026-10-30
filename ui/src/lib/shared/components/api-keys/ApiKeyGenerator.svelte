@@ -5,7 +5,7 @@
 	 */
 	import CodeContainer from '$lib/shared/components/data/CodeContainer.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
-	import { RotateCcwKey } from 'lucide-svelte';
+	import { RotateCcwKey } from '@lucide/svelte';
 	import {
 		apiKeys_rotateKey,
 		apiKeys_rotateWarningBody,

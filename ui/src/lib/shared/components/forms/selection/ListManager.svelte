@@ -1,5 +1,5 @@
 <script lang="ts" generics="T, V, OC, IC, W = unknown, SOC = unknown">
-	import { ArrowUp, ArrowDown, Trash2, Plus, Edit, Square, CheckSquare } from 'lucide-svelte';
+	import { ArrowUp, ArrowDown, Trash2, Plus, Edit, Square, CheckSquare } from '@lucide/svelte';
 	import RichSelect from './RichSelect.svelte';
 	import SegmentedControl from '../SegmentedControl.svelte';
 	import ListSelectItem from './ListSelectItem.svelte';

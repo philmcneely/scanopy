@@ -8,7 +8,7 @@
 	 */
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { Check, X, ChevronDown, ChevronUp, Info, Loader2 } from 'lucide-svelte';
+	import { Check, X, ChevronDown, ChevronUp, Info, Loader2 } from '@lucide/svelte';
 	import {
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,

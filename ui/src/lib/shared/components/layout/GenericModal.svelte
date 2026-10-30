@@ -18,7 +18,7 @@
 <script lang="ts">
 	import { tick, untrack, type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { ArrowLeft, Loader2, X } from 'lucide-svelte';
+	import { ArrowLeft, Loader2, X } from '@lucide/svelte';
 	import type { AnyFormApi } from '@tanstack/form-core';
 	import {
 		common_closeModal,

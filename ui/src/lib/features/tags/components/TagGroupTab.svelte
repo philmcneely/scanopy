@@ -19,7 +19,7 @@
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { permissions, billingPlans } from '$lib/shared/stores/metadata';

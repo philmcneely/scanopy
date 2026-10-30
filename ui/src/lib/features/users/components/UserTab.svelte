@@ -3,7 +3,7 @@
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { userColumns } from './UserTab.columns';
-	import { Edit, UserX, Trash2 } from 'lucide-svelte';
+	import { Edit, UserX, Trash2 } from '@lucide/svelte';
 	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';

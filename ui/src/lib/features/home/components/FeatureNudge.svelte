@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, ArrowRight } from 'lucide-svelte';
+	import { X, ArrowRight } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { trackEvent } from '$lib/shared/utils/analytics';

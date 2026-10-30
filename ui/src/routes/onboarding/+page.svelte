@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import AuthBackground from '$lib/shared/components/layout/AuthBackground.svelte';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { ChevronLeft } from '@lucide/svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import OrgSitesModal from '$lib/features/auth/components/onboarding/OrgSitesModal.svelte';
 	import OrgLimitModal from '$lib/features/auth/components/OrgLimitModal.svelte';

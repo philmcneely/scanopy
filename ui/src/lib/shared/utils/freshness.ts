@@ -18,7 +18,7 @@
  * with the inventory, which never inherited.
  */
 
-import { Clock } from 'lucide-svelte';
+import { Clock } from '@lucide/svelte';
 import type { components } from '$lib/api/schema';
 import type { Site } from '$lib/features/sites/types';
 import type { TagProps } from '$lib/shared/components/data/types';

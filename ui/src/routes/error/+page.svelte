@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { AlertCircle, Home } from 'lucide-svelte';
+	import { AlertCircle, Home } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 
 	$: message = $page.url.searchParams.get('message') || 'An unexpected error occurred.';

@@ -1,4 +1,4 @@
-import * as LucideIcons from 'lucide-svelte';
+import * as LucideIcons from '@lucide/svelte';
 import type { IconComponent } from './types';
 import colors from 'tailwindcss/colors';
 import LogoIcon from '$lib/shared/components/data/LogoIcon.svelte';

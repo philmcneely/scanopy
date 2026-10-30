@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Search } from 'lucide-svelte';
+	import { Search } from '@lucide/svelte';
 	// ChevronDown / ChevronRight replaced by the CSS `.caret` below — see the note on that rule.
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import HiddenTagsChip from '$lib/shared/components/forms/selection/HiddenTagsChip.svelte';

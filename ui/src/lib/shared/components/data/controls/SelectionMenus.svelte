@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Tags } from 'lucide-svelte';
+	import { Tags } from '@lucide/svelte';
 	import Popover from '../Popover.svelte';
 	import ActionMenu from './ActionMenu.svelte';
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';

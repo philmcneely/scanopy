@@ -35,7 +35,7 @@
 		closeModal,
 		resolveModalDeepLink
 	} from '$lib/shared/stores/modal-registry';
-	import { Info, Trash2 } from 'lucide-svelte';
+	import { Info, Trash2 } from '@lucide/svelte';
 	import { useTagGroupsQuery, useTagsQuery } from '$lib/features/tags/queries';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import { runOutcomeTag, type OutcomeTag } from '../../utils/outcome';

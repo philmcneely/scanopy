@@ -14,7 +14,7 @@
 		type ServiceDisplayContext
 	} from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { DependencyDisplay } from '$lib/shared/components/forms/selection/display/DependencyDisplay.svelte';
-	import { ArrowDown, Edit, Trash2 } from 'lucide-svelte';
+	import { ArrowDown, Edit, Trash2 } from '@lucide/svelte';
 	import {
 		common_delete,
 		common_deleting,

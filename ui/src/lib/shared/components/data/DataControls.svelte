@@ -112,7 +112,7 @@
 		common_yes
 	} from '$lib/paraglide/messages';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { SearchX } from 'lucide-svelte';
+	import { SearchX } from '@lucide/svelte';
 	import {
 		useTagsQuery,
 		useTagGroupsQuery,

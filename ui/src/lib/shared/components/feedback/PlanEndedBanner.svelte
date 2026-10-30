@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Info } from 'lucide-svelte';
+	import { Info } from '@lucide/svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';

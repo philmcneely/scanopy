@@ -22,7 +22,7 @@
 		Copy,
 		Check,
 		KeyRound
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import confetti from 'canvas-confetti';
 	import type { DaemonMode } from '../../types/base';
 	import { fillInstallArtifactsKey, installStepCommand } from '../../types/base';

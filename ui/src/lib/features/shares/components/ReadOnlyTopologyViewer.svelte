@@ -10,7 +10,7 @@
 	import ExportButton from '$lib/features/topology/components/ExportButton.svelte';
 	import ExportModal from '$lib/features/topology/components/ExportModal.svelte';
 	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
-	import { Share2, ExternalLink } from 'lucide-svelte';
+	import { Share2, ExternalLink } from '@lucide/svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { shares_openInFullView } from '$lib/paraglide/messages';
 	import { resolve } from '$app/paths';

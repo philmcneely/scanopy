@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileText, LogOut } from 'lucide-svelte';
+	import { FileText, LogOut } from '@lucide/svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import { useAcceptTermsMutation, useLogoutMutation } from '$lib/features/auth/queries';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';

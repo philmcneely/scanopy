@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Clock } from 'lucide-svelte';
+	import { Clock } from '@lucide/svelte';
 	import { license_renewByBanner, license_validThroughBanner } from '$lib/paraglide/messages';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import AppBanner from './AppBanner.svelte';

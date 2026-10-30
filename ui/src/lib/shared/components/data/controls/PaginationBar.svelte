@@ -8,7 +8,7 @@
 		SquareDashed,
 		Ungroup,
 		X
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { PAGE_SIZE_OPTIONS, type PageSizeOption } from '../types';
 	import { isShiftShortcut, shiftShortcutLabel } from '$lib/shared/utils/shortcuts';
 	import { isFreeKeydown, useListShortcuts } from './listShortcuts';

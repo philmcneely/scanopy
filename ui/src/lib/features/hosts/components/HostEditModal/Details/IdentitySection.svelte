@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import { untrack } from 'svelte';
-	import { Pencil } from 'lucide-svelte';
+	import { Pencil } from '@lucide/svelte';
 	import type { HostFormData } from '$lib/features/hosts/types/base';
 	import { discoveredName, overrideOf, rungLabel } from '$lib/features/hosts/host-identity';
 	import { hostnameFormat, max } from '$lib/shared/components/forms/validators';

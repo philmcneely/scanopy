@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AlertCircle } from 'lucide-svelte';
+	import { AlertCircle } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 

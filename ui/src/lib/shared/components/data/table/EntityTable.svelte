@@ -5,7 +5,7 @@
 		ArrowDownWideNarrow,
 		ChevronDown,
 		ChevronRight
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import type {
 		ColumnDef,
 		columnResizingState,

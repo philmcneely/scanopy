@@ -22,7 +22,7 @@
 		type SimpleOption
 	} from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import { generateShareUrl, generateEmbedCode } from '../queries';
-	import { Sun, Moon, Monitor } from 'lucide-svelte';
+	import { Sun, Moon, Monitor } from '@lucide/svelte';
 	import { views } from '$lib/shared/stores/metadata';
 	import viewsJson from '$lib/data/views.json';
 	import type { AnyFieldApi } from '@tanstack/svelte-form';

@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-	import { ChevronDown, ChevronUp, Columns3Cog, GripVertical } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, Columns3Cog, GripVertical } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import {
 		columnSections,

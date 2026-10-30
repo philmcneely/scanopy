@@ -2,7 +2,7 @@
 	import { createForm } from '@tanstack/svelte-form';
 	import { submitForm } from '$lib/shared/components/forms/form-context';
 	import { required } from '$lib/shared/components/forms/validators';
-	import { Lock } from 'lucide-svelte';
+	import { Lock } from '@lucide/svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';

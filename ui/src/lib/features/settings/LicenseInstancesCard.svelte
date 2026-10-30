@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Trash2 } from 'lucide-svelte';
+	import { Trash2 } from '@lucide/svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';

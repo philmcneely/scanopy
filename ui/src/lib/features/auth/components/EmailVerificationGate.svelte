@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LogOut, Mail } from 'lucide-svelte';
+	import { LogOut, Mail } from '@lucide/svelte';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import EmailChangeForm from './EmailChangeForm.svelte';

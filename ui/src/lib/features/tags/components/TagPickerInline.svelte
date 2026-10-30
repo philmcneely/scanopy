@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import TagCompletionGhost from './TagCompletionGhost.svelte';
