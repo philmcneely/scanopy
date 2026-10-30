@@ -5015,6 +5015,7 @@ export interface components {
              *       "firmware_revision": null,
              *       "firmware_revision_source": "Unspecified",
              *       "first_discovery_id": null,
+             *       "found_by_discovery_id": null,
              *       "hidden": false,
              *       "hostname": "web-server-01.local",
              *       "hostname_source": "Manual",
@@ -5253,6 +5254,12 @@ export interface components {
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
                  */
                 readonly first_discovery_id?: string | null;
+                /**
+                 * Format: uuid
+                 * @description For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+                 *     one no scan reported. Read-only.
+                 */
+                readonly found_by_discovery_id?: string | null;
                 /**
                  * @description Always `false`. Kept because daemons before v0.17.23 require it when they read a host
                  *     back; a host is hidden from topology by a tag of the Visibility group.
@@ -10618,6 +10625,9 @@ export interface components {
             type: "Metadata";
         } | {
             /** @enum {string} */
+            type: "AttributeSource";
+        } | {
+            /** @enum {string} */
             type: "Entity";
         };
         /**
@@ -11077,6 +11087,7 @@ export interface components {
          *       "firmware_revision": null,
          *       "firmware_revision_source": "Unspecified",
          *       "first_discovery_id": null,
+         *       "found_by_discovery_id": null,
          *       "hidden": false,
          *       "hostname": "web-server-01.local",
          *       "hostname_source": "Manual",
@@ -11315,6 +11326,12 @@ export interface components {
              * @description The discovery run that first observed this host. Drives the "First found by" column.
              */
             readonly first_discovery_id?: string | null;
+            /**
+             * Format: uuid
+             * @description For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+             *     one no scan reported. Read-only.
+             */
+            readonly found_by_discovery_id?: string | null;
             /**
              * @description Always `false`. Kept because daemons before v0.17.23 require it when they read a host
              *     back; a host is hidden from topology by a tag of the Visibility group.
@@ -13325,6 +13342,12 @@ export interface components {
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
                  */
                 readonly first_discovery_id?: string | null;
+                /**
+                 * Format: uuid
+                 * @description For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+                 *     one no scan reported. Read-only.
+                 */
+                readonly found_by_discovery_id?: string | null;
                 /**
                  * @description Always `false`. Kept because daemons before v0.17.23 require it when they read a host
                  *     back; a host is hidden from topology by a tag of the Visibility group.

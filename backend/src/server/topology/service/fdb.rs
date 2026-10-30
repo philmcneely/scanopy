@@ -239,7 +239,10 @@ mod tests {
         let access = port(SWITCH, &[PLC_MAC]);
         let uplink = port(Uuid::from_u128(3), &[PLC_MAC, "00:80:63:00:00:01"]);
         let plc_ip = address(PLC, PLC_MAC);
-        let learned = learned_hosts(&[access.clone(), uplink.clone()], std::slice::from_ref(&plc_ip));
+        let learned = learned_hosts(
+            &[access.clone(), uplink.clone()],
+            std::slice::from_ref(&plc_ip),
+        );
         assert_eq!(learned.get(&access.id).map(|h| h[0].host_id), Some(PLC));
         assert!(!learned.contains_key(&uplink.id));
     }

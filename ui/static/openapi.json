@@ -24881,6 +24881,15 @@
                 "description": "The discovery run that first observed this host. Drives the \"First found by\" column.",
                 "readOnly": true
               },
+              "found_by_discovery_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or\none no scan reported. Read-only.",
+                "readOnly": true
+              },
               "hidden": {
                 "type": "boolean",
                 "description": "Always `false`. Kept because daemons before v0.17.23 require it when they read a host\nback; a host is hidden from topology by a tag of the Visibility group.",
@@ -25209,6 +25218,7 @@
               "firmware_revision": null,
               "firmware_revision_source": "Unspecified",
               "first_discovery_id": null,
+              "found_by_discovery_id": null,
               "hidden": false,
               "hostname": "web-server-01.local",
               "hostname_source": "Manual",
@@ -37447,6 +37457,22 @@
           },
           {
             "type": "object",
+            "title": "AttributeSource",
+            "description": "Where a value came from (an `AttributeSource`), named as the UI names sources elsewhere:\n\"SNMP\", \"Forwarding table\".",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "AttributeSource"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "Entity",
             "description": "A related entity. The UI links it; CSV writes its id; text-only outputs write its display\nfield.",
             "required": [
@@ -38763,6 +38789,15 @@
             "description": "The discovery run that first observed this host. Drives the \"First found by\" column.",
             "readOnly": true
           },
+          "found_by_discovery_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or\none no scan reported. Read-only.",
+            "readOnly": true
+          },
           "hidden": {
             "type": "boolean",
             "description": "Always `false`. Kept because daemons before v0.17.23 require it when they read a host\nback; a host is hidden from topology by a tag of the Visibility group.",
@@ -39091,6 +39126,7 @@
           "firmware_revision": null,
           "firmware_revision_source": "Unspecified",
           "first_discovery_id": null,
+          "found_by_discovery_id": null,
           "hidden": false,
           "hostname": "web-server-01.local",
           "hostname_source": "Manual",
@@ -43197,6 +43233,15 @@
                   "description": "The discovery run that first observed this host. Drives the \"First found by\" column.",
                   "readOnly": true
                 },
+                "found_by_discovery_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "description": "For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or\none no scan reported. Read-only.",
+                  "readOnly": true
+                },
                 "hidden": {
                   "type": "boolean",
                   "description": "Always `false`. Kept because daemons before v0.17.23 require it when they read a host\nback; a host is hidden from topology by a tag of the Visibility group.",
@@ -43525,6 +43570,7 @@
                 "firmware_revision": null,
                 "firmware_revision_source": "Unspecified",
                 "first_discovery_id": null,
+                "found_by_discovery_id": null,
                 "hidden": false,
                 "hostname": "web-server-01.local",
                 "hostname_source": "Manual",
