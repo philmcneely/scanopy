@@ -143,7 +143,8 @@ impl InterfaceLinkState {
 impl HasFilterValues for Interface {
     fn filter_values(&self, ctx: &FilterValueContext) -> BTreeMap<MetadataFilterType, String> {
         let state = InterfaceLinkState::classify(
-            ctx.interfaces_with_neighbours.contains(&self.id),
+            ctx.interfaces_with_neighbours.contains(&self.id)
+                || ctx.interfaces_learning_known_hosts.contains(&self.id),
             ctx.interfaces_referenced_as_neighbours.contains(&self.id),
         );
         let mut values = BTreeMap::from([(MetadataFilterType::LinkState, state.id().to_string())]);

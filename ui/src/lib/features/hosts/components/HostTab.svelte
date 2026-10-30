@@ -14,13 +14,15 @@
 	import OsTag from './OsTag.svelte';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostConsolidationModal from './HostConsolidationModal.svelte';
+	import UnconfirmedHostModal from './UnconfirmedHostModal.svelte';
+	import { isUnconfirmed } from '$lib/shared/utils/confirmation';
 	import HostExportModal from './HostExportModal.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { hostColumns } from './HostTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, RefreshCw, Replace, Edit } from 'lucide-svelte';
+	import { Trash2, RefreshCw, Replace, Edit, CloudAlert } from 'lucide-svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import type { TabProps } from '$lib/shared/types';
@@ -37,8 +39,10 @@
 		common_noEntityYet,
 		common_rescan,
 		daemons_installPromptHosts,
+		hosts_alreadyConfirmed,
 		hosts_rescanNoAddresses,
-		hosts_rescanNoAddressesBulk
+		hosts_rescanNoAddressesBulk,
+		hosts_resolveUnconfirmed
 	} from '$lib/paraglide/messages';
 
 	let { isReadOnly = false, isActive = false }: TabProps = $props();
@@ -53,6 +57,7 @@
 		useConsolidateHostsMutation,
 		useBulkRescanHostsMutation,
 		useRescanHostMutation,
+		useSettleUnconfirmedHostMutation,
 		type HostQueryOptions
 	} from '../queries';
 	import { useServicesByIds, useServicesCacheQuery } from '$lib/features/services/queries';
@@ -213,6 +218,7 @@
 	const consolidateHostsMutation = useConsolidateHostsMutation();
 	const rescanHostMutation = useRescanHostMutation();
 	const bulkRescanHostsMutation = useBulkRescanHostsMutation();
+	const settleUnconfirmedMutation = useSettleUnconfirmedHostMutation();
 
 	// Derived data
 	let tagsData = $derived(tagsQuery.data ?? []);
@@ -277,6 +283,24 @@
 
 	let otherHost = $state<Host | null>(null);
 	let showHostConsolidationModal = $state(false);
+	let resolvingHost = $state<Host | null>(null);
+	let showUnconfirmedHost = $state(false);
+
+	// Deep-link: resolve an unconfirmed host from anywhere that names one, such as a scan warning.
+	$effect(() => {
+		const result = resolveModalDeepLink(
+			$modalState,
+			'unconfirmed-host',
+			hostsData,
+			showUnconfirmedHost,
+			resolvingHost?.id,
+			isUnconfirmed
+		);
+		if (result) {
+			resolvingHost = result;
+			showUnconfirmedHost = true;
+		}
+	});
 
 	// Deep-link: open host editor from URL (handles both fresh open and entity switch)
 	$effect(() => {
@@ -349,6 +373,13 @@
 		if (isReadOnly) return [];
 
 		return [
+			// Only where there is something to resolve, as on the Subnets tab.
+			{
+				label: hosts_resolveUnconfirmed(),
+				icon: CloudAlert,
+				onClick: () => handleResolveHost(host),
+				unavailable: hiddenWhen(!isUnconfirmed(host), hosts_alreadyConfirmed())
+			},
 			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditHost(host) },
 			// A rescan targets the host's known addresses, so a host with none (a device identified
 			// purely by a MAC) has nothing to scan, and the endpoint answers 400.
@@ -378,6 +409,44 @@
 	function handleEditHost(host: Host) {
 		setEditingHost(host);
 		showHostEditor = true;
+	}
+
+	function handleResolveHost(host: Host) {
+		resolvingHost = host;
+		showUnconfirmedHost = true;
+	}
+
+	function handleCloseUnconfirmedHost() {
+		showUnconfirmedHost = false;
+		resolvingHost = null;
+	}
+
+	/** Confirm first, so the labels a person types land on a host they have vouched for. */
+	async function handleConfirmAndLabel(host: Host) {
+		try {
+			const confirmed = await settleUnconfirmedMutation.mutateAsync({
+				hostId: host.id,
+				action: 'confirm'
+			});
+			handleCloseUnconfirmedHost();
+			handleEditHost({ ...host, source: confirmed.source, updated_at: confirmed.updated_at });
+		} catch {
+			// Error handled by mutation
+		}
+	}
+
+	function handleMergeUnconfirmed(host: Host) {
+		handleCloseUnconfirmedHost();
+		handleStartConsolidate(host);
+	}
+
+	async function handleDismissUnconfirmed(host: Host) {
+		try {
+			await settleUnconfirmedMutation.mutateAsync({ hostId: host.id, action: 'dismiss' });
+			handleCloseUnconfirmedHost();
+		} catch {
+			// Error handled by mutation
+		}
 	}
 
 	function handleStartConsolidate(host: Host) {
@@ -549,6 +618,15 @@
 	{otherHost}
 	onConsolidate={handleConsolidateHosts}
 	onClose={() => (showHostConsolidationModal = false)}
+/>
+
+<UnconfirmedHostModal
+	isOpen={showUnconfirmedHost}
+	host={resolvingHost}
+	onConfirmAndLabel={handleConfirmAndLabel}
+	onMerge={handleMergeUnconfirmed}
+	onDismiss={handleDismissUnconfirmed}
+	onClose={handleCloseUnconfirmedHost}
 />
 
 <HostExportModal

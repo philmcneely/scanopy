@@ -63,6 +63,7 @@
 		discovery_warningAffectsAddresses,
 		discovery_warningAffectsHosts,
 		discovery_warningAffectsSubnets,
+		hosts_resolveUnconfirmed,
 		subnets_resolveRange
 	} from '$lib/paraglide/messages';
 	import type { EntityDiscriminants } from '$lib/api/entities';
@@ -266,6 +267,24 @@
 					// four-way choice is made per subnet and there is no "all of them" answer.
 					// Opening the resolve modal replaces this one; the list needs this one closed.
 					if (subnetIds.length === 1) openModal('provisional-range', { id: subnetIds[0] });
+					else closeModal();
+				}
+			};
+		}
+
+		if (entry.code === 'UnconfirmedHostInferred') {
+			// The same hand-off as an assumed range: one host resolves in place, several is the list,
+			// where each one is settled on its own.
+			const hostIds = entry.warnings.flatMap((w) =>
+				w.code === 'UnconfirmedHostInferred' && w.host_id ? [w.host_id] : []
+			);
+			if (hostIds.length === 0) return null;
+			return {
+				label: hosts_resolveUnconfirmed(),
+				icon: createIconComponent('cloud-alert'),
+				run: () => {
+					window.location.hash = 'hosts';
+					if (hostIds.length === 1) openModal('unconfirmed-host', { id: hostIds[0] });
 					else closeModal();
 				}
 			};

@@ -51,6 +51,8 @@ export type FilteredOutCounts = Record<string, Record<string, number>>;
 export interface RenderableTopology extends Topology {
 	nodes: TopologyNode[];
 	edges: TopologyEdge[];
+	/** For this view, node id → the entity ids the node also stands for (the search reads it). */
+	node_entities: Record<string, string[]>;
 	hosts: TopologyHost[];
 	services: TopologyService[];
 	subnets: Subnet[];

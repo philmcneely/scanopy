@@ -127,6 +127,7 @@ pub fn host() -> Host {
         last_seen_at: example_timestamp(),
         last_discovery_id: None,
         first_discovery_id: None,
+        dismissed_at: None,
         base: HostBase {
             name: HostName::manual("web-server-01".to_string()),
             hostname: Some(crate::server::shared::attribution::Attributed::new(

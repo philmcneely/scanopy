@@ -2085,6 +2085,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hosts/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm unconfirmed host
+         * @description Records that a person vouches for a host Scanopy knows only from another device's report (an
+         *     LLDP/CDP neighbour, or a switch's forwarding table). The host's source becomes `Manual`.
+         */
+        post: operations["confirm_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hosts/{id}/consolidate/{other_id}": {
         parameters: {
             query?: never;
@@ -2114,6 +2135,28 @@ export interface paths {
          *     - Cannot consolidate a host that has a daemon - consolidate into it instead.
          */
         post: operations["consolidate_hosts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss unconfirmed host
+         * @description Sets aside a host Scanopy knows only from another device's report. It leaves lists, topology
+         *     and scan warnings, and is not created again by later scans. A scan that reaches the device
+         *     restores it.
+         */
+        post: operations["dismiss_host"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4184,19 +4227,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-29T12:08:33.632983Z",
+             *       "created_at": "2026-10-29T20:18:56.763299Z",
              *       "first_discovery_id": null,
-             *       "id": "c59efd7f-4d8c-4870-adf4-b58063f4ec62",
+             *       "id": "ef65a16d-3fe9-4ce2-9557-27dec59fcf59",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-29T12:08:33.632983Z",
+             *       "last_seen_at": "2026-10-29T20:18:56.763299Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-29T12:08:33.632983Z",
-             *       "valid_from": "2026-10-29T12:08:33.632983Z",
+             *       "updated_at": "2026-10-29T20:18:56.763299Z",
+             *       "valid_from": "2026-10-29T20:18:56.763299Z",
              *       "valid_to": null
              *     }
              */
@@ -4955,6 +4998,7 @@ export interface components {
              *         "service_name": "nginx",
              *         "type": "Service"
              *       },
+             *       "dismissed_at": null,
              *       "display_name": "web-server-01",
              *       "display_name_rung": "Name",
              *       "firmware_revision": null,
@@ -5079,19 +5123,19 @@ export interface components {
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-29T12:08:33.600052Z",
+             *               "created_at": "2026-10-29T20:18:56.728746Z",
              *               "first_discovery_id": null,
-             *               "id": "199c398e-8f43-49aa-a1cb-c4d85b2c4f3b",
+             *               "id": "4dd3795f-6ddd-40df-a8e6-7abef4579eb7",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-29T12:08:33.600052Z",
+             *               "last_seen_at": "2026-10-29T20:18:56.728746Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-29T12:08:33.600052Z",
-             *               "valid_from": "2026-10-29T12:08:33.600052Z",
+             *               "updated_at": "2026-10-29T20:18:56.728746Z",
+             *               "valid_from": "2026-10-29T20:18:56.728746Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5104,7 +5148,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Atlassian Fisheye",
+             *           "service_definition": "Jupyter",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5171,6 +5215,11 @@ export interface components {
                  *     fingerprint match with its source, or a field the type is derived from. Read-only.
                  */
                 readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
+                /**
+                 * Format: date-time
+                 * @description When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+                 */
+                readonly dismissed_at?: string | null;
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -6119,19 +6168,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-29T12:08:33.627594Z",
+             *           "created_at": "2026-10-29T20:18:56.757842Z",
              *           "first_discovery_id": null,
-             *           "id": "23f154e4-7007-4140-96bb-8e30a041e8cc",
+             *           "id": "5e549f0c-0a53-4187-8ac1-a6365ec9c5e0",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-29T12:08:33.627594Z",
+             *           "last_seen_at": "2026-10-29T20:18:56.757842Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-29T12:08:33.627594Z",
-             *           "valid_from": "2026-10-29T12:08:33.627594Z",
+             *           "updated_at": "2026-10-29T20:18:56.757842Z",
+             *           "valid_from": "2026-10-29T20:18:56.757842Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6144,7 +6193,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Atlassian Fisheye",
+             *       "service_definition": "Jupyter",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -6836,6 +6885,17 @@ export interface components {
                  *     `Interface.neighbor` scalar now that a port can anchor several links.
                  */
                 neighbours?: components["schemas"]["InterfaceNeighborRow"][];
+                /**
+                 * @description Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:
+                 *     the addresses reached through an L2 port, the services bound to all of a host's addresses
+                 *     on its IP cards, the members inlined on a card. The topology search selects a node when it
+                 *     matches any of them. Nodes with none are absent.
+                 */
+                node_entities?: {
+                    [key: string]: {
+                        [key: string]: string[];
+                    };
+                };
                 /**
                  * @description Per-view graph built on request from the entities above + grouping
                  *     options. Keyed by view so switching the active perspective is a
@@ -7586,19 +7646,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-29T12:08:33.600678Z",
+         *       "created_at": "2026-10-29T20:18:56.729381Z",
          *       "first_discovery_id": null,
-         *       "id": "7890e782-dc7f-4e6f-a4e8-abf77fc78384",
+         *       "id": "7b1d1ee6-f5b4-440b-849b-471d00cc9f4c",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-29T12:08:33.600678Z",
+         *       "last_seen_at": "2026-10-29T20:18:56.729381Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-29T12:08:33.600678Z",
-         *       "valid_from": "2026-10-29T12:08:33.600678Z",
+         *       "updated_at": "2026-10-29T20:18:56.729381Z",
+         *       "valid_from": "2026-10-29T20:18:56.729381Z",
          *       "valid_to": null
          *     }
          */
@@ -7869,7 +7929,7 @@ export interface components {
          *     `every_client_probe_variant_has_a_producer` is what now says so.
          * @enum {string}
          */
-        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "SpotifyConnect" | "Vnc" | "AppleLockdown" | "DnsUdp" | "Ntp" | "Dhcp" | "Bacnet" | "Tftp" | "Mgcp" | "GoogleWifi";
+        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "Lpd" | "SpotifyConnect" | "Vnc" | "AppleLockdown" | "DnsUdp" | "Ntp" | "Dhcp" | "Bacnet" | "Tftp" | "Mgcp" | "GoogleWifi";
         /** @enum {string} */
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
@@ -7988,7 +8048,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Atlassian Fisheye",
+         *           "service_definition": "Jupyter",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8276,17 +8336,6 @@ export interface components {
             /** @description What it did in this run. */
             outcome: components["schemas"]["CredentialRunOutcome"];
         };
-        /**
-         * @description Release maturity of a credential type's integration.
-         *
-         *     Additive and exhaustive: a new credential variant will not compile until it declares its
-         *     stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
-         *     promoting an integration is a one-line reviewable change rather than a deletion nobody
-         *     notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
-         *     it is never stored on a credential row, so it carries no deploy-coexistence obligation.
-         * @enum {string}
-         */
-        CredentialStability: "Stable" | "Beta";
         /**
          * @description Universal credential type — tagged enum stored as JSONB.
          *     Each variant represents a different credential protocol/method.
@@ -9872,6 +9921,9 @@ export interface components {
         }) | (components["schemas"]["ProvisionalSubnet"] & {
             /** @enum {string} */
             code: "ProvisionalSubnetInferred";
+        }) | (components["schemas"]["UnconfirmedHost"] & {
+            /** @enum {string} */
+            code: "UnconfirmedHostInferred";
         }) | {
             /**
              * Format: int32
@@ -10355,6 +10407,11 @@ export interface components {
             many: boolean;
             /** @description Steps from the entity to the objects the value is read from. Empty for the entity itself. */
             path: components["schemas"]["Hop"][];
+            /**
+             * @description Matched by the topology search: a value that names or identifies the entity on the map
+             *     (a name, an address, a MAC, a port name, a vendor). The search reads only these.
+             */
+            searchable: boolean;
             /** @description Sibling field holding the value's attribution, for attributed host facts. */
             source_field?: string | null;
             /** @description Shown by default in tables and in the inspector's details. Every field is exported. */
@@ -10392,6 +10449,11 @@ export interface components {
         } | {
             /** @enum {string} */
             type: "Inferred";
+            /**
+             * @description What reported it, recorded when the entity was created. Defaulted because every row
+             *     stored before the field existed came from an LLDP/CDP neighbour.
+             */
+            via?: components["schemas"]["InferredVia"];
         } | {
             /** @enum {string} */
             type: "Unknown";
@@ -10663,6 +10725,7 @@ export interface components {
          *       "created_at": "2026-01-15T10:30:00Z",
          *       "credential_assignments": [],
          *       "description": "Primary web server",
+         *       "dismissed_at": null,
          *       "first_discovery_id": null,
          *       "hostname": "web-server-01.local",
          *       "hostname_source": "Manual",
@@ -10691,6 +10754,13 @@ export interface components {
              * @description When this record was first created.
              */
             readonly created_at: string;
+            /**
+             * Format: date-time
+             * @description When a person dismissed this unconfirmed host. A dismissed host is left out of lists,
+             *     topology and warnings, and its MAC or chassis id is not minted again. Cleared when a scan
+             *     reaches the device.
+             */
+            readonly dismissed_at?: string | null;
             /**
              * Format: uuid
              * @description Discovery (historical row) that first observed this entity. Set once
@@ -10961,6 +11031,7 @@ export interface components {
          *         "service_name": "nginx",
          *         "type": "Service"
          *       },
+         *       "dismissed_at": null,
          *       "display_name": "web-server-01",
          *       "display_name_rung": "Name",
          *       "firmware_revision": null,
@@ -11085,19 +11156,19 @@ export interface components {
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-29T12:08:33.599313Z",
+         *               "created_at": "2026-10-29T20:18:56.728Z",
          *               "first_discovery_id": null,
-         *               "id": "f201ac88-66c0-4be8-a261-1db6595d8159",
+         *               "id": "bc4243e8-b22a-4b82-b55d-ae597ac12c3c",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-29T12:08:33.599313Z",
+         *               "last_seen_at": "2026-10-29T20:18:56.728Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-29T12:08:33.599313Z",
-         *               "valid_from": "2026-10-29T12:08:33.599313Z",
+         *               "updated_at": "2026-10-29T20:18:56.728Z",
+         *               "valid_from": "2026-10-29T20:18:56.728Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -11110,7 +11181,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Atlassian Fisheye",
+         *           "service_definition": "Jupyter",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -11177,6 +11248,11 @@ export interface components {
              *     fingerprint match with its source, or a field the type is derived from. Read-only.
              */
             readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
+            /**
+             * Format: date-time
+             * @description When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+             */
+            readonly dismissed_at?: string | null;
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -11613,6 +11689,11 @@ export interface components {
          * @enum {string}
          */
         IfOperStatus: "Up" | "Down" | "Testing" | "Unknown" | "Dormant" | "NotPresent" | "LowerLayerDown";
+        /**
+         * @description What reported an [`EntitySource::Inferred`] entity.
+         * @enum {string}
+         */
+        InferredVia: "Neighbour" | "ForwardingTable" | "ReportedAddress";
         /**
          * @description Format hint for inline values in `PathOrInline` and `SecretPathOrInline` fields.
          * @enum {string}
@@ -13172,6 +13253,11 @@ export interface components {
                  */
                 readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
                 /**
+                 * Format: date-time
+                 * @description When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+                 */
+                readonly dismissed_at?: string | null;
+                /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
                  *
@@ -14724,19 +14810,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-29T12:08:33.600469Z",
+         *           "created_at": "2026-10-29T20:18:56.729167Z",
          *           "first_discovery_id": null,
-         *           "id": "cc1cdf08-8327-4884-b105-f48969573308",
+         *           "id": "8a96a67e-2564-4e52-b2d2-fb88c9ef109d",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-29T12:08:33.600469Z",
+         *           "last_seen_at": "2026-10-29T20:18:56.729167Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-29T12:08:33.600469Z",
-         *           "valid_from": "2026-10-29T12:08:33.600469Z",
+         *           "updated_at": "2026-10-29T20:18:56.729167Z",
+         *           "valid_from": "2026-10-29T20:18:56.729167Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14749,7 +14835,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Atlassian Fisheye",
+         *       "service_definition": "Jupyter",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15332,6 +15418,17 @@ export interface components {
             rejected_keys?: string[];
         };
         /**
+         * @description Release maturity of something Scanopy ships: a credential type's integration, or a plan
+         *     feature.
+         *
+         *     Each owner declares it in an exhaustive match, so promoting one to `Stable` is a one-line
+         *     reviewable change. This is presentation metadata about the *code*, like
+         *     `last_unsupported_daemon_version`. It is never stored on a row, so it carries no
+         *     deploy-coexistence obligation.
+         * @enum {string}
+         */
+        Stability: "Stable" | "Beta";
+        /**
          * @example {
          *       "cidr": "192.168.1.0/24",
          *       "cidr_source": "DaemonSelfReport",
@@ -15797,6 +15894,17 @@ export interface components {
              */
             neighbours?: components["schemas"]["InterfaceNeighborRow"][];
             /**
+             * @description Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:
+             *     the addresses reached through an L2 port, the services bound to all of a host's addresses
+             *     on its IP cards, the members inlined on a card. The topology search selects a node when it
+             *     matches any of them. Nodes with none are absent.
+             */
+            node_entities?: {
+                [key: string]: {
+                    [key: string]: string[];
+                };
+            };
+            /**
              * @description Per-view graph built on request from the entities above + grouping
              *     options. Keyed by view so switching the active perspective is a
              *     client-side slice selection.
@@ -15929,7 +16037,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "efa1c714-e521-49fd-b23a-d9a1ad0aab7c",
+             *           "id": "e2ea28a8-ab66-4f00-9cc0-9038c5c79d47",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15939,23 +16047,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
+             *           "id": "a665ec34-ca4a-40b7-982c-b31003a319ba",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "c771d31f-c99a-4067-ba54-0c0f2fd7686a",
+             *           "id": "47177f84-3fda-46c7-b81b-008293b81188",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "0a64d70a-ea49-4248-9b7e-c33b586775b8",
+             *           "id": "eb47e951-9a71-4b3c-806d-63b5932efb95",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "0bac5fe1-18c3-433c-a82b-17dd45f90674",
+             *           "id": "a665ec34-ca4a-40b7-982c-b31003a319ba",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15969,19 +16077,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "debb1fb3-4281-48ec-b57f-699cc003916b",
+             *         "id": "bc09dc49-8389-41cd-b771-ddb43dc9da88",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "0b5b9955-0b03-4cfe-8c2f-833c613a75fa",
+             *         "id": "8e30beaa-77d4-4447-989e-6305deb6bb03",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "05ecf367-c87e-4e13-bb6c-a36aea444692",
+             *         "id": "12c5994d-26ca-4f68-8eca-0e8c42061489",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "619cb90a-e289-414c-9e17-7c4c0eb870ca",
+             *         "id": "8642b21c-1575-424c-ae5b-abf4c5467381",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -16002,7 +16110,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "55afdac4-4d1f-4baa-9690-9f36ead2e837",
+             *         "id": "339650ec-9d74-40ef-b4f8-5800d7e9375c",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -16011,19 +16119,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "63ba8185-eacb-490b-b9af-58c3aee7690b",
+             *         "id": "9868fe8a-440f-45cb-a67d-874b3f4b8454",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "ae3f910d-edae-46b1-858a-5bd5c24a4b48",
+             *         "id": "93db478d-f448-4766-94bc-732bfd624eaa",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "0c304f2b-9788-4f8f-b39f-a5922ac3026a",
+             *         "id": "692ca573-af2d-4a44-901c-5a9377562c2e",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "29796f4b-9fae-4e4f-90d5-bc4035d76cee",
+             *         "id": "4c35f319-bb9a-4d89-bc37-e157b2498c67",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -16128,6 +16236,24 @@ export interface components {
         TransportProtocol: "Udp" | "Tcp";
         /** @description No payload. Present only so the envelope keeps its shape. */
         TupleUnit: Record<string, never>;
+        /**
+         * @description A host known only because another device reported it: an LLDP/CDP neighbour advertised it, or a
+         *     switch learned its MAC. Reported on every scan until a person confirms, merges or dismisses it,
+         *     or a scan reaches the device.
+         */
+        UnconfirmedHost: {
+            /**
+             * Format: uuid
+             * @description The host, so the UI can open it. `None` once it has been deleted.
+             */
+            host_id: string | null;
+            /** @description The identifier it is known by: a chassis id for a neighbour, a MAC for a learned device. */
+            identifier: string;
+            /** @description The `sysName` a neighbour advertised for it, where it sent one. */
+            sys_name: string | null;
+            /** @description What reported it. */
+            via: components["schemas"]["InferredVia"];
+        };
         /** @description An integration the latest scans found on hosts with no credential of it, still uncovered now. */
         UncoveredIntegration: {
             /**
@@ -16215,6 +16341,8 @@ export interface components {
          *     Server will sync children (create new, update existing, delete removed) only if provided.
          */
         UpdateHostRequest: {
+            /** @description Asset tag. */
+            asset_tag?: string | null;
             /**
              * @description Credential assignments for this host.
              *     If provided, replaces all existing credential assignments.
@@ -16222,6 +16350,7 @@ export interface components {
             credential_assignments?: components["schemas"]["CredentialAssignment"][] | null;
             /** @description Free-text notes about the host. */
             description?: string | null;
+            device_type?: components["schemas"]["DeviceType"] | null;
             /**
              * Format: date-time
              * @description Optional: expected updated_at timestamp for optimistic locking.
@@ -16246,20 +16375,33 @@ export interface components {
              *     If None, existing ip_addresses are preserved.
              */
             ip_addresses?: components["schemas"]["IPAddressInput"][] | null;
+            /** @description Link to the host's own management interface. */
+            management_url?: string | null;
+            /** @description Hardware manufacturer, such as "Hirschmann". */
+            manufacturer?: string | null;
+            /** @description Hardware model. */
+            model?: string | null;
             /** @description Human-facing name for the host. */
             name: string;
+            os?: components["schemas"]["HostOs"] | null;
             /**
              * @description Ports to sync with this host.
              *     If Some, server will create/update/delete to match this list.
              *     If None, existing ports are preserved.
              */
             ports?: components["schemas"]["PortInput"][] | null;
+            /** @description Hardware serial number. */
+            serial_number?: string | null;
             /**
              * @description Services to sync with this host.
              *     If Some, server will create/update/delete to match this list.
              *     If None, existing services are preserved.
              */
             services?: components["schemas"]["ServiceInput"][] | null;
+            /** @description Administrative contact. */
+            sys_contact?: string | null;
+            /** @description Physical location. */
+            sys_location?: string | null;
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -16324,7 +16466,7 @@ export interface components {
         /**
          * @description Whether the vendor publishes and supports the API a credential type talks to.
          *
-         *     Deliberately *not* folded into [`CredentialStability`], because the two describe different
+         *     Deliberately *not* folded into [`Stability`], because the two describe different
          *     things and change independently. Stability is about our own maturity and is meant to be retired
          *     by promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API
          *     that our promotion does not change. Collapsing them would force an integration built on a
@@ -21774,6 +21916,47 @@ export interface operations {
             };
         };
     };
+    confirm_host: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Host ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
+                };
+            };
+            /** @description The host is already confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Host not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     consolidate_hosts: {
         parameters: {
             query?: never;
@@ -21807,6 +21990,47 @@ export interface operations {
                 };
             };
             /** @description One or both hosts not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    dismiss_host: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Host ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host dismissed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
+                };
+            };
+            /** @description The host is already confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Host not found */
             404: {
                 headers: {
                     [name: string]: unknown;

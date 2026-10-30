@@ -476,6 +476,7 @@ const WARNING_PARAMS = {
 	LldpPortAmbiguous: portParams,
 
 	ProvisionalSubnetInferred: (w) => ({ count: w.length }),
+	UnconfirmedHostInferred: (w) => ({ count: w.length }),
 
 	// One per session by construction — the pass runs once and is cut short at most once — so this
 	// reads the single occurrence rather than summing.
@@ -799,6 +800,11 @@ function examplesOf(group_: DiscoveryWarning[], hostName: HostNameLookup): Warni
 				return [describePort(w, hostName)];
 			case 'ProvisionalSubnetInferred':
 				return [describeProvisionalSubnet(w, hostName)];
+			// Each host, linking to it, beside what it is known by.
+			case 'UnconfirmedHostInferred': {
+				const host = hostSubject(w.host_id, hostName);
+				return host ? [{ near: host, nearText: w.identifier, far: null, farText: '' }] : [];
+			}
 			// The hosts a credential would be added for, one per line, each linking to its host.
 			case 'IntegrationWithoutCredential': {
 				const host = hostSubject(w.host_id, hostName);

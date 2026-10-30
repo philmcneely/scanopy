@@ -424,6 +424,10 @@ async fn an_assumed_range_carries_the_evidence_of_the_scan_that_created_it() {
         )),
         AttributeSource::LldpNeighbourAddress,
     );
+    // An assumed range is an inferred subnet, the way the server creates one.
+    assumed.base.source = crate::server::shared::types::entities::EntitySource::Inferred {
+        via: crate::server::shared::types::entities::InferredVia::ReportedAddress,
+    };
     let assumed = storage.subnets.create(&assumed).await.unwrap();
     let measured = storage
         .subnets

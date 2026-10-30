@@ -658,6 +658,8 @@ pub enum DiscoveryWarning {
     LldpPortAmbiguous(UnresolvedPort),
     /// A range was created from the addresses unplaceable far ends publish for themselves.
     ProvisionalSubnetInferred(ProvisionalSubnet),
+    /// A host is known only from another device's report and awaits confirmation.
+    UnconfirmedHostInferred(UnconfirmedHost),
     /// Link resolution ran out of its time budget, so this scan's links are incomplete.
     ///
     /// The pass runs on the completion request, which the daemon will abandon at its own timeout —
@@ -833,6 +835,25 @@ pub struct ProvisionalSubnet {
     pub widened_by_vlan: bool,
 }
 
+/// A host known only because another device reported it: an LLDP/CDP neighbour advertised it, or a
+/// switch learned its MAC. Reported on every scan until a person confirms, merges or dismisses it,
+/// or a scan reaches the device.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
+pub struct UnconfirmedHost {
+    /// The host, so the UI can open it. `None` once it has been deleted.
+    #[serde(default)]
+    #[schema(required)]
+    pub host_id: Option<Uuid>,
+    /// What reported it.
+    pub via: crate::server::shared::types::entities::InferredVia,
+    /// The identifier it is known by: a chassis id for a neighbour, a MAC for a learned device.
+    pub identifier: String,
+    /// The `sysName` a neighbour advertised for it, where it sent one.
+    #[serde(default)]
+    #[schema(required)]
+    pub sys_name: Option<String>,
+}
+
 /// A neighbour whose far-end host resolved but whose far-end *port* did not.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
 pub struct UnresolvedPort {
@@ -948,6 +969,7 @@ pub enum DiscoveryWarningCode {
     LldpPortNotFound,
     LldpPortAmbiguous,
     ProvisionalSubnetInferred,
+    UnconfirmedHostInferred,
     NeighbourResolutionIncomplete,
     FdbResolutionIncomplete,
     OutdatedDaemonFormat,
@@ -1050,6 +1072,7 @@ impl DiscoveryWarning {
             Self::LldpPortNotFound(_) => DiscoveryWarningCode::LldpPortNotFound,
             Self::LldpPortAmbiguous(_) => DiscoveryWarningCode::LldpPortAmbiguous,
             Self::ProvisionalSubnetInferred(_) => DiscoveryWarningCode::ProvisionalSubnetInferred,
+            Self::UnconfirmedHostInferred(_) => DiscoveryWarningCode::UnconfirmedHostInferred,
             Self::NeighbourResolutionIncomplete { .. } => {
                 DiscoveryWarningCode::NeighbourResolutionIncomplete
             }
@@ -1132,6 +1155,7 @@ impl DiscoveryWarning {
             | Self::LldpPortNotFound(_)
             | Self::LldpPortAmbiguous(_)
             | Self::ProvisionalSubnetInferred(_)
+            | Self::UnconfirmedHostInferred(_)
             | Self::NeighbourResolutionIncomplete { .. }
             | Self::FdbResolutionIncomplete { .. }
             | Self::OutdatedDaemonFormat { .. }
@@ -1203,6 +1227,7 @@ impl DiscoveryWarning {
             | Self::LldpPortNotFound(_)
             | Self::LldpPortAmbiguous(_)
             | Self::ProvisionalSubnetInferred(_)
+            | Self::UnconfirmedHostInferred(_)
             | Self::NeighbourResolutionIncomplete { .. }
             | Self::FdbResolutionIncomplete { .. }
             | Self::OutdatedDaemonFormat { .. }

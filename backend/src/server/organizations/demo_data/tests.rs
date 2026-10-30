@@ -146,7 +146,7 @@ fn a_host_is_known_only_by_inference() {
     assert!(
         demo.hosts_with_services
             .iter()
-            .any(|hws| hws.host.base.source == EntitySource::Inferred),
+            .any(|hws| matches!(hws.host.base.source, EntitySource::Inferred { .. })),
         "expected at least one host with EntitySource::Inferred (never contacted directly)"
     );
 }

@@ -429,3 +429,29 @@ fn a_relabelled_device_reports_its_new_asset_tag_on_the_next_scan() {
         Some("IT-09001")
     );
 }
+
+/// A person's typed fact outranks every scan, so a payload claiming one is clamped to
+/// `Unspecified`, keeping the value. What a daemon legitimately read is left alone.
+#[test]
+fn a_payload_cannot_claim_a_person_typed_a_host_fact() {
+    let mut base = nameless_host().base;
+    base.model = Some(Attributed::new(
+        HostModelValue("RS20".into()),
+        AttributeSource::Manual,
+    ));
+    base.asset_tag = Some(probed(HostAssetTagValue("A-1".into())));
+    assert!(base.reject_manual_attribute_claims());
+    assert_eq!(
+        base.model.as_ref().map(|v| v.source()),
+        Some(AttributeSource::Unspecified)
+    );
+    assert_eq!(
+        base.model.as_ref().map(|v| v.value().0.clone()),
+        Some("RS20".to_string())
+    );
+    assert_eq!(
+        base.asset_tag.as_ref().map(|v| v.source()),
+        Some(AttributeSource::Probe(ClientProbe::Snmp))
+    );
+    assert!(!base.reject_manual_attribute_claims());
+}

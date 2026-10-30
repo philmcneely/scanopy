@@ -435,6 +435,8 @@ impl Host {
     /// The device type this host's icon shows.
     ///
     /// The ladder, first answer wins:
+    /// 0. The device type a person chose (`matched_device_type` at `Manual`). They are describing
+    ///    a device no scan identified, so nothing a scan infers displaces it.
     /// 1. The highest-precedence device type the host's own services say it is
     ///    ([`DeviceTypeImplication::Is`]). A matched definition names the product the host runs, so
     ///    it outranks the OS.
@@ -499,18 +501,27 @@ impl Host {
             service_name: service.base.name.clone(),
         };
 
+        let matched = self
+            .base
+            .matched_device_type
+            .as_ref()
+            .filter(|matched| matched.value().0 != DeviceType::Unidentified);
+        // A device type a person chose outranks everything a scan infers, a service's included.
+        if let Some(typed) = matched.filter(|m| m.source() == AttributeSource::Manual) {
+            return (
+                typed.value().0,
+                HostDeviceTypeSource::Matched {
+                    source: typed.source(),
+                },
+            );
+        }
         if let Some((device_type, service)) = highest(|implication| match implication {
             DeviceTypeImplication::Is(device_type) => Some(device_type),
             _ => None,
         }) {
             return (device_type, from_service(service));
         }
-        if let Some(matched) = self
-            .base
-            .matched_device_type
-            .as_ref()
-            .filter(|matched| matched.value().0 != DeviceType::Unidentified)
-        {
+        if let Some(matched) = matched {
             return (
                 matched.value().0,
                 HostDeviceTypeSource::Matched {

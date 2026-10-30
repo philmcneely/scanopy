@@ -421,6 +421,21 @@ fn a_matched_device_type_ranks_below_services_and_above_the_os() {
     );
 }
 
+/// A device type a person chose outranks even a service that says what the host is.
+#[test]
+fn a_device_type_a_person_chose_outranks_every_service() {
+    use crate::server::hosts::r#impl::attributes::HostMatchedDeviceTypeValue;
+    let mut host = host_with_os(None);
+    host.base.matched_device_type = Some(Attributed::new(
+        HostMatchedDeviceTypeValue(DeviceType::Switch),
+        AttributeSource::Manual,
+    ));
+    assert_eq!(
+        host.device_type(&[service(Box::new(TrueNAS))], []),
+        DeviceType::Switch
+    );
+}
+
 /// The source names the rung that won, so a stored match carries its own source and a type read
 /// off a service or the OS says what it was derived from.
 #[test]

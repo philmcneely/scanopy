@@ -20,10 +20,12 @@ const TIMESTAMP: FieldFormat = FieldFormat::Timestamp;
 const HOST: &[F] = &[
     F::new("name", "Name", G::Identity)
         .source("name_source")
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("hostname", "Hostname", G::Identity)
         .source("hostname_source")
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("interface_ip", "IP Addresses", G::Network)
         .via(
             &[Hop::children(E::IPAddress, "host_id")],
@@ -49,8 +51,12 @@ const HOST: &[F] = &[
         .source("os_source")
         .format(FieldFormat::OperatingSystem)
         .summary(),
-    F::new("manufacturer", "Manufacturer", G::Device).source("manufacturer_source"),
-    F::new("model", "Model", G::Device).source("model_source"),
+    F::new("manufacturer", "Manufacturer", G::Device)
+        .source("manufacturer_source")
+        .searchable(),
+    F::new("model", "Model", G::Device)
+        .source("model_source")
+        .searchable(),
     F::new("serial_number", "Serial Number", G::Identity)
         .source("serial_number_source")
         .format(FieldFormat::Identifier),
@@ -63,7 +69,9 @@ const HOST: &[F] = &[
     F::new("software_revision", "Software Revision", G::Device)
         .source("software_revision_source")
         .format(FieldFormat::Identifier),
-    F::new("sys_name", "System Name", G::Identity).source("sys_name_source"),
+    F::new("sys_name", "System Name", G::Identity)
+        .source("sys_name_source")
+        .searchable(),
     F::new("sys_descr", "System Description", G::Device).source("sys_descr_source"),
     F::new("sys_object_id", "System OID", G::Device)
         .source("sys_object_id_source")
@@ -72,7 +80,8 @@ const HOST: &[F] = &[
     F::new("sys_contact", "Contact", G::Device).source("sys_contact_source"),
     F::new("chassis_id", "Chassis ID", G::Identity)
         .source("chassis_id_source")
-        .format(FieldFormat::Identifier),
+        .format(FieldFormat::Identifier)
+        .searchable(),
     F::new("management_url", "Management URL", G::Device).source("management_url_source"),
     DESCRIPTION,
     SOURCE,
@@ -83,12 +92,14 @@ const IP_ADDRESS: &[F] = &[
     F::new("ip_address", "IP Address", G::Network)
         .source("ip_address_source")
         .format(FieldFormat::Identifier)
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("mac_address", "MAC Address", G::Network)
         .source("mac_address_source")
         .format(FieldFormat::Identifier)
-        .summary(),
-    F::new("name", "Name", G::Identity),
+        .summary()
+        .searchable(),
+    F::new("name", "Name", G::Identity).searchable(),
     F::new("host_id", "Host", G::Relationships)
         .entity(&[Hop::parent(E::Host, "host_id")])
         .summary(),
@@ -113,14 +124,17 @@ const IP_ADDRESS: &[F] = &[
 ];
 
 const INTERFACE: &[F] = &[
-    F::new("display_name", "Interface", G::Identity).summary(),
+    F::new("display_name", "Interface", G::Identity)
+        .summary()
+        .searchable(),
     F::new("host_id", "Host", G::Relationships)
         .entity(&[Hop::parent(E::Host, "host_id")])
         .summary(),
     F::new("mac_address", "MAC Address", G::Network)
         .source("mac_address_source")
         .format(FieldFormat::Identifier)
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("speed_bps", "Speed", G::Network)
         .format(FieldFormat::BitsPerSecond)
         .summary(),
@@ -131,16 +145,18 @@ const INTERFACE: &[F] = &[
     F::new("native_vlan_id", "Native VLAN", G::Network)
         .entity(&[Hop::parent(E::Vlan, "native_vlan_id")])
         .source("vlan_membership_source")
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("vlan_ids", "Tagged VLANs", G::Network)
         .entity(&[Hop::parent(E::Vlan, "vlan_ids")])
         .source("vlan_membership_source")
-        .many(),
+        .many()
+        .searchable(),
     F::new("ip_address_id", "IP Address", G::Network)
         .entity(&[Hop::parent(E::IPAddress, "ip_address_id")]),
-    F::new("if_name", "ifName", G::Identity),
-    F::new("if_descr", "ifDescr", G::Identity),
-    F::new("if_alias", "Alias", G::Identity),
+    F::new("if_name", "ifName", G::Identity).searchable(),
+    F::new("if_descr", "ifDescr", G::Identity).searchable(),
+    F::new("if_alias", "Alias", G::Identity).searchable(),
     F::new("if_type", "ifType", G::Identity),
     F::new("if_index", "Index", G::Identity).format(FieldFormat::Number),
     F::new("ip_configured", "IP Configured", G::Network).format(FieldFormat::Boolean),
@@ -152,10 +168,11 @@ const INTERFACE: &[F] = &[
 ];
 
 const SERVICE: &[F] = &[
-    F::new("name", "Name", G::Identity).summary(),
+    F::new("name", "Name", G::Identity).summary().searchable(),
     F::new("service_definition", "Service Type", G::Identity)
         .metadata(Fx::ServiceDefinitions)
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("host", "Host", G::Relationships)
         .entity(&[Hop::parent(E::Host, "host_id")])
         .summary(),
@@ -174,12 +191,14 @@ const SERVICE: &[F] = &[
         .entity(&[Hop::parent(E::Service, "virtualization_service_id")]),
     F::new("container_name", "Container Name", G::Virtualization)
         .field("virtualization_metadata.details.container_name")
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("container_id", "Container ID", G::Virtualization)
         .field("virtualization_metadata.details.container_id")
         .format(FieldFormat::Identifier),
     F::new("compose_project", "Compose Project", G::Virtualization)
-        .field("virtualization_metadata.details.compose_project"),
+        .field("virtualization_metadata.details.compose_project")
+        .searchable(),
     F::new("guest_state", "Container State", G::Virtualization)
         .field("virtualization_metadata.details.state")
         .metadata(Fx::GuestStates)
@@ -212,11 +231,12 @@ const BINDING: &[F] = &[
 ];
 
 const SUBNET: &[F] = &[
-    F::new("name", "Name", G::Identity).summary(),
+    F::new("name", "Name", G::Identity).summary().searchable(),
     F::new("cidr", "CIDR", G::Network)
         .source("cidr_source")
         .format(FieldFormat::Identifier)
-        .summary(),
+        .summary()
+        .searchable(),
     F::new("subnet_type", "Subnet Type", G::Identity)
         .metadata(Fx::SubnetTypes)
         .summary(),
@@ -234,8 +254,9 @@ const SUBNET: &[F] = &[
 const VLAN: &[F] = &[
     F::new("vlan_number", "VLAN Number", G::Network)
         .format(FieldFormat::Number)
-        .summary(),
-    F::new("name", "Name", G::Identity).summary(),
+        .summary()
+        .searchable(),
+    F::new("name", "Name", G::Identity).summary().searchable(),
     DESCRIPTION.summary(),
     F::new("subnet_ids", "Subnets", G::Network)
         .entity(&[Hop::parent(E::Subnet, "subnet_ids")])

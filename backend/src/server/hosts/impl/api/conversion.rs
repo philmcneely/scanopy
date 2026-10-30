@@ -17,6 +17,7 @@ impl HostResponse {
             updated_at,
             last_seen_at,
             first_discovery_id,
+            dismissed_at,
             last_discovery_id,
             name,
             // Derived from the fields below on the way out; nothing to carry back in.
@@ -89,6 +90,7 @@ impl HostResponse {
             last_seen_at: *last_seen_at,
             last_discovery_id: *last_discovery_id,
             first_discovery_id: *first_discovery_id,
+            dismissed_at: *dismissed_at,
             base: HostBase {
                 name: host_name_from_parts(name.clone(), *name_source),
                 site_id: *site_id,
@@ -202,6 +204,7 @@ impl HostResponse {
             lineage_id: _,
             last_discovery_id,
             first_discovery_id,
+            dismissed_at,
             base,
         } = host;
 
@@ -255,6 +258,7 @@ impl HostResponse {
             hostname_source: hostname.as_ref().map(|v| v.source()).unwrap_or_default(),
             hostname: attribution::text_of(&hostname),
             description,
+            dismissed_at,
             source,
             virtualization_metadata,
             virtualization_service_id,

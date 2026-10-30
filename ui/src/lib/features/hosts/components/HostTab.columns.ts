@@ -51,7 +51,7 @@ import {
 	hosts_snmp_sysName,
 	hosts_snmp_sysObjectId
 } from '$lib/paraglide/messages';
-import { entitySourceItems } from '$lib/shared/utils/entity-source';
+import { entitySourceWithConfirmationItems } from '$lib/shared/utils/entity-source';
 import {
 	virtualizationGroupKey,
 	virtualizationGroupLabel,
@@ -307,7 +307,7 @@ export function hostColumns(ctx: HostColumnsContext) {
 				filterLabel: (id) => entitySources.getName(id),
 				// The server groups on the raw `source.type`.
 				getGroupValue: (host) => host.source.type,
-				display: { order: 1, getItems: (host) => entitySourceItems(host.source) }
+				display: { order: 1, getItems: (host) => entitySourceWithConfirmationItems(host.source) }
 			},
 			// Hardware identity, off by default: populated only for hosts a credentialed scan
 			// reached. The options come from every stored value, and the server groups on the

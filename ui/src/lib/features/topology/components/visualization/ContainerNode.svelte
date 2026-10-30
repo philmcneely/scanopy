@@ -28,6 +28,7 @@
 	import type { TooltipContent } from '$lib/shared/actions/tooltip';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
+	import { getConfirmationTag } from '$lib/shared/utils/confirmation';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { queryClient, queryKeys } from '$lib/api/query-client';
 	import type { Tag, TagGroup } from '$lib/features/tags/types/base';
@@ -142,13 +143,15 @@
 	let entityType = $derived(containerSubject?.entityType);
 	let entitySite = $derived((sitesQuery.data ?? []).find((n) => n.id === entity?.site_id));
 
-	// Staleness pill, judged on that entity alone with `getFreshnessTag`, the same helper element
-	// cards and inventory badges use.
+	// The status pill, judged on that entity alone with the helpers element cards and inventory
+	// badges use: Unconfirmed (a subnet whose range was assumed, a device another one reported)
+	// ahead of Stale, as on element cards.
 	let staleTag = $derived(
 		entity && entityType
-			? getFreshnessTag(entity, entitySite, {
-					entityTypeLabel: entities.getName(entityType) || undefined
-				})
+			? (getConfirmationTag(entity) ??
+					getFreshnessTag(entity, entitySite, {
+						entityTypeLabel: entities.getName(entityType) || undefined
+					}))
 			: null
 	);
 

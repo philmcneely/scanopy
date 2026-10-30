@@ -325,6 +325,7 @@ fn create_host(
         last_seen_at: now,
         last_discovery_id: None,
         first_discovery_id: None,
+        dismissed_at: None,
         id: host_id,
         created_at: now,
         updated_at: now,

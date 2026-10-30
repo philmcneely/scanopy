@@ -4,7 +4,6 @@
 	import AttributeSourceTag from '$lib/shared/components/data/AttributeSourceTag.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import type { TagProps } from '$lib/shared/components/data/types';
-	import { deviceTypeSourceTag } from '$lib/features/hosts/device-type-source';
 	import { type HostOs } from '$lib/features/hosts/host-os';
 	import OsTag from '../../OsTag.svelte';
 	import DeviceTypeLabel from '../../DeviceTypeLabel.svelte';
@@ -15,7 +14,6 @@
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
 		containerNetworkTypes,
-		deviceTypes,
 		entities,
 		entitySources,
 		guestStates,
@@ -31,7 +29,6 @@
 	import { useServicesByIds } from '$lib/features/services/queries';
 	import { useHostSummariesQuery } from '$lib/features/hosts/queries';
 	import { useInterfacesQuery } from '$lib/features/interfaces/queries';
-	import { sysContactEmail } from '$lib/features/hosts/sys-contact';
 	import {
 		collectionLookup,
 		entityFieldLabel,
@@ -49,7 +46,6 @@
 		common_source,
 		common_status,
 		common_virtualization,
-		hosts_deviceType,
 		hosts_deviceFacts_composeProject,
 		hosts_deviceFacts_containerId,
 		hosts_deviceFacts_containerName,
@@ -57,7 +53,6 @@
 		hosts_deviceFacts_guestName,
 		hosts_deviceFacts_guestType,
 		hosts_deviceFacts_identityGroup,
-		hosts_deviceFacts_locationGroup,
 		hosts_deviceFacts_networkType,
 		hosts_deviceFacts_vmId
 	} from '$lib/paraglide/messages';
@@ -234,18 +229,6 @@
 		}
 	});
 
-	// Shown even when nothing identifies the host: "Unidentified" is the answer, not a missing value.
-	// Its tag names the stored match's source, or what the type was derived from. A host not yet
-	// saved has neither.
-	let deviceTypeFact = $derived.by((): Fact => {
-		const deviceType = host.device_type ?? 'Unidentified';
-		return {
-			...sourceless(hosts_deviceType(), deviceTypes.getName(deviceType)),
-			deviceType,
-			sourceTag: host.device_type_source ? deviceTypeSourceTag(host.device_type_source) : undefined
-		};
-	});
-
 	// How the host came to exist (discovered, imported, inferred from a neighbour, or created by
 	// hand). It describes the whole record, so it carries no per-field source of its own.
 	let entitySourceFact = $derived.by((): Fact => ({
@@ -260,9 +243,10 @@
 			[
 				{
 					title: hosts_deviceFacts_identityGroup(),
+					// Device type and the typed facts below are edited in `DeviceLabelFields`, which shows
+					// each with its source, so they are not repeated here.
 					facts: [
 						entitySourceFact,
-						deviceTypeFact,
 						registryFact('hostname'),
 						registryFact('sys_name'),
 						registryFact('chassis_id')
@@ -270,13 +254,7 @@
 				},
 				{
 					title: common_hardware(),
-					facts: [
-						registryFact('manufacturer'),
-						registryFact('model'),
-						registryFact('serial_number'),
-						registryFact('asset_tag'),
-						registryFact('sys_object_id')
-					]
+					facts: [registryFact('sys_object_id')]
 				},
 				{
 					title: hosts_deviceFacts_firmwareGroup(),
@@ -285,14 +263,6 @@
 						registryFact('firmware_revision'),
 						registryFact('software_revision'),
 						registryFact('sys_descr')
-					]
-				},
-				{
-					title: hosts_deviceFacts_locationGroup(),
-					facts: [
-						registryFact('sys_location'),
-						registryFact('sys_contact', { mailto: sysContactEmail(host.sys_contact) }),
-						registryFact('management_url', { link: true })
 					]
 				},
 				{

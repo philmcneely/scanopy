@@ -241,7 +241,7 @@ impl DiscoveryWarningCode {
             | Self::LldpPortNotFound
             | Self::LldpPortAmbiguous => &["count"],
 
-            Self::ProvisionalSubnetInferred => &["count"],
+            Self::ProvisionalSubnetInferred | Self::UnconfirmedHostInferred => &["count"],
 
             Self::NeighbourResolutionIncomplete => &["budget_seconds", "neighbours"],
             Self::FdbResolutionIncomplete => &["budget_seconds", "interfaces"],
@@ -323,6 +323,7 @@ impl DiscoveryWarningCode {
             // A range Scanopy proposes, not a fault: the segment is probably real and the operator
             // is being asked to confirm it, which is a different thing from something going wrong.
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
             // The old format was translated, so this scan lost nothing. It reports a daemon
             // that will lose something once the compatibility window closes.
             | Self::OutdatedDaemonFormat
@@ -381,6 +382,7 @@ impl DiscoveryWarningCode {
             // The one warning with a resolution flow of its own, and the one that repeats on
             // every scan until someone answers it.
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
             // Duplicate host records are a Scanopy-side data problem, and consolidating them is a
             // shipped action.
             | Self::LldpNeighbourAmbiguous
@@ -523,6 +525,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::LldpPortNotFound => "Advertised port not found",
             Self::LldpPortAmbiguous => "Advertised port not unique",
             Self::ProvisionalSubnetInferred => "Address range assumed, please confirm",
+            Self::UnconfirmedHostInferred => "Host known only from another device, please confirm",
             Self::NeighbourResolutionIncomplete => "Link resolution did not finish",
             Self::FdbResolutionIncomplete => "FDB link resolution did not finish",
             Self::OutdatedDaemonFormat => "Daemon is outdated",
@@ -700,6 +703,9 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::ProvisionalSubnetInferred => {
                 "{count} subnet(s) on this site have a range Scanopy assumed rather than read, because devices reported addresses in them that nothing scanned holds. Nothing advertises a netmask, so the range around an address is a convention — confirm or correct it on the subnet. No daemon has an interface on these ranges, and they are reported on every scan until confirmed."
             }
+            Self::UnconfirmedHostInferred => {
+                "{count} host(s) on this site are known only because another device reported them: an LLDP/CDP neighbour advertised them, or a switch learned their MAC on one of its ports. No scan has reached them. Confirm and label, merge or dismiss each one on the host. They are reported on every scan until confirmed."
+            }
             Self::NeighbourResolutionIncomplete => {
                 "Matching LLDP/CDP neighbours to the devices and ports they name was stopped after {budget_seconds}s, with {neighbours} interface(s) advertising a neighbour on this site. Physical Topology is missing links this scan would otherwise have drawn; the next scan retries from scratch. Narrow what the scan covers, or split the network across daemons, if it keeps happening."
             }
@@ -788,6 +794,7 @@ impl DiscoveryWarningCode {
             | Self::NeighbourResolutionIncomplete
             | Self::OutdatedDaemonFormat
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
             | Self::ProxmoxGuestBehindNode
             | Self::ProxmoxGuestIsolated
             | Self::ProxmoxGuestOutsideScan
@@ -872,6 +879,7 @@ impl DiscoveryWarningCode {
             | Self::NeighbourResolutionIncomplete
             | Self::OutdatedDaemonFormat
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
             | Self::ProxmoxGuestOutsideScan
             | Self::ProxmoxGuestBehindNode
             | Self::ProxmoxGuestIsolated
