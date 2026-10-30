@@ -69,7 +69,8 @@
 		onToggleSort,
 		onClickRow,
 		onToggleAll,
-		headerControl = undefined
+		headerControl = undefined,
+		pinHeaderBelow = null
 	}: {
 		/** Ungrouped rows. Null when the list is grouped. */
 		items: T[] | null;
@@ -111,7 +112,59 @@
 		 * the caller, which holds the filter state, so the table stays a renderer.
 		 */
 		headerControl?: Snippet<[EntityColumn<T>]>;
+		/**
+		 * The sticky element the header row pins beneath while the page scrolls past the table,
+		 * such as the list's toolbar. Null leaves the header scrolling with the rows.
+		 */
+		pinHeaderBelow?: HTMLElement | null;
 	} = $props();
+
+	/*
+	 * The header row pins by translating, not with `position: sticky`. The wrapper scrolls
+	 * sideways, which makes it the sticky containing block, so a sticky header would pin to the
+	 * wrapper rather than to the page. The shift is how far the pin line sits below the table's
+	 * top, held between 0 and the table's last row, so the header never leaves the table.
+	 */
+	let wrapperEl: HTMLDivElement | null = $state(null);
+	let theadEl: HTMLTableSectionElement | null = $state(null);
+	let headerShift = $state(0);
+
+	$effect(() => {
+		const wrapper = wrapperEl;
+		const below = pinHeaderBelow;
+		if (!wrapper || !below) {
+			headerShift = 0;
+			return;
+		}
+		let frame = 0;
+		const measure = () => {
+			frame = 0;
+			const top = wrapper.getBoundingClientRect().top;
+			const room = wrapper.offsetHeight - (theadEl?.offsetHeight ?? 0);
+			const shift = below.getBoundingClientRect().bottom - top;
+			headerShift = Math.max(0, Math.min(shift, room));
+		};
+		const schedule = () => {
+			if (!frame) frame = requestAnimationFrame(measure);
+		};
+		// Capture catches the scroll of `main`, the element that scrolls, as well as the window's.
+		window.addEventListener('scroll', schedule, { capture: true, passive: true });
+		window.addEventListener('resize', schedule, { passive: true });
+		// Resizes cover rows loading and the toolbar growing; visibility covers a tab switch.
+		const resizes = new ResizeObserver(schedule);
+		resizes.observe(wrapper);
+		resizes.observe(below);
+		const visibility = new IntersectionObserver(schedule);
+		visibility.observe(wrapper);
+		measure();
+		return () => {
+			window.removeEventListener('scroll', schedule, { capture: true });
+			window.removeEventListener('resize', schedule);
+			resizes.disconnect();
+			visibility.disconnect();
+			if (frame) cancelAnimationFrame(frame);
+		};
+	});
 
 	/**
 	 * Column identity is keyed on the field keys, not the array.
@@ -412,7 +465,7 @@
 
 	Note this wrapper is the containing block for `position: sticky`, so a sticky
 	header here would offset from the wrapper rather than the viewport — which is
-	why the header scrolls with the rows instead of pinning.
+	why the header pins by translating instead (`pinHeaderBelow`).
 
 	`relative` is what makes it the containing block for *absolute* descendants as
 	well, and that is load-bearing rather than tidy. `FieldValue` renders an
@@ -426,6 +479,7 @@
 -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
+	bind:this={wrapperEl}
 	class="entity-table relative isolate overflow-x-auto"
 	style:--pin-select-width="{selectable ? selectWidth : 0}px"
 	style:--pin-actions-width="{getActions ? actionsWidth : 0}px"
@@ -436,7 +490,11 @@
 >
 	<table class="w-full border-collapse text-sm">
 		<caption class="sr-only">{caption}</caption>
-		<thead>
+		<thead
+			bind:this={theadEl}
+			class:pinned={headerShift > 0}
+			style:transform={headerShift > 0 ? `translateY(${headerShift}px)` : undefined}
+		>
 			<tr>
 				{#if selectable}
 					<th

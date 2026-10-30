@@ -944,6 +944,10 @@
 	// The bulk-tag island is fixed to the bottom of the viewport, and centred over this list
 	// rather than the window, so it tracks the list's horizontal extent (sidebar collapse, resize).
 	let rootRef: HTMLDivElement | null = $state(null);
+	/** The sticky toolbar, which the table's header row pins beneath. */
+	let toolbarRef: HTMLDivElement | null = $state(null);
+	/** The island's height, for the space it reserves below the last row. */
+	let islandHeight = $state(0);
 	let islandFrame = $state({ left: 0, width: 0 });
 
 	$effect(() => {
@@ -1172,6 +1176,7 @@
 
 	<!-- Sticky Controls Bar -->
 	<div
+		bind:this={toolbarRef}
 		class="z-20 -mx-4 border-b bg-(--color-bg-body) px-4 pb-4 md:sticky md:top-0 {isStuck
 			? 'border-(--color-border) pt-4 shadow-lg'
 			: 'border-transparent'}"
@@ -1275,6 +1280,9 @@
 	     table left it under the last row. A hidden tab's wrapper sets `contain: paint`, which
 	     clips a fixed descendant. -->
 	{#if showTagIsland}
+		<!-- The island is out of flow, so this holds its height plus its 24px inset below the last
+		     row: the list scrolls far enough for the last row to clear it. -->
+		<div aria-hidden="true" style:height="{islandHeight + 24}px"></div>
 		<div
 			class="pointer-events-none fixed bottom-6 z-20 flex justify-center"
 			style:left="{islandFrame.left}px"
@@ -1282,6 +1290,7 @@
 		>
 			<div
 				data-keeps-selection
+				bind:offsetHeight={islandHeight}
 				onfocusin={() => (editingTags = true)}
 				onfocusout={(e) => {
 					if (!e.currentTarget.contains(e.relatedTarget as Node | null)) editingTags = false;
@@ -1370,6 +1379,7 @@
 		onClickRow={clickRow}
 		onToggleAll={() => toggleAllIn(flat)}
 		{headerControl}
+		pinHeaderBelow={toolbarRef}
 	/>
 {/snippet}
 
