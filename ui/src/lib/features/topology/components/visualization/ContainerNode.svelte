@@ -30,6 +30,7 @@
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
 	import { getConfirmationTag } from '$lib/shared/utils/confirmation';
 	import { entities } from '$lib/shared/stores/metadata';
+	import { entityUIConfig } from '$lib/shared/entity-ui-config';
 	import { queryClient, queryKeys } from '$lib/api/query-client';
 	import type { Tag, TagGroup } from '$lib/features/tags/types/base';
 	import { tagTooltip } from '$lib/features/tags/groups';
@@ -144,6 +145,14 @@
 	let entitySite = $derived((sitesQuery.data ?? []).find((n) => n.id === entity?.site_id));
 	// A subcontainer standing for an entity titles itself as that entity's pill.
 	let entityColor = $derived(entityType ? entities.getColorHelper(entityType).color : null);
+	// Its icon is the one every chip for that entity draws (a host's device type), so the title is
+	// the same chip as any other reference to it.
+	let chipIcon = $derived(
+		entity && entityType
+			? (entityUIConfig[entityType]?.displayComponent?.getChipIcon?.(entity as never) ??
+					entities.getIconComponent(entityType))
+			: null
+	);
 
 	// The status pill, judged on that entity alone with the helpers element cards and inventory
 	// badges use: Unconfirmed (a subnet whose range was assumed, a device another one reported)
@@ -470,6 +479,7 @@
 			{childSummary}
 			tooltip={headerTooltip}
 			{entityColor}
+			{chipIcon}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -492,6 +502,7 @@
 			{childSummary}
 			tooltip={headerTooltip}
 			{entityColor}
+			{chipIcon}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -533,6 +544,7 @@
 				{childSummary}
 				tooltip={headerTooltip}
 				{entityColor}
+				{chipIcon}
 				{staleTag}
 				countOnly={isInfraRule}
 				onToggleCollapse={handleChevronClick}

@@ -4,6 +4,7 @@
 	import { common_remove, common_unknown } from '$lib/paraglide/messages';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { tooltip, type TooltipContent } from '$lib/shared/actions/tooltip';
+	import type { Snippet } from 'svelte';
 
 	let {
 		icon = null,
@@ -22,7 +23,8 @@
 		onclick = undefined,
 		onmouseenter = undefined,
 		onmouseleave = undefined,
-		onRemove
+		onRemove,
+		leading
 	}: {
 		icon?: IconComponent | null;
 		color?: Color | null;
@@ -43,6 +45,9 @@
 		onmouseenter?: ((e: MouseEvent) => void) | undefined;
 		onmouseleave?: ((e: MouseEvent) => void) | undefined;
 		onRemove?: () => void;
+		/** Drawn inside the tag ahead of its icon, filling its left end: a container title's collapse
+		 *  button, so the title stays the same chip as any other reference to its entity. */
+		leading?: Snippet;
 	} = $props();
 
 	let interactive = $derived(!!href || !!onclick);
@@ -94,10 +99,11 @@
 	<span
 		class="inline-flex max-w-full min-w-0 items-center gap-1 {pill
 			? 'rounded-full'
-			: 'rounded-sm'} {displayLabel ? 'px-2' : 'px-1.5'} py-0.5 text-xs font-medium
+			: 'rounded-sm'} {leading ? 'pr-2' : displayLabel ? 'px-2' : 'px-1.5'} py-0.5 text-xs font-medium
 		{isUnknown ? unknownClasses : disabled ? 'bg-gray-700/30 text-tertiary' : `${bgColor} ${textColor}`}
 		{isShiny ? 'tag-shiny' : ''}"
 	>
+		{@render leading?.()}
 		{#if icon}
 			{@const Icon = icon}
 			<Icon size={16} class="{textColor} shrink-0" />

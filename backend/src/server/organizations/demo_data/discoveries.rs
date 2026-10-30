@@ -21,6 +21,7 @@ pub(super) fn generate_discoveries(
     subnets: &[Subnet],
     daemons: &[Daemon],
     hosts: &[&Host],
+    interfaces: &[Interface],
     credentials: &[Credential],
     now: DateTime<Utc>,
 ) -> Vec<Discovery> {
@@ -228,7 +229,7 @@ pub(super) fn generate_discoveries(
                         .chain(annex_range_warning(subnets, hosts))
                         // The two hosts it knew only from other devices' reports, which each
                         // resolve modal links back to as the scan that found it.
-                        .chain(unconfirmed_host_warnings(hosts))
+                        .chain(unconfirmed_host_warnings(hosts, interfaces))
                         .collect(),
                         // What each credential produced: SNMP collected from the network devices,
                         // the inventory script ran on jenkins-ci, and the backup NAS woke for the scan.
@@ -419,8 +420,11 @@ fn annex_range_warning(subnets: &[Subnet], hosts: &[&Host]) -> Option<DiscoveryW
 }
 
 /// One `UnconfirmedHostInferred` warning per unconfirmed demo host: the HQ scan reported each one,
-/// by the chassis ID a neighbour advertised or the MAC a switch learned.
-fn unconfirmed_host_warnings(hosts: &[&Host]) -> Vec<DiscoveryWarning> {
+/// by the chassis ID a neighbour advertised or the MAC a switch learned (on the host's interface).
+///
+/// Every unconfirmed host gets one: its resolve modal links back to this scan. A host with no
+/// identifier is a broken demo row, so it panics rather than quietly going without.
+fn unconfirmed_host_warnings(hosts: &[&Host], interfaces: &[Interface]) -> Vec<DiscoveryWarning> {
     hosts
         .iter()
         .filter_map(|host| {
@@ -432,7 +436,18 @@ fn unconfirmed_host_warnings(hosts: &[&Host]) -> Vec<DiscoveryWarning> {
                 .chassis_id
                 .as_ref()
                 .map(|c| c.value().to_string())
-                .or_else(|| host.display_name(&[]))?;
+                .or_else(|| {
+                    interfaces
+                        .iter()
+                        .filter(|i| i.base.host_id == host.id)
+                        .find_map(|i| i.base.mac_address.as_ref().map(|m| m.value().to_string()))
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "unconfirmed demo host {} has no chassis ID or interface MAC to be reported by",
+                        host.id
+                    )
+                });
             Some(DiscoveryWarning::UnconfirmedHostInferred(UnconfirmedHost {
                 host_id: Some(host.id),
                 via,

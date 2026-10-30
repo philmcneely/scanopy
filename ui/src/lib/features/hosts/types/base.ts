@@ -26,6 +26,8 @@ export type Host = components['schemas']['Host'] &
 		| 'virtualization_parent_host_id'
 		| 'virtualization_root_host_id'
 		| 'virtualization_depth'
+		| 'reported_by_host_ids'
+		| 'found_by_discovery_id'
 	>;
 /** A host with its addresses, as the summary and picker queries return it. */
 export type HostWithAddresses = Host & Pick<components['schemas']['HostResponse'], 'ip_addresses'>;
