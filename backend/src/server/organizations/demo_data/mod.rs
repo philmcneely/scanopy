@@ -205,8 +205,15 @@ impl DemoData {
         let api_keys = generate_api_keys(&daemons, now);
         bind_daemon_api_keys(&mut daemons, &api_keys);
         let topologies = generate_topologies(&sites, &tags, use_case, now);
-        let discoveries =
-            generate_discoveries(&sites, &subnets, &daemons, &hosts, &interfaces, &credentials, now);
+        let discoveries = generate_discoveries(
+            &sites,
+            &subnets,
+            &daemons,
+            &hosts,
+            &interfaces,
+            &credentials,
+            now,
+        );
         let shares = generate_shares(&topologies, &sites, user_id, now);
         let user_api_keys = generate_user_api_keys(&sites, organization_id, now);
 

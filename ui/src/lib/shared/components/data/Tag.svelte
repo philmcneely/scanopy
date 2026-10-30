@@ -99,7 +99,11 @@
 	<span
 		class="inline-flex max-w-full min-w-0 items-center gap-1 {pill
 			? 'rounded-full'
-			: 'rounded-sm'} {leading ? 'pr-2' : displayLabel ? 'px-2' : 'px-1.5'} py-0.5 text-xs font-medium
+			: 'rounded-sm'} {leading
+			? 'pr-2'
+			: displayLabel
+				? 'px-2'
+				: 'px-1.5'} py-0.5 text-xs font-medium
 		{isUnknown ? unknownClasses : disabled ? 'bg-gray-700/30 text-tertiary' : `${bgColor} ${textColor}`}
 		{isShiny ? 'tag-shiny' : ''}"
 	>
