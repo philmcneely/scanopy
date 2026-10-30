@@ -1828,19 +1828,17 @@ impl HostService {
                 .get_for_host(&created_host.id)
                 .await?;
             for iface in existing {
-                if kept_ids.contains(&iface.id)
-                    || self.still_learned_by_a_switch(&iface).await?
-                {
+                if kept_ids.contains(&iface.id) || self.still_learned_by_a_switch(&iface).await? {
                     continue;
                 }
                 if let Err(e) = self
-                        .interface_service
-                        .delete(
-                            &iface.id,
-                            authentication.clone(),
-                            DeletionReason::EntityNoLongerReported,
-                        )
-                        .await
+                    .interface_service
+                    .delete(
+                        &iface.id,
+                        authentication.clone(),
+                        DeletionReason::EntityNoLongerReported,
+                    )
+                    .await
                 {
                     tracing::warn!(
                         host_id = %created_host.id,

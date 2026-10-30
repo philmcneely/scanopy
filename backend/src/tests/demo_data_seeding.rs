@@ -296,12 +296,15 @@ async fn demo_seed_writes_daemon_subnets_and_the_demo_logins_api_keys() {
     );
 }
 
-/// The resolve modal names who reported each unconfirmed host, and it reads that off the list
-/// response. Red while `host_responses`, the list endpoint's builder, skipped `fill_unconfirmed_evidence`:
-/// the demo's two unconfirmed hosts came back with no reporter though the HQ switch named both,
-/// one over LLDP and one by the MAC its forwarding table learned.
+/// Everything the resolve modal shows for an unconfirmed host, for every unconfirmed demo host, as
+/// the list endpoint returns it: who reported it, the scan that found it, and an identifier to know
+/// it by (a chassis ID, or the MAC on its interface).
+///
+/// Each of these has gone missing once without anything failing: the reporter while
+/// `host_responses` skipped the fill, and the scan for the untitled forwarding-table host while the
+/// demo's warning builder skipped a host with no title.
 #[tokio::test]
-async fn demo_unconfirmed_hosts_list_the_switch_that_reported_them() {
+async fn demo_unconfirmed_hosts_carry_their_reporter_scan_and_identifier() {
     let (storage, services, _container) = test_services().await;
 
     let org = organization();
@@ -339,9 +342,10 @@ async fn demo_unconfirmed_hosts_list_the_switch_that_reported_them() {
         .find(|h| h.base.name.value().as_str() == "unifi-usw-48")
         .expect("the HQ switch is seeded");
 
+    // With children, as the Hosts list asks for them: the MAC rides on an interface.
     let responses = services
         .host_service
-        .host_responses(hosts, None, false)
+        .host_responses(hosts, None, true)
         .await
         .unwrap();
     for response in responses {
@@ -349,6 +353,21 @@ async fn demo_unconfirmed_hosts_list_the_switch_that_reported_them() {
             response.reported_by_host_ids,
             vec![switch.id],
             "unconfirmed host {} should be reported by the HQ switch",
+            response.id
+        );
+        assert!(
+            response.found_by_discovery_id.is_some(),
+            "unconfirmed host {} should link to the scan that found it",
+            response.id
+        );
+        let identified = response.chassis_id.is_some()
+            || response
+                .interfaces
+                .iter()
+                .any(|i| i.base.mac_address.is_some());
+        assert!(
+            identified,
+            "unconfirmed host {} should carry a chassis ID or an interface MAC",
             response.id
         );
     }

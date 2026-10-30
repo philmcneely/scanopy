@@ -204,7 +204,8 @@ impl HostService {
             .ip_address_service
             .get_all(StorableFilter::<IPAddress>::new_from_site_ids(&[site_id]).live())
             .await?;
-        let learned = crate::server::topology::service::fdb::learned_hosts(&interfaces, &ip_addresses);
+        let learned =
+            crate::server::topology::service::fdb::learned_hosts(&interfaces, &ip_addresses);
 
         let mut host_rows: HashMap<Uuid, Vec<Neighbor>> = HashMap::new();
         for row in self
@@ -212,7 +213,10 @@ impl HostService {
             .resolved_for_site(site_id, None)
             .await?
         {
-            host_rows.entry(row.interface_id).or_default().push(row.neighbor);
+            host_rows
+                .entry(row.interface_id)
+                .or_default()
+                .push(row.neighbor);
         }
 
         let mut ports: Vec<_> = learned.iter().collect();

@@ -96,8 +96,7 @@ impl DiscoveryWarningService {
             else {
                 continue;
             };
-            if found.contains_key(&host_id) || site_of.get(&host_id) != Some(&record.base.site_id)
-            {
+            if found.contains_key(&host_id) || site_of.get(&host_id) != Some(&record.base.site_id) {
                 continue;
             }
             if let DiscoveryWarning::UnconfirmedHostInferred(_) = record.into_warning() {

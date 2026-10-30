@@ -16,6 +16,7 @@
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostMergeModal from './HostMergeModal.svelte';
 	import UnconfirmedHostModal from './UnconfirmedHostModal.svelte';
+	import { unconfirmedEvidence } from '../unconfirmed-evidence';
 	import { isUnconfirmed } from '$lib/shared/utils/confirmation';
 	import HostExportModal from './HostExportModal.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -648,6 +649,7 @@
 <UnconfirmedHostModal
 	isOpen={showUnconfirmedHost}
 	host={resolvingHost}
+	known={resolvingHost ? unconfirmedEvidence(resolvingHost, interfacesQuery.data ?? []) : null}
 	onConfirmAndLabel={handleConfirmAndLabel}
 	onMerge={handleMergeUnconfirmed}
 	onDismiss={handleDismissUnconfirmed}
