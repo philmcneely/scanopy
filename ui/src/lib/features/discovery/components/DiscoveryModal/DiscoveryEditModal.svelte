@@ -33,7 +33,7 @@
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 	import { copyText } from '$lib/shared/utils/clipboard';
-	import { formatDiagnostics } from '../../utils/diagnostics';
+	import { runDiagnostics } from '../../utils/diagnostics';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { isPreUnifiedDaemon } from '$lib/features/daemons/utils';
 	import type { Host } from '$lib/features/hosts/types/base';
@@ -65,7 +65,6 @@
 		common_performance,
 		common_targets,
 		daemons_credentialWizardTargetRequired,
-		discovery_copyDiagnostics,
 		discovery_copyRunData,
 		discovery_couldNotGetSiteId,
 		discovery_createDiscovery,
@@ -150,13 +149,14 @@
 	let historicalCredentialResults = $derived(historicalResults?.credential_results ?? []);
 	/** Whether the copy button has anything to copy. */
 	let hasRunData = $derived(
-		historicalWarnings.length > 0 || historicalCredentialResults.length > 0
+		endedBadly || historicalWarnings.length > 0 || historicalCredentialResults.length > 0
 	);
 
 	/**
-	 * Put the run's warnings and credential results on the clipboard as recorded, for pasting into
-	 * an issue or a thread. Both tabs that show them copy the whole of both, so whichever tab the
-	 * reader is on, nothing the run recorded is left out.
+	 * Put the run on the clipboard as recorded, for pasting into an issue or a support thread: its
+	 * identifiers, versions, outcome and timings, then its warnings and credential results. Both
+	 * tabs that show them copy the whole of it, so whichever tab the reader is on, nothing the run
+	 * recorded is left out.
 	 *
 	 * The rendered report is the wrong thing to share: its sentences are this build's copy in the
 	 * reader's locale, its rows merge occurrences the backend deliberately kept apart, and its
@@ -167,21 +167,18 @@
 	 * likely to be sharing warnings with us.
 	 */
 	async function copyRunData() {
+		if (!historicalResults) return;
 		await copyToClipboard(
 			JSON.stringify(
-				{ warnings: historicalWarnings, credential_results: historicalCredentialResults },
+				{
+					run: runDiagnostics(historicalResults),
+					warnings: historicalWarnings,
+					credential_results: historicalCredentialResults
+				},
 				null,
 				2
 			)
 		);
-	}
-
-	/**
-	 * Put the run's identifiers, versions and timings on the clipboard as plain text, for a
-	 * support thread about a run that failed or was cancelled.
-	 */
-	async function copyDiagnostics() {
-		if (historicalResults) await copyToClipboard(formatDiagnostics(historicalResults));
 	}
 
 	async function copyToClipboard(text: string) {
@@ -750,10 +747,6 @@
 		if ((activeTab === 'scan' || activeTab === 'credentials') && hasRunData) {
 			const label = discovery_copyRunData();
 			list.push({ role: 'secondary', label, icon: Copy, onClick: copyRunData });
-		}
-		if (activeTab === 'scan' && endedBadly) {
-			const label = discovery_copyDiagnostics();
-			list.push({ role: 'secondary', label, icon: Copy, onClick: copyDiagnostics });
 		}
 		if (noDaemon) {
 			list.push({ role: 'cancel', label: common_cancel(), onClick: onClose });
