@@ -1,4 +1,3 @@
-import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { defineRegistryFields } from '$lib/shared/entity-fields/table';
 import type { EntityLookup } from '$lib/shared/entity-fields';
 import { entitySources } from '$lib/shared/stores/metadata';
@@ -96,7 +95,7 @@ export function vlanColumns(ctx: VlanColumnsContext) {
 				type: 'date',
 				// Identity-like: one header per timestamp.
 				groupable: false,
-				display: { recency: true, getItems: lastSeenItems(ctx.sites, 'Vlan') }
+				display: { recency: true }
 			},
 			created_at: { label: common_created(), type: 'date', display: { hiddenByDefault: true } },
 			updated_at: { label: common_updated(), type: 'date', display: { hiddenByDefault: true } }

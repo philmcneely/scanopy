@@ -121,6 +121,7 @@ impl HostService {
             .collect::<Vec<_>>();
         let mut responses = responses;
         self.place_in_virtualization_trees(&mut responses).await?;
+        self.fill_reported_by(&mut responses).await?;
 
         Ok(responses)
     }

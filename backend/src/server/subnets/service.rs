@@ -683,6 +683,17 @@ pub enum Placement {
 }
 
 impl SubnetService {
+    /// Live subnets on these sites whose range was assumed and not yet confirmed.
+    pub async fn unconfirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64, Error> {
+        self.storage
+            .count(
+                StorableFilter::<Subnet>::new_from_site_ids(site_ids)
+                    .live()
+                    .unconfirmed(true),
+            )
+            .await
+    }
+
     /// Place an address, inferring a range for it when nothing this site holds contains it.
     ///
     /// The single automatic-placement entry point. Every source of a discovered address goes

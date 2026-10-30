@@ -1,4 +1,3 @@
-import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { entityRef, type LabelledCardFieldItem } from '$lib/shared/components/data/types';
 import { tagNames } from '$lib/features/tags/columns';
 import {
@@ -192,8 +191,7 @@ export function serviceColumns(ctx: ServiceColumnsContext) {
 				staleFilter: true,
 				display: {
 					recency: true,
-					order: 1,
-					getItems: lastSeenItems(ctx.sites, 'Service')
+					order: 1
 				}
 			},
 			containerized_by: {

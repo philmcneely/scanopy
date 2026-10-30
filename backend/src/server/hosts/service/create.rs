@@ -1910,7 +1910,7 @@ impl HostService {
         Ok(self.get_all(filter).await?.len() as u64)
     }
 
-    /// Merge `proven` into `destination` with [`Self::consolidate_hosts`], the same merge a person
+    /// Merge `proven` into `destination` with [`Self::merge_hosts`], the same merge a person
     /// triggers from the API.
     async fn merge_same_device(
         &self,
@@ -1930,7 +1930,7 @@ impl HostService {
             host_id: destination.id,
             proven_by: proven.addresses.clone(),
         };
-        self.consolidate_hosts(destination, other, authentication.clone(), reason)
+        self.merge_hosts(destination, other, authentication.clone(), reason)
             .await
     }
 }

@@ -17,34 +17,34 @@
 	import {
 		common_back,
 		common_cancel,
-		common_consolidating,
+		common_merging,
 		common_next,
-		hosts_consolidateModal_chooseHost,
-		hosts_consolidateModal_credentialsMigrated,
-		hosts_consolidateModal_hostWillBeDeleted,
-		hosts_consolidateModal_interfacesMigrated,
-		hosts_consolidateModal_portsMigrated,
-		hosts_consolidateModal_previewSubtitle,
-		hosts_consolidateModal_selectHost,
-		hosts_consolidateModal_servicesMigrated,
-		hosts_consolidateModal_title,
-		hosts_consolidateModal_warningBody,
-		hosts_consolidateModal_warningTitle
+		hosts_mergeModal_chooseHost,
+		hosts_mergeModal_credentialsMigrated,
+		hosts_mergeModal_hostWillBeDeleted,
+		hosts_mergeModal_addressesMigrated,
+		hosts_mergeModal_portsMigrated,
+		hosts_mergeModal_previewSubtitle,
+		hosts_mergeModal_selectHost,
+		hosts_mergeModal_servicesMigrated,
+		hosts_mergeModal_title,
+		hosts_mergeModal_warningBody,
+		hosts_mergeModal_warningTitle
 	} from '$lib/paraglide/messages';
 
 	interface Props {
 		otherHost?: Host | null;
 		isOpen?: boolean;
-		onConsolidate: (otherHostId: string, destinationHostId: string) => Promise<void> | void;
+		onMerge: (otherHostId: string, destinationHostId: string) => Promise<void> | void;
 		onClose: () => void;
 	}
 
-	let { otherHost = null, isOpen = false, onConsolidate, onClose }: Props = $props();
+	let { otherHost = null, isOpen = false, onMerge, onClose }: Props = $props();
 
 	// TanStack Query hooks
 	//
 	// The destination picker only offers hosts on the same site as the host
-	// being consolidated away, a page at a time, searched on the server.
+	// being merged away, a page at a time, searched on the server.
 	//
 	// It is also gated on `isOpen`. This modal is rendered unconditionally by
 	// HostTab, so its script runs on first paint; as an unpaginated org-wide
@@ -69,33 +69,28 @@
 	let loading = $state(false);
 	let showPreview = $state(false);
 
-	// Every host on the page but the one being consolidated away. The server orders by the same
+	// Every host on the page but the one being merged away. The server orders by the same
 	// title the dropdown renders.
 	let availableHosts = $derived(
 		otherHost ? hostPicker.options.filter((host) => host.id !== otherHost.id) : []
 	);
 
-	// Build consolidation actions list
-	let consolidationActions = $derived(
+	// What the merge moves, then the deletion
+	let mergeActions = $derived(
 		(() => {
 			if (!otherHost || !selectedTargetHost) return [];
 
 			// Get children counts from query data
 			const services = servicesData.filter((s) => s.host_id === otherHost.id);
-			const interfaces = ipAddressesData.filter((i) => i.host_id === otherHost.id);
+			const addresses = ipAddressesData.filter((i) => i.host_id === otherHost.id);
 			const ports = portsData.filter((p) => p.host_id === otherHost.id);
 
-			const actions = [
-				{
-					id: 'delete',
-					name: hosts_consolidateModal_hostWillBeDeleted({ name: hostDisplayName(otherHost) })
-				}
-			];
+			const actions: { id: string; name: string }[] = [];
 
 			if (services.length > 0) {
 				actions.push({
 					id: 'services',
-					name: hosts_consolidateModal_servicesMigrated({
+					name: hosts_mergeModal_servicesMigrated({
 						count: services.length,
 						source: hostDisplayName(otherHost),
 						destination: hostDisplayName(selectedTargetHost)
@@ -103,11 +98,11 @@
 				});
 			}
 
-			if (interfaces.length > 0) {
+			if (addresses.length > 0) {
 				actions.push({
-					id: 'interfaces',
-					name: hosts_consolidateModal_interfacesMigrated({
-						count: interfaces.length,
+					id: 'addresses',
+					name: hosts_mergeModal_addressesMigrated({
+						count: addresses.length,
 						source: hostDisplayName(otherHost),
 						destination: hostDisplayName(selectedTargetHost)
 					})
@@ -117,7 +112,7 @@
 			if (ports.length > 0) {
 				actions.push({
 					id: 'ports',
-					name: hosts_consolidateModal_portsMigrated({
+					name: hosts_mergeModal_portsMigrated({
 						count: ports.length,
 						source: hostDisplayName(otherHost),
 						destination: hostDisplayName(selectedTargetHost)
@@ -129,13 +124,18 @@
 			if (credentialCount > 0) {
 				actions.push({
 					id: 'credentials',
-					name: hosts_consolidateModal_credentialsMigrated({
+					name: hosts_mergeModal_credentialsMigrated({
 						count: credentialCount,
 						source: hostDisplayName(otherHost),
 						destination: hostDisplayName(selectedTargetHost)
 					})
 				});
 			}
+
+			actions.push({
+				id: 'delete',
+				name: hosts_mergeModal_hostWillBeDeleted({ name: hostDisplayName(otherHost) })
+			});
 
 			return actions;
 		})()
@@ -164,12 +164,12 @@
 		showPreview = false;
 	}
 
-	async function handleConsolidate() {
+	async function handleMerge() {
 		if (!otherHost || !selectedDestinationHostId) return;
 
 		loading = true;
 		try {
-			await onConsolidate(selectedDestinationHostId, otherHost.id);
+			await onMerge(selectedDestinationHostId, otherHost.id);
 			onClose();
 		} finally {
 			loading = false;
@@ -208,8 +208,8 @@
 			: {
 					role: 'primary',
 					tone: 'danger',
-					label: loading ? common_consolidating() : hosts_consolidateModal_title(),
-					onClick: handleConsolidate,
+					label: loading ? common_merging() : hosts_mergeModal_title(),
+					onClick: handleMerge,
 					disabled: loading || !selectedDestinationHostId
 				}
 	]);
@@ -217,7 +217,7 @@
 
 <GenericModal
 	{isOpen}
-	title={hosts_consolidateModal_title()}
+	title={hosts_mergeModal_title()}
 	size="lg"
 	onClose={handleClose}
 	preventCloseOnClickOutside={loading}
@@ -247,10 +247,10 @@
 				<!-- Target selection -->
 				<div>
 					<RichSelect
-						label={hosts_consolidateModal_selectHost({
+						label={hosts_mergeModal_selectHost({
 							hostName: otherHost ? hostDisplayName(otherHost) : ''
 						})}
-						placeholder={hosts_consolidateModal_chooseHost()}
+						placeholder={hosts_mergeModal_chooseHost()}
 						selectedValue={selectedDestinationHostId}
 						selectedOption={selectedTargetHost ?? undefined}
 						options={availableHosts}
@@ -269,16 +269,21 @@
 			<!-- Step 2: Conversion Preview -->
 			<div class="space-y-4">
 				<InlineWarning
-					title={hosts_consolidateModal_warningTitle()}
-					body={hosts_consolidateModal_warningBody()}
+					title={hosts_mergeModal_warningTitle()}
+					body={otherHost && selectedTargetHost
+						? hosts_mergeModal_warningBody({
+								source: hostDisplayName(otherHost),
+								destination: hostDisplayName(selectedTargetHost)
+							})
+						: ''}
 				/>
 
 				<p class="text-sm text-secondary">
-					{hosts_consolidateModal_previewSubtitle()}
+					{hosts_mergeModal_previewSubtitle()}
 				</p>
 
 				<!-- Details of what will happen -->
-				<EntityList title="" items={consolidationActions} />
+				<EntityList title="" items={mergeActions} />
 			</div>
 		{/if}
 	</div>

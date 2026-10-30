@@ -70,7 +70,7 @@ impl ServiceService {
                             *ip_address_id = new_id;
                             return Some(*b);
                         }
-                        // Interface binding couldn't be matched - this can happen during consolidation
+                        // Interface binding couldn't be matched - this can happen during a host merge
                         // when the source host's interface doesn't exist on the destination host.
                         // We drop the binding and warn.
                         tracing::warn!(

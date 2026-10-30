@@ -279,11 +279,15 @@
 
 	/**
 	 * The Visibility group's tags, when the group applies to `entityType`. Entities holding one never
-	 * reach the topology, so they are listed from the organization's tags rather than the bundle.
+	 * reach the topology, so they are listed from the organization's tags rather than the bundle. The
+	 * bundle's `hidden_by_tag` count says whether any entity of the type was left out.
 	 */
 	function visibilityTagsFor(entityType: EntityType) {
 		const group = (tagGroupsQuery.data ?? []).find((g) => g.group_type === 'Visibility');
 		if (!group?.entity_types?.includes(entityType)) return [];
+		// Only where a Visibility tag left something of this type out: a filter that hides nothing
+		// has nothing to say.
+		if (!renderTopology?.hidden_by_tag?.[entityType]) return [];
 		return allTags.filter((tag) => tag.tag_group_id === group.id);
 	}
 

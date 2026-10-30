@@ -1,5 +1,4 @@
 import type { Snippet } from 'svelte';
-import { lastSeenItems } from '$lib/shared/utils/freshness';
 import { utilizationRatio } from '../nesting';
 import { isUserManagedSubnet } from '../queries';
 import type { Subnet, SubnetResponse } from '../types/base';
@@ -33,7 +32,7 @@ import {
 	common_utilization
 } from '$lib/paraglide/messages';
 import { concepts, entities, entitySources, subnetTypes } from '$lib/shared/stores/metadata';
-import { entitySourceWithConfirmationItems } from '$lib/shared/utils/entity-source';
+import { entitySourceItems } from '$lib/shared/utils/entity-source';
 
 type SubnetOrderField = components['schemas']['SubnetOrderField'];
 /** The subnet list endpoint's query params, which the filters are sent and linked as. */
@@ -170,8 +169,7 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				staleFilter: true,
 				display: {
 					recency: true,
-					order: 1,
-					getItems: lastSeenItems(ctx.sites, 'Subnet')
+					order: 1
 				}
 			},
 			utilization: {
@@ -197,7 +195,7 @@ export function subnetColumns(ctx: SubnetColumnsContext) {
 				getValue: (subnet) => entitySources.getName(subnet.source.type),
 				display: {
 					hiddenByDefault: true,
-					getItems: (subnet) => entitySourceWithConfirmationItems(subnet.source)
+					getItems: (subnet) => entitySourceItems(subnet.source)
 				}
 			},
 			managed_by: {

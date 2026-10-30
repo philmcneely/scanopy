@@ -12,6 +12,8 @@
  * query string sent to the endpoint returns what the page shows.
  */
 
+import { writable } from 'svelte/store';
+
 export type UrlScope = 'modal' | 'topology' | 'search' | 'list';
 
 interface ScopeRule {
@@ -202,6 +204,23 @@ function handlePopState() {
 	for (const owner of shownOwners(owners, tabOf(new URL(window.location.href)))) {
 		owner.restore?.(params);
 	}
+}
+
+/** Bumped each time params are queued, so a list already mounted takes them when it is on screen. */
+export const queuedInitialParams = writable(0);
+
+/**
+ * Hand `params` to the next owner that takes its initial params, as though the page had loaded
+ * with them. For an in-app link that opens a tab already filtered (a nudge's "show the unconfirmed
+ * hosts"): queue the list's params, then switch tabs, and the list hydrates them as it mounts.
+ */
+export function queueInitialParams(params: URLSearchParams): void {
+	if (!initialParams) initialParams = new URLSearchParams();
+	for (const [key, value] of params) {
+		initialParams.append(key, value);
+		handedOut.delete(key);
+	}
+	queuedInitialParams.update((n) => n + 1);
 }
 
 /**

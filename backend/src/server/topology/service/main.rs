@@ -327,6 +327,10 @@ impl TopologyService {
             .await?;
         // A dismissed host is one a person said is not worth showing; it leaves the map the way a
         // hidden one does.
+        // How many each Visibility tag left out, so the filter panel offers that filter only where it
+        // removed something.
+        let mut hidden_by_tag: HashMap<EntityDiscriminants, usize> = HashMap::new();
+        let hidden_hosts = hosts.iter().filter(|h| is_hidden(&h.base.tags)).count();
         hosts.retain(|host| !is_hidden(&host.base.tags) && host.dismissed_at.is_none());
         let ip_addresses = self
             .ip_address_service
@@ -345,6 +349,7 @@ impl TopologyService {
                 snapshot_id,
             )
             .await?;
+        let hidden_subnets = subnets.iter().filter(|s| is_hidden(&s.base.tags)).count();
         subnets.retain(|subnet| !is_hidden(&subnet.base.tags));
         let dependencies = self
             .dependency_service
@@ -396,7 +401,17 @@ impl TopologyService {
                 snapshot_id,
             )
             .await?;
+        let hidden_services = services.iter().filter(|s| is_hidden(&s.base.tags)).count();
         services.retain(|service| !is_hidden(&service.base.tags));
+        for (entity, count) in [
+            (EntityDiscriminants::Host, hidden_hosts),
+            (EntityDiscriminants::Subnet, hidden_subnets),
+            (EntityDiscriminants::Service, hidden_services),
+        ] {
+            if count > 0 {
+                hidden_by_tag.insert(entity, count);
+            }
+        }
         let vlans = self
             .vlan_service
             .get_all(apply_snapshot(
@@ -468,6 +483,7 @@ impl TopologyService {
             nodes: HashMap::new(),
             edges: HashMap::new(),
             node_entities: HashMap::new(),
+            hidden_by_tag,
             // Filled by `apply_server_metadata_filters`, which runs on the way to the render
             // path; nothing has been dropped yet at this point.
             filtered_out: HashMap::new(),

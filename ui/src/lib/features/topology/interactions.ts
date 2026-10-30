@@ -30,6 +30,7 @@ import {
 import { getTopologyIndex } from './entity-index';
 import type { Site } from '$lib/features/sites/types';
 import { entityFreshness, type FreshnessSubject } from '$lib/shared/utils/freshness';
+import { isUnconfirmed, type ConfirmationSubject } from '$lib/shared/utils/confirmation';
 import { buildFullParentMap, resolveCollapsedAncestor } from './collapse';
 import { formatEntityLabelTitle } from './labels';
 import { declaredMetadataFilters, hiddenValuesFor } from './view-filters';
@@ -300,6 +301,7 @@ function hideContainersAndDescendants(
 }
 
 const STALENESS: components['schemas']['MetadataFilterType'] = 'Staleness';
+const CONFIRMATION: components['schemas']['MetadataFilterType'] = 'Confirmation';
 
 /**
  * The value `entity` carries for the metadata filter `filterType` (matching `FilterValue.id` on
@@ -316,6 +318,11 @@ export function filterValueOf(
 	site: Site | undefined
 ): string | null {
 	if (filterType === STALENESS) return entityFreshness(entity as FreshnessSubject, site);
+	// Subnets carry no filter values, so confirmation is read off the source for both hosts and
+	// subnets, by the helper the Unconfirmed badge uses. The ids are the backend's
+	// `ConfirmationFilterValue` ids.
+	if (filterType === CONFIRMATION)
+		return isUnconfirmed(entity as ConfirmationSubject) ? 'unconfirmed' : 'confirmed';
 	return (entity as { filter_values?: Record<string, string> }).filter_values?.[filterType] ?? null;
 }
 

@@ -148,6 +148,8 @@ async fn rescan(
     let mut targets = Vec::with_capacity(hosts.len());
     for host in hosts {
         validate_read_access(Some(host.base.site_id), None, &site_ids, organization_id)?;
+        host.require_confirmed()
+            .map_err(|e| ApiError::bad_request(&e.to_string()))?;
         let (name, target) = rescan_target(state, &host).await?;
         match target {
             Ok((daemon, ips)) => targets.push((

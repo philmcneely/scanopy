@@ -374,7 +374,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::export_csv))
         .routes(routes!(generated::get_field_values))
         .routes(routes!(export_hosts_zip))
-        .routes(routes!(consolidate_hosts))
+        .routes(routes!(merge_hosts))
         .routes(routes!(confirm_host))
         .routes(routes!(dismiss_host))
         .routes(routes!(create_host_discovery))
@@ -985,7 +985,7 @@ async fn create_host_discovery(
     ))
 }
 
-/// Consolidate hosts
+/// Merge hosts
 ///
 /// Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
 /// then deletes `other_id`. Both hosts must be on the same site.
@@ -1001,24 +1001,24 @@ async fn create_host_discovery(
 ///
 /// ### Restrictions
 ///
-/// - Cannot consolidate a host with itself.
-/// - Cannot consolidate a host that has a daemon - consolidate into it instead.
+/// - Cannot merge a host with itself.
+/// - Cannot merge away a host that has a daemon - merge into it instead.
 #[utoipa::path(
     post,
-    path = "/{id}/consolidate/{other_id}",
+    path = "/{id}/merge/{other_id}",
     tag = Host::ENTITY_NAME_PLURAL,
     params(
         ("id" = Uuid, Path, description = "Host that receives all children"),
         ("other_id" = Uuid, Path, description = "Host merged into `id`, then deleted")
     ),
     responses(
-        (status = 200, description = "Hosts consolidated successfully", body = ApiResponse<HostResponse>),
+        (status = 200, description = "Hosts merged successfully", body = ApiResponse<HostResponse>),
         (status = 404, description = "One or both hosts not found", body = ApiErrorResponse),
         (status = 400, description = "Validation error: same host, has daemon, or different sites", body = ApiErrorResponse),
     ),
      security(("user_api_key" = []), ("session" = []))
 )]
-async fn consolidate_hosts(
+async fn merge_hosts(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
     Path((destination_host_id, other_host_id)): Path<(Uuid, Uuid)>,
@@ -1038,6 +1038,10 @@ async fn consolidate_hosts(
         .get_by_id(&other_host_id)
         .await?
         .ok_or_else(|| ApiError::entity_not_found::<Host>(other_host_id))?;
+    // An unconfirmed host can be merged away (that settles it), never merged into.
+    destination_host
+        .require_confirmed()
+        .map_err(|e| ApiError::bad_request(&e.to_string()))?;
 
     // Validate user has access to both hosts
     validate_read_access(
@@ -1066,7 +1070,7 @@ async fn consolidate_hosts(
         proven_by: Vec::new(),
     };
     let mut host_response = host_service
-        .consolidate_hosts(destination_host, other_host, auth.into_entity(), reason)
+        .merge_hosts(destination_host, other_host, auth.into_entity(), reason)
         .await?;
 
     // Hydrate tags from junction table
@@ -1112,6 +1116,11 @@ pub async fn delete_host(
     auth: Authorized<Member>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
+    // An unconfirmed host is dismissed, not deleted: a deleted one comes back on the next scan.
+    if let Some(host) = state.services.host_service.get_by_id(&id).await? {
+        host.require_confirmed()
+            .map_err(|e| ApiError::bad_request(&e.to_string()))?;
+    }
     // Pre-validation: Can't delete a host with an associated daemon
     let daemon_filter = StorableFilter::<Daemon>::new_from_host_ids(&[id]);
     if state.services.daemon_service.exists(daemon_filter).await? {
@@ -1148,6 +1157,16 @@ pub async fn bulk_delete_hosts(
     auth: Authorized<Member>,
     ApiJson(ids): ApiJson<Vec<Uuid>>,
 ) -> ApiResult<Json<ApiResponse<BulkDeleteResponse>>> {
+    for host in state
+        .services
+        .host_service
+        .get_all(StorableFilter::<Host>::new_from_entity_ids(&ids))
+        .await?
+    {
+        host.require_confirmed()
+            .map_err(|e| ApiError::bad_request(&e.to_string()))?;
+    }
+
     let daemon_service = &state.services.daemon_service;
 
     let daemon_filter = StorableFilter::<Daemon>::new_from_host_ids(&ids);

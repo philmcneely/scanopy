@@ -35,7 +35,8 @@
 	import { iconButtonClass, resolveTooltip, shownActions } from '../controls/actionShortcuts';
 	import type { RenderGroup, TreeCell, TreeContinuation, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
-	import type { CardAction, GroupSlice } from '../types';
+	import type { CardAction, GroupSlice, TagProps } from '../types';
+	import Tag from '../Tag.svelte';
 	import {
 		common_actions,
 		common_selectRow,
@@ -63,6 +64,7 @@
 		someSelected,
 		getItemId,
 		getActions,
+		getRowBadges = null,
 		caption,
 		onToggleSort,
 		onClickRow,
@@ -91,6 +93,11 @@
 		someSelected: boolean;
 		getItemId: (item: T) => string;
 		getActions: ((item: T) => CardAction[]) | null;
+		/**
+		 * Icon-only status badges drawn beside the row's name (Stale, Unconfirmed), whatever columns
+		 * are shown. Each badge says what it means in its tooltip.
+		 */
+		getRowBadges?: ((item: T) => TagProps[]) | null;
 		caption: string;
 		onToggleSort: (fieldKey: string) => void;
 		/**
@@ -632,6 +639,12 @@
 
 <!-- A tree row's chevron, or the same width of space for a row with no children, so names line
      up across a level. A parent's chevron collapses its children and shows how many there are. -->
+{#snippet rowBadges(item: T)}
+	{#each getRowBadges?.(item) ?? [] as badge, index (index)}
+		<span class="shrink-0"><Tag {...badge} label={undefined} /></span>
+	{/each}
+{/snippet}
+
 {#snippet treeToggle(tree: TreeCell<T>)}
 	{#if tree.section}
 		{@const section = tree.section}
@@ -738,11 +751,15 @@
 								<div class="min-w-0" style={contentMaxWidth(column)}>
 									<FieldValue {item} {column} />
 								</div>
+								{@render rowBadges(item)}
 								{@render treeCount(tree)}
 							</div>
 						{:else}
-							<div style={contentMaxWidth(column)}>
-								<FieldValue {item} {column} />
+							<div class="flex items-center gap-1.5">
+								<div class="min-w-0" style={contentMaxWidth(column)}>
+									<FieldValue {item} {column} />
+								</div>
+								{@render rowBadges(item)}
 							</div>
 						{/if}
 					</th>

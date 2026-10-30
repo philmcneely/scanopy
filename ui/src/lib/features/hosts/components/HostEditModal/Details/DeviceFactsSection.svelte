@@ -66,11 +66,17 @@
 
 	let {
 		form,
-		host
+		host,
+		column
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		form: { Field: any };
 		host: HostFormData;
+		/**
+		 * Which of the Details tab's two columns this instance draws. The left one sits under the
+		 * name card, so it starts heavier.
+		 */
+		column: 'left' | 'right';
 	} = $props();
 
 	type DeviceType = components['schemas']['DeviceType'];
@@ -338,6 +344,20 @@
 			}))
 			.filter((section) => section.facts.length > 0)
 	);
+
+	// Which column each section sits in. Names and identifiers opens the right column, beside the
+	// name card; every other section goes to whichever column is shorter so far. Measured in rows,
+	// never in pixels, and from the facts alone, so opening a pencil never moves a card.
+	const NAME_CARD_ROWS = 8;
+	const SECTION_CHROME_ROWS = 2;
+	let placed = $derived.by(() => {
+		const heights = { left: NAME_CARD_ROWS, right: 0 };
+		return sections.map((section, index) => {
+			const side: 'left' | 'right' = index === 0 || heights.right < heights.left ? 'right' : 'left';
+			heights[side] += section.facts.length + SECTION_CHROME_ROWS;
+			return { section, side };
+		});
+	});
 </script>
 
 {#snippet factValue(fact: Fact)}
@@ -393,9 +413,9 @@
 	{/if}
 {/snippet}
 
-<!-- One card per section, as siblings, so the Details tab's column flow can balance them. -->
-{#each sections as section (section.title)}
-	<div class="card-static card mb-6 break-inside-avoid space-y-2">
+<!-- This column's section cards, one per section. -->
+{#each placed.filter((p) => p.side === column) as { section } (section.title)}
+	<div class="card-static card space-y-2">
 		<h4 class="text-xs font-semibold tracking-wide text-secondary uppercase">
 			{section.title}
 		</h4>

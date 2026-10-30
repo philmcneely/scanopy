@@ -347,6 +347,7 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				dismissed_at: excluded(
 					'A dismissed host is left out of the list, so every listed row has none'
 				),
+				reported_by_host_ids: excluded('Shown in the resolve modal, not as a column'),
 				firmware_revision: 'firmware_revision',
 				hidden: excluded(
 					'Always false, kept for older daemons; the Visibility tag group hides a host'

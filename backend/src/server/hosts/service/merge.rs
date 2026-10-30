@@ -1,4 +1,4 @@
-//! IP/MAC-based host matching, locking, upsert, and consolidation.
+//! IP/MAC-based host matching, locking, upsert, and merging.
 use super::*;
 use crate::server::interfaces::service::match_existing_interface;
 use crate::server::ip_addresses::r#impl::base::MacEvidence;
@@ -307,7 +307,7 @@ impl HostService {
         Ok(existing_host)
     }
 
-    pub async fn consolidate_hosts(
+    pub async fn merge_hosts(
         &self,
         destination_host: Host,
         other_host: Host,
@@ -315,15 +315,15 @@ impl HostService {
         reason: DeletionReason,
     ) -> Result<HostResponse> {
         if destination_host.id == other_host.id {
-            return Err(ValidationError::new("Can't consolidate a host with itself").into());
+            return Err(ValidationError::new("Can't merge a host with itself").into());
         }
 
         let daemon_filter = StorableFilter::<Daemon>::new_from_host_ids(&[other_host.id]);
 
         if self.daemon_service.exists(daemon_filter).await? {
             return Err(ValidationError::new(
-                "Can't consolidate a host that has a daemon associated with it. \
-                 Consolidate the other host into the host with the daemon instead.",
+                "Can't merge away a host that has a daemon associated with it. \
+                 Merge the other host into the host with the daemon instead.",
             )
             .into());
         }
@@ -338,7 +338,7 @@ impl HostService {
                     LockKey::Host(destination_host.id),
                     LockKey::Host(other_host.id),
                 ],
-                CONSOLIDATE_LOCK_TIMEOUT,
+                MERGE_LOCK_TIMEOUT,
             )
             .await?;
 
@@ -566,7 +566,7 @@ impl HostService {
                             tracing::warn!(
                                 service = %service.base.name,
                                 ip_address_id = %ip_address_id,
-                                "IP address not found in mapping during consolidation"
+                                "IP address not found in mapping during the merge"
                             );
                         }
                     }
@@ -580,7 +580,7 @@ impl HostService {
                             tracing::warn!(
                                 service = %service.base.name,
                                 port_id = %port_id,
-                                "Port not found in mapping during consolidation"
+                                "Port not found in mapping during the merge"
                             );
                         }
                         if let Some(iface_id) = ip_address_id {
@@ -612,11 +612,11 @@ impl HostService {
                     tracing::error!(
                         service_id = %service.id,
                         service_name = %service.base.name,
-                        "Failed to update service during consolidation: {}",
+                        "Failed to update service during the merge: {}",
                         e
                     );
                     anyhow!(
-                        "Failed to update service '{}' during consolidation: {}",
+                        "Failed to update service '{}' during the merge: {}",
                         service.base.name,
                         e
                     )
@@ -703,7 +703,7 @@ impl HostService {
                 migrated = migrated_count,
                 source_host_id = %other_host.id,
                 dest_host_id = %updated_host.id,
-                "Migrated credential assignments during consolidation"
+                "Migrated credential assignments during the merge"
             );
         }
 
@@ -966,7 +966,7 @@ pub(crate) fn mac_carriers(
 /// A free function rather than a closure so it can be tested without a database — the same shape
 /// `matches_existing_subnet` uses for subnet dedup, and for the same reason: this is the rule that
 /// decides whether a merge leaves the destination host holding two rows for one NIC, and it was
-/// reachable only through `consolidate_hosts`, which needs a database.
+/// reachable only through `merge_hosts`, which needs a database.
 pub(crate) fn matches_destination_ip_address(
     dest_iface: &IPAddress,
     other_iface: &IPAddress,

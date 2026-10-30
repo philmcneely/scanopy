@@ -7,7 +7,6 @@
 import type { components } from '$lib/api/schema';
 import type { CardFieldItem } from '$lib/shared/components/data/types';
 import { entitySources } from '$lib/shared/stores/metadata';
-import { getConfirmationTag } from '$lib/shared/utils/confirmation';
 
 type EntitySource = components['schemas']['EntitySource'];
 
@@ -21,18 +20,5 @@ export function entitySourceItems(source: EntitySource): CardFieldItem[] {
 			icon: entitySources.getIconComponent(source.type),
 			title: entitySources.getDescription(source.type)
 		}
-	];
-}
-
-/**
- * The source chip, followed by the Unconfirmed badge when the entity awaits a person. One column
- * says both how the entity came to exist and that it still needs confirming, in every entity list.
- */
-export function entitySourceWithConfirmationItems(source: EntitySource): CardFieldItem[] {
-	const tag = getConfirmationTag({ source });
-	if (!tag) return entitySourceItems(source);
-	return [
-		...entitySourceItems(source),
-		{ id: 'unconfirmed', label: tag.label, color: tag.color, icon: tag.icon, title: tag.title }
 	];
 }

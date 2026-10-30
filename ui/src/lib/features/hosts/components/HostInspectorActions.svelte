@@ -8,7 +8,12 @@
 	import UnconfirmedNotice from '$lib/shared/components/confirmation/UnconfirmedNotice.svelte';
 	import { navigateToEntity, openModal } from '$lib/shared/stores/modal-registry';
 	import type { Host } from '../types/base';
-	import { common_edit, hosts_resolveUnconfirmed } from '$lib/paraglide/messages';
+	import { isUnconfirmed } from '$lib/shared/utils/confirmation';
+	import {
+		common_edit,
+		hosts_resolveFirst,
+		hosts_resolveUnconfirmed
+	} from '$lib/paraglide/messages';
 
 	let {
 		host,
@@ -19,6 +24,9 @@
 		editable?: boolean;
 		class?: string;
 	} = $props();
+
+	// Resolve settles an unconfirmed host before anything else is done with it.
+	let unresolved = $derived(isUnconfirmed(host));
 
 	function resolve() {
 		window.location.hash = 'hosts';
@@ -36,6 +44,8 @@
 		<button
 			type="button"
 			class="btn-secondary flex items-center gap-1 text-xs"
+			disabled={unresolved}
+			title={unresolved ? hosts_resolveFirst() : undefined}
 			onclick={() => navigateToEntity('Host', host.id, host)}
 		>
 			<Edit class="h-3.5 w-3.5" />

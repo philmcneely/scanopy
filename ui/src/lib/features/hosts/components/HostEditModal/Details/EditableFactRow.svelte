@@ -107,7 +107,6 @@
 				{#snippet children(field: AnyFieldApi)}
 					{#if kind === 'deviceType'}
 						<RichSelect
-							{label}
 							selectedValue={live}
 							{options}
 							showSearch
@@ -118,7 +117,7 @@
 							}}
 						/>
 					{:else}
-						<TextInput {label} id={name} {field} />
+						<TextInput label="" ariaLabel={label} id={name} {field} />
 					{/if}
 				{/snippet}
 			</form.Field>

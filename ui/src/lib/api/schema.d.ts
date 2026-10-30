@@ -2106,41 +2106,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/hosts/{id}/consolidate/{other_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Consolidate hosts
-         * @description Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
-         *     then deletes `other_id`. Both hosts must be on the same site.
-         *
-         *     ### Merge Behavior
-         *
-         *     - **Interfaces**: Transferred to destination. If an interface with matching subnet+IP or MAC
-         *       already exists on destination, bindings are remapped to use the existing interface.
-         *     - **Ports**: Transferred to destination. If a port with the same number and protocol already
-         *       exists, bindings are remapped to use the existing port.
-         *     - **Services**: Transferred to destination with deduplication.
-         *       See [upsert behavior](https://scanopy.net/docs/discovery/#upsert-behavior) for details.
-         *
-         *     ### Restrictions
-         *
-         *     - Cannot consolidate a host with itself.
-         *     - Cannot consolidate a host that has a daemon - consolidate into it instead.
-         */
-        post: operations["consolidate_hosts"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/hosts/{id}/dismiss": {
         parameters: {
             query?: never;
@@ -2157,6 +2122,41 @@ export interface paths {
          *     restores it.
          */
         post: operations["dismiss_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/{id}/merge/{other_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge hosts
+         * @description Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
+         *     then deletes `other_id`. Both hosts must be on the same site.
+         *
+         *     ### Merge Behavior
+         *
+         *     - **Interfaces**: Transferred to destination. If an interface with matching subnet+IP or MAC
+         *       already exists on destination, bindings are remapped to use the existing interface.
+         *     - **Ports**: Transferred to destination. If a port with the same number and protocol already
+         *       exists, bindings are remapped to use the existing port.
+         *     - **Services**: Transferred to destination with deduplication.
+         *       See [upsert behavior](https://scanopy.net/docs/discovery/#upsert-behavior) for details.
+         *
+         *     ### Restrictions
+         *
+         *     - Cannot merge a host with itself.
+         *     - Cannot merge away a host that has a daemon - merge into it instead.
+         */
+        post: operations["merge_hosts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4227,19 +4227,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-29T20:18:56.763299Z",
+             *       "created_at": "2026-10-30T13:27:50.781197Z",
              *       "first_discovery_id": null,
-             *       "id": "ef65a16d-3fe9-4ce2-9557-27dec59fcf59",
+             *       "id": "1197e35a-b113-4b09-af4b-58ac52b5a228",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-29T20:18:56.763299Z",
+             *       "last_seen_at": "2026-10-30T13:27:50.781197Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-29T20:18:56.763299Z",
-             *       "valid_from": "2026-10-29T20:18:56.763299Z",
+             *       "updated_at": "2026-10-30T13:27:50.781197Z",
+             *       "valid_from": "2026-10-30T13:27:50.781197Z",
              *       "valid_to": null
              *     }
              */
@@ -4641,6 +4641,17 @@ export interface components {
                 sites: components["schemas"]["SiteSummary"][];
                 /** @description Credentials no scan will send to a daemon, by name. */
                 targetless_credentials: components["schemas"]["TargetlessCredential"][];
+                /**
+                 * Format: int64
+                 * @description Hosts known only from another device's report, waiting to be confirmed, merged or
+                 *     dismissed.
+                 */
+                unconfirmed_host_count: number;
+                /**
+                 * Format: int64
+                 * @description Subnets whose range was assumed, waiting to be confirmed or corrected.
+                 */
+                unconfirmed_subnet_count: number;
                 /** @description Integrations found on hosts with no credential of them, most hosts first. */
                 uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
             };
@@ -5118,24 +5129,25 @@ export interface components {
              *           "valid_to": null
              *         }
              *       ],
+             *       "reported_by_host_ids": [],
              *       "serial_number_source": "Unspecified",
              *       "services": [
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-29T20:18:56.728746Z",
+             *               "created_at": "2026-10-30T13:27:50.744219Z",
              *               "first_discovery_id": null,
-             *               "id": "4dd3795f-6ddd-40df-a8e6-7abef4579eb7",
+             *               "id": "2830c253-68ae-4585-a7f4-855fd3e68996",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-29T20:18:56.728746Z",
+             *               "last_seen_at": "2026-10-30T13:27:50.744219Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-29T20:18:56.728746Z",
-             *               "valid_from": "2026-10-29T20:18:56.728746Z",
+             *               "updated_at": "2026-10-30T13:27:50.744219Z",
+             *               "valid_from": "2026-10-30T13:27:50.744219Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5148,7 +5160,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Jupyter",
+             *           "service_definition": "Gogs",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5303,6 +5315,12 @@ export interface components {
                 readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
+                /**
+                 * @description For an unconfirmed host, the hosts whose report it is known from: the switch whose
+                 *     forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+                 *     host. Read-only.
+                 */
+                reported_by_host_ids?: string[];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
@@ -6168,19 +6186,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-29T20:18:56.757842Z",
+             *           "created_at": "2026-10-30T13:27:50.775587Z",
              *           "first_discovery_id": null,
-             *           "id": "5e549f0c-0a53-4187-8ac1-a6365ec9c5e0",
+             *           "id": "db7344bf-c182-47c0-b9ac-9df2e7cc7f49",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-29T20:18:56.757842Z",
+             *           "last_seen_at": "2026-10-30T13:27:50.775587Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-29T20:18:56.757842Z",
-             *           "valid_from": "2026-10-29T20:18:56.757842Z",
+             *           "updated_at": "2026-10-30T13:27:50.775587Z",
+             *           "valid_from": "2026-10-30T13:27:50.775587Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6193,7 +6211,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Jupyter",
+             *       "service_definition": "Gogs",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -6872,6 +6890,14 @@ export interface components {
                     [key: string]: {
                         [key: string]: number;
                     };
+                };
+                /**
+                 * @description How many entities of each type a Visibility tag left out of this bundle. They never reach
+                 *     the browser, so this is how the filter panel knows to offer the Visibility filter only for
+                 *     a type it actually hid something of. Types with none are absent.
+                 */
+                hidden_by_tag?: {
+                    [key: string]: number;
                 };
                 /** @description Hosts included in this topology, each carrying the title the map and the host list share. */
                 hosts: components["schemas"]["TopologyHost"][];
@@ -7646,19 +7672,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-29T20:18:56.729381Z",
+         *       "created_at": "2026-10-30T13:27:50.744872Z",
          *       "first_discovery_id": null,
-         *       "id": "7b1d1ee6-f5b4-440b-849b-471d00cc9f4c",
+         *       "id": "3603dc76-ffb6-47f1-ba9d-a903cb048663",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-29T20:18:56.729381Z",
+         *       "last_seen_at": "2026-10-30T13:27:50.744872Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-29T20:18:56.729381Z",
-         *       "valid_from": "2026-10-29T20:18:56.729381Z",
+         *       "updated_at": "2026-10-30T13:27:50.744872Z",
+         *       "valid_from": "2026-10-30T13:27:50.744872Z",
          *       "valid_to": null
          *     }
          */
@@ -8048,7 +8074,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Jupyter",
+         *           "service_definition": "Gogs",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8901,6 +8927,17 @@ export interface components {
             sites: components["schemas"]["SiteSummary"][];
             /** @description Credentials no scan will send to a daemon, by name. */
             targetless_credentials: components["schemas"]["TargetlessCredential"][];
+            /**
+             * Format: int64
+             * @description Hosts known only from another device's report, waiting to be confirmed, merged or
+             *     dismissed.
+             */
+            unconfirmed_host_count: number;
+            /**
+             * Format: int64
+             * @description Subnets whose range was assumed, waiting to be confirmed or corrected.
+             */
+            unconfirmed_subnet_count: number;
             /** @description Integrations found on hosts with no credential of them, most hosts first. */
             uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
         };
@@ -11151,24 +11188,25 @@ export interface components {
          *           "valid_to": null
          *         }
          *       ],
+         *       "reported_by_host_ids": [],
          *       "serial_number_source": "Unspecified",
          *       "services": [
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-29T20:18:56.728Z",
+         *               "created_at": "2026-10-30T13:27:50.743430Z",
          *               "first_discovery_id": null,
-         *               "id": "bc4243e8-b22a-4b82-b55d-ae597ac12c3c",
+         *               "id": "eab774be-1fd3-433a-97d4-2c3a4e9513f5",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-29T20:18:56.728Z",
+         *               "last_seen_at": "2026-10-30T13:27:50.743430Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-29T20:18:56.728Z",
-         *               "valid_from": "2026-10-29T20:18:56.728Z",
+         *               "updated_at": "2026-10-30T13:27:50.743430Z",
+         *               "valid_from": "2026-10-30T13:27:50.743430Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -11181,7 +11219,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Jupyter",
+         *           "service_definition": "Gogs",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -11336,6 +11374,12 @@ export interface components {
             readonly os_source?: components["schemas"]["AttributeSource"];
             /** @description Open ports on this host. */
             ports: components["schemas"]["Port"][];
+            /**
+             * @description For an unconfirmed host, the hosts whose report it is known from: the switch whose
+             *     forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+             *     host. Read-only.
+             */
+            reported_by_host_ids?: string[];
             /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
             readonly serial_number?: string | null;
             /** @description What produced the serial number. Read-only: decided by whichever source read it. */
@@ -12729,7 +12773,7 @@ export interface components {
          *     here + a `HasFilterValues` impl on the relevant entity.
          * @enum {string}
          */
-        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus" | "GuestState";
+        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus" | "GuestState" | "Confirmation";
         /**
          * @description A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's
          *     name for the raw value. Serializes to the fixture key.
@@ -13340,6 +13384,12 @@ export interface components {
                 readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
+                /**
+                 * @description For an unconfirmed host, the hosts whose report it is known from: the switch whose
+                 *     forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+                 *     host. Read-only.
+                 */
+                reported_by_host_ids?: string[];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
@@ -14810,19 +14860,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-29T20:18:56.729167Z",
+         *           "created_at": "2026-10-30T13:27:50.744652Z",
          *           "first_discovery_id": null,
-         *           "id": "8a96a67e-2564-4e52-b2d2-fb88c9ef109d",
+         *           "id": "588dd7f3-3564-4a9d-9647-5d568b3cda9a",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-29T20:18:56.729167Z",
+         *           "last_seen_at": "2026-10-30T13:27:50.744652Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-29T20:18:56.729167Z",
-         *           "valid_from": "2026-10-29T20:18:56.729167Z",
+         *           "updated_at": "2026-10-30T13:27:50.744652Z",
+         *           "valid_from": "2026-10-30T13:27:50.744652Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14835,7 +14885,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Jupyter",
+         *       "service_definition": "Gogs",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15881,6 +15931,14 @@ export interface components {
                     [key: string]: number;
                 };
             };
+            /**
+             * @description How many entities of each type a Visibility tag left out of this bundle. They never reach
+             *     the browser, so this is how the filter panel knows to offer the Visibility filter only for
+             *     a type it actually hid something of. Types with none are absent.
+             */
+            hidden_by_tag?: {
+                [key: string]: number;
+            };
             /** @description Hosts included in this topology, each carrying the title the map and the host list share. */
             hosts: components["schemas"]["TopologyHost"][];
             /** @description Interfaces included in this topology, each carrying its metadata filter values. */
@@ -16037,7 +16095,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "e2ea28a8-ab66-4f00-9cc0-9038c5c79d47",
+             *           "id": "8359cdc9-f787-4e3a-be29-36c093779516",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -16047,23 +16105,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "a665ec34-ca4a-40b7-982c-b31003a319ba",
+             *           "id": "8589acf6-db61-4360-a96f-1a5de1a70312",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "47177f84-3fda-46c7-b81b-008293b81188",
+             *           "id": "043869dd-efe5-40a6-a4db-2c504bc08dd2",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "eb47e951-9a71-4b3c-806d-63b5932efb95",
+             *           "id": "10d6e863-9d9a-43b8-8720-d3adb900d8e6",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "a665ec34-ca4a-40b7-982c-b31003a319ba",
+             *           "id": "8589acf6-db61-4360-a96f-1a5de1a70312",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -16077,19 +16135,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "bc09dc49-8389-41cd-b771-ddb43dc9da88",
+             *         "id": "e687f3af-643e-4166-9372-480c613b2c59",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "8e30beaa-77d4-4447-989e-6305deb6bb03",
+             *         "id": "59bae1af-48ae-4a9d-8901-742a5962237e",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "12c5994d-26ca-4f68-8eca-0e8c42061489",
+             *         "id": "7d098cb5-a1f3-4b44-b2ad-eb84c9f3abce",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "8642b21c-1575-424c-ae5b-abf4c5467381",
+             *         "id": "fa92d20c-4c99-4385-b7e5-554e2f705091",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -16110,7 +16168,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "339650ec-9d74-40ef-b4f8-5800d7e9375c",
+             *         "id": "dd6508db-c3f5-47a8-b22d-96a381b5cf75",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -16119,19 +16177,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "9868fe8a-440f-45cb-a67d-874b3f4b8454",
+             *         "id": "8768cc4d-f427-41ea-9276-2bd74162d7e0",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "93db478d-f448-4766-94bc-732bfd624eaa",
+             *         "id": "599c0eca-c956-4de2-b72a-6c1208350cbe",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "692ca573-af2d-4a44-901c-5a9377562c2e",
+             *         "id": "ab9ef755-540c-41f2-80ee-b0b30bcb57be",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "4c35f319-bb9a-4d89-bc37-e157b2498c67",
+             *         "id": "81c086c7-f636-4ef8-bc20-cba88bf034f1",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -21957,49 +22015,6 @@ export interface operations {
             };
         };
     };
-    consolidate_hosts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Host that receives all children */
-                id: string;
-                /** @description Host merged into `id`, then deleted */
-                other_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Hosts consolidated successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
-                };
-            };
-            /** @description Validation error: same host, has daemon, or different sites */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description One or both hosts not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
     dismiss_host: {
         parameters: {
             query?: never;
@@ -22031,6 +22046,49 @@ export interface operations {
                 };
             };
             /** @description Host not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    merge_hosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Host that receives all children */
+                id: string;
+                /** @description Host merged into `id`, then deleted */
+                other_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hosts merged successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
+                };
+            };
+            /** @description Validation error: same host, has daemon, or different sites */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description One or both hosts not found */
             404: {
                 headers: {
                     [name: string]: unknown;
