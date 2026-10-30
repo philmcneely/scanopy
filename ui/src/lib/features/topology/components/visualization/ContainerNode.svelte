@@ -142,6 +142,8 @@
 	let entity = $derived(containerSubject?.entity);
 	let entityType = $derived(containerSubject?.entityType);
 	let entitySite = $derived((sitesQuery.data ?? []).find((n) => n.id === entity?.site_id));
+	// A subcontainer standing for an entity titles itself as that entity's pill.
+	let entityColor = $derived(entityType ? entities.getColorHelper(entityType).color : null);
 
 	// The status pill, judged on that entity alone with the helpers element cards and inventory
 	// badges use: Unconfirmed (a subnet whose range was assumed, a device another one reported)
@@ -488,6 +490,7 @@
 			{childCount}
 			{childSummary}
 			tooltip={headerTooltip}
+			{entityColor}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -528,6 +531,8 @@
 				{childCount}
 				{childSummary}
 				tooltip={headerTooltip}
+				{entityColor}
+				{staleTag}
 				countOnly={isInfraRule}
 				onToggleCollapse={handleChevronClick}
 				{searchMatchCount}

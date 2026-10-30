@@ -9250,7 +9250,7 @@ export interface components {
          * @description Protocol that discovered the physical link between network devices
          * @enum {string}
          */
-        DiscoveryProtocol: "LLDP" | "CDP";
+        DiscoveryProtocol: "LLDP" | "CDP" | "ForwardingTable";
         /**
          * @description Why a session reached its terminal phase.
          *

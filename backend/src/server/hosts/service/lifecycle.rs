@@ -75,6 +75,7 @@ impl HostService {
             interfaces,
         )];
         self.place_in_virtualization_trees(&mut response).await?;
+        self.fill_reported_by(&mut response).await?;
         let [response] = response;
         Ok(Some(response))
     }
@@ -238,6 +239,7 @@ impl HostService {
             .collect::<Vec<_>>();
         let mut responses = responses;
         self.place_in_virtualization_trees(&mut responses).await?;
+        self.fill_reported_by(&mut responses).await?;
         Ok(responses)
     }
 

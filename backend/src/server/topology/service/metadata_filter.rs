@@ -155,6 +155,7 @@ impl FilterValueContext {
             interfaces_referenced_as_neighbours: referenced_neighbour_interfaces(neighbours.iter()),
             interfaces_with_neighbours: interfaces_with_neighbours(neighbours.iter()),
             interfaces_learning_known_hosts: HashSet::new(),
+            interfaces_learned_by_ports: HashSet::new(),
         }
     }
 
@@ -164,13 +165,13 @@ impl FilterValueContext {
         interfaces: impl IntoIterator<Item = &'a Interface> + Clone,
         ip_addresses: impl IntoIterator<Item = &'a IPAddress>,
     ) -> Self {
+        let learned =
+            crate::server::topology::service::fdb::learned_hosts(interfaces, ip_addresses);
         Self {
-            interfaces_learning_known_hosts: crate::server::topology::service::fdb::learned_hosts(
-                interfaces,
-                ip_addresses,
-            )
-            .into_keys()
-            .collect(),
+            interfaces_learned_by_ports: crate::server::topology::service::fdb::learned_interfaces(
+                &learned,
+            ),
+            interfaces_learning_known_hosts: learned.into_keys().collect(),
             ..Self::from_neighbours(neighbours)
         }
     }

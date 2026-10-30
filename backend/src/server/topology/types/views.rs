@@ -537,6 +537,9 @@ pub struct FilterValueContext {
     /// device is reached through the port even where no LLDP/CDP or single-MAC link was resolved,
     /// so the port counts as linked.
     pub interfaces_learning_known_hosts: HashSet<Uuid>,
+    /// Interfaces a port's forwarding table reached (`fdb::learned_interfaces`): the far end of a
+    /// learned link, linked the way a port a neighbour row names is.
+    pub interfaces_learned_by_ports: HashSet<Uuid>,
 }
 
 /// Entities that can surface metadata filter values. Returns the stable

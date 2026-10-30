@@ -33588,7 +33588,8 @@
         "description": "Protocol that discovered the physical link between network devices",
         "enum": [
           "LLDP",
-          "CDP"
+          "CDP",
+          "ForwardingTable"
         ]
       },
       "DiscoveryTerminalReason": {

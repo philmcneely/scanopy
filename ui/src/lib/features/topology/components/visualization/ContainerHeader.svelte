@@ -10,7 +10,7 @@
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import HiddenTagsChip from '$lib/shared/components/forms/selection/HiddenTagsChip.svelte';
 	import { HIDDEN_TAGS_CHIP_WIDTH } from '$lib/shared/components/forms/selection/display-tags';
-	import type { ColorStyle, Color } from '$lib/shared/utils/styling';
+	import { createColorHelper, type ColorStyle, type Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import type { TagProps } from '$lib/shared/components/data/types';
 	import type { components } from '$lib/api/schema';
@@ -62,7 +62,8 @@
 		searchMatchCount = 0,
 		searchHighlightRingStyle = '',
 		staleTag = null,
-		tooltip = null
+		tooltip = null,
+		entityColor = null
 	}: {
 		isCollapsed: boolean;
 		isCollapsible: boolean;
@@ -95,6 +96,8 @@
 		staleTag?: TagProps | null;
 		/** Hover text for the container's name: the entity it stands for, or what the group holds. */
 		tooltip?: TooltipContent | null;
+		/** The colour of the entity a subcontainer stands for, which draws its title as that entity's pill. Null for a grouping. */
+		entityColor?: Color | null;
 	} = $props();
 
 	let subgroupTotal = $derived(subgroupSummaries.reduce((sum, s) => sum + s.childCount, 0));
@@ -204,10 +207,10 @@
 
 <!-- The chevron collapses; the rest of the title chip selects the container (through the flow's node
      click, which only selects a container when the click lands in `data-container-title`). -->
-{#snippet collapseToggle()}
+{#snippet collapseToggle(hitArea: string)}
 	<button
 		type="button"
-		class="flex shrink-0 items-center self-stretch rounded-sm px-0.5 text-secondary transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+		class="flex shrink-0 items-center self-stretch transition-colors hover:bg-black/5 dark:hover:bg-white/10 {hitArea}"
 		aria-expanded={!isCollapsed}
 		aria-label={isCollapsed ? common_expand() : common_collapse()}
 		onclick={onToggleCollapse}
@@ -217,19 +220,33 @@
 	</button>
 {/snippet}
 
-<!-- A subcontainer's title (a VLAN, a hypervisor, a container runtime): a chip like the root pill,
-     with the entity's tooltip, that selects the subcontainer. `withIcon` draws the type icon, which
-     a collapsed box shows in place of its children. -->
-{#snippet subcontainerChip(hasLabels: boolean, withIcon = false)}
+<!-- The status of the entity the container stands for (Unconfirmed, Stale) as an icon badge ahead of
+     its title, as list rows show it. The tooltip says which and why. -->
+{#snippet statusBadge()}
+	{#if staleTag}
+		<span data-fixed class="flex shrink-0"><Tag {...staleTag} label={undefined} /></span>
+	{/if}
+{/snippet}
+
+<!-- A subcontainer's title, which selects the subcontainer. One standing for an entity (a VLAN, a
+     hypervisor, a container runtime) is a pill in the entity's colour, as entity references are
+     drawn elsewhere; a grouping (a stack, a tag) keeps a plain title. The chevron fills the pill's
+     rounded left end, so the whole end collapses it. `withIcon` draws the type icon, which a
+     collapsed box shows in place of its children. -->
+{#snippet subcontainerTitle(hasLabels: boolean, withIcon = false)}
+	{@const chip = entityColor ? createColorHelper(entityColor) : null}
 	<span
 		data-fixed
 		data-container-title
-		class="flex min-w-0 shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5"
-		style="border-color: {colorHelper.rgb}; background: var(--color-topology-node-bg);"
+		class="flex min-w-0 shrink cursor-pointer items-center gap-1 text-xs font-medium {chip
+			? `rounded-full py-0.5 pr-2 ${chip.bg} ${chip.text} ${isCollapsible ? '' : 'pl-2'}`
+			: 'text-tertiary'}"
 		use:tooltipAction={{ content: tooltip }}
 	>
 		{#if isCollapsible}
-			{@render collapseToggle()}
+			{@render collapseToggle(
+				chip ? '-my-0.5 rounded-l-full py-0.5 pr-0.5 pl-2' : 'rounded-sm px-0.5 text-secondary'
+			)}
 		{/if}
 		{#if deviceType}
 			<DeviceGlyph {deviceType} />
@@ -244,15 +261,9 @@
 			<SoftwareGlyph definition={logoDefinition} framed={false} />
 		{/if}
 		{#if headerText}
-			<span
-				data-entity-header
-				class="min-w-0 truncate text-xs font-medium whitespace-nowrap text-secondary"
-			>
+			<span data-entity-header class="min-w-0 truncate whitespace-nowrap">
 				{headerText}{hasLabels ? ':' : ''}
 			</span>
-		{/if}
-		{#if staleTag}
-			<span class="shrink-0"><Tag {...staleTag} pill /></span>
 		{/if}
 	</span>
 {/snippet}
@@ -263,15 +274,20 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		data-container-title
-		class="nopan nodrag card absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 px-2 py-1 text-secondary shadow-lg backdrop-blur-xs"
+		class="nopan nodrag card absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 py-1 pr-2 text-secondary shadow-lg backdrop-blur-xs {isCollapsible
+			? 'pl-0'
+			: 'pl-2'}"
 		style:top="-{EXTERNAL_TITLE_OFFSET}px"
 		use:tooltipAction={{ content: tooltip }}
 		onmousedown={(e) => e.stopPropagation()}
 		onpointerdown={(e) => e.stopPropagation()}
 	>
 		{#if isCollapsible}
-			{@render collapseToggle()}
+			<!-- Fills the pill's left end, so the whole rounded end collapses it. -->
+			{@render collapseToggle('-my-1 rounded-l-[inherit] py-1 pr-1 pl-2 text-secondary')}
 		{/if}
+
+		{@render statusBadge()}
 
 		{#if deviceType}
 			<DeviceGlyph {deviceType} />
@@ -287,19 +303,17 @@
 				{headerText}
 			</span>
 		{/if}
-
-		{#if staleTag}
-			<Tag {...staleTag} pill />
-		{/if}
 	</div>
 {:else if variant === 'inline'}
-	<!-- Inline header: a title chip inside the container's top padding, then the group's labels -->
+	<!-- Inline header: the title inside the container's top padding, then the group's labels. Above
+	     the container's body, which is drawn after it and would otherwise take its clicks. -->
 	<div
 		bind:this={inlineContainerEl}
-		class="nopan nodrag absolute top-2 right-2 left-2 flex items-center gap-1 overflow-hidden py-0.5 text-secondary"
+		class="nopan nodrag absolute top-2 right-2 left-2 z-10 flex items-center gap-1 overflow-hidden py-0.5 text-secondary"
 	>
-		{#if isCollapsible || deviceType || logoDefinition || headerText || staleTag}
-			{@render subcontainerChip(groupLabels.length > 0)}
+		{@render statusBadge()}
+		{#if isCollapsible || deviceType || logoDefinition || headerText}
+			{@render subcontainerTitle(groupLabels.length > 0)}
 		{/if}
 		{#each visibleLabels as pill (pill.label)}
 			<Tag label={pill.label} color={pill.color} title={pill.title ?? ''} />
@@ -315,7 +329,8 @@
 		class="nopan nodrag flex items-center gap-1 overflow-hidden rounded-lg border border-dashed border-gray-300 px-3 py-2 dark:border-gray-600"
 		style="background: var(--color-topology-subgroup-bg); transition: box-shadow 0.15s ease-in-out; {searchHighlightRingStyle}"
 	>
-		{@render subcontainerChip(groupLabels.length > 0, true)}
+		{@render statusBadge()}
+		{@render subcontainerTitle(groupLabels.length > 0, true)}
 		{#each visibleLabels.slice(0, 2) as pill (pill.label)}
 			<Tag label={pill.label} color={pill.color} title={pill.title ?? ''} />
 		{/each}
