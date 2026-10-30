@@ -133,6 +133,138 @@ pub enum DeviceType {
     Unidentified,
 }
 
+/// Category grouping for device types, as pickers and filters group them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
+pub enum DeviceTypeCategory {
+    #[strum(serialize = "Security")]
+    Security,
+    #[strum(serialize = "WAN & Telecom")]
+    WanTelecom,
+    #[strum(serialize = "Networking")]
+    Networking,
+    #[strum(serialize = "Management & Monitoring")]
+    Management,
+    #[strum(serialize = "Compute")]
+    Compute,
+    #[strum(serialize = "Storage")]
+    Storage,
+    #[strum(serialize = "Printing & Scanning")]
+    PrintingScanning,
+    #[strum(serialize = "Surveillance")]
+    Surveillance,
+    #[strum(serialize = "Conferencing")]
+    Conferencing,
+    #[strum(serialize = "Voice")]
+    Voice,
+    #[strum(serialize = "End-User Devices")]
+    EndUser,
+    #[strum(serialize = "Media & Audio")]
+    Media,
+    #[strum(serialize = "Industrial & Building")]
+    IndustrialBuilding,
+    #[strum(serialize = "Power")]
+    Power,
+    #[strum(serialize = "Smart Home & IoT")]
+    SmartHome,
+    #[strum(serialize = "Specialized")]
+    Specialized,
+    #[strum(serialize = "Unidentified")]
+    Unidentified,
+}
+
+impl DeviceType {
+    /// The group this device type sits in. Exhaustive, so a new device type must pick one.
+    pub fn category(&self) -> DeviceTypeCategory {
+        use DeviceTypeCategory as C;
+        match self {
+            DeviceType::Ips
+            | DeviceType::SecurityAppliance
+            | DeviceType::Vpn
+            | DeviceType::Firewall => C::Security,
+            DeviceType::SdWanAppliance
+            | DeviceType::BroadbandRouter
+            | DeviceType::CableModem
+            | DeviceType::DslModem
+            | DeviceType::Multiplexer
+            | DeviceType::Telecom => C::WanTelecom,
+            DeviceType::Router
+            | DeviceType::Switch
+            | DeviceType::WirelessController
+            | DeviceType::WlanRepeater
+            | DeviceType::Powerline
+            | DeviceType::AccessPoint
+            | DeviceType::EthernetAdapter => C::Networking,
+            DeviceType::NetworkManagementDevice
+            | DeviceType::LightsOutManagement
+            | DeviceType::Kvm
+            | DeviceType::DeviceServer
+            | DeviceType::SupportAppliance
+            | DeviceType::Monitoring => C::Management,
+            DeviceType::Hypervisor | DeviceType::Server => C::Compute,
+            DeviceType::Nas
+            | DeviceType::StorageAppliance
+            | DeviceType::TapeLibrary
+            | DeviceType::Storage => C::Storage,
+            DeviceType::MultifunctionDevice
+            | DeviceType::PrintServer
+            | DeviceType::Scanner
+            | DeviceType::HandheldScanner
+            | DeviceType::CheckScanner
+            | DeviceType::Printer => C::PrintingScanning,
+            DeviceType::NetworkVideoRecorder
+            | DeviceType::Dvr
+            | DeviceType::WebCam
+            | DeviceType::Camera => C::Surveillance,
+            DeviceType::VideoConferencing
+            | DeviceType::DisplayController
+            | DeviceType::WirelessPresenter
+            | DeviceType::Whiteboard => C::Conferencing,
+            DeviceType::VoipGateway
+            | DeviceType::SipGateway
+            | DeviceType::VoipServer
+            | DeviceType::VoiceAppliance
+            | DeviceType::Phone => C::Voice,
+            DeviceType::Laptop
+            | DeviceType::Desktop
+            | DeviceType::Workstation
+            | DeviceType::Tablet
+            | DeviceType::Mobile
+            | DeviceType::DataTerminal => C::EndUser,
+            DeviceType::SmartTv
+            | DeviceType::Iptv
+            | DeviceType::MediaReceiver
+            | DeviceType::AvReceiver
+            | DeviceType::MediaServer
+            | DeviceType::MediaPlayer
+            | DeviceType::NetworkAudio
+            | DeviceType::AudioEncoder
+            | DeviceType::Speaker
+            | DeviceType::VideoEncoder
+            | DeviceType::VideoDecoder => C::Media,
+            DeviceType::Plc
+            | DeviceType::HmiController
+            | DeviceType::Industrial
+            | DeviceType::BuildingAutomation
+            | DeviceType::AccessControl
+            | DeviceType::AlarmPanel
+            | DeviceType::EnvironmentControl => C::IndustrialBuilding,
+            DeviceType::Ups
+            | DeviceType::PowerDevice
+            | DeviceType::PowerMeter
+            | DeviceType::RelayController => C::Power,
+            DeviceType::PowerRelay
+            | DeviceType::DeviceHub
+            | DeviceType::Sensor
+            | DeviceType::LightBulb
+            | DeviceType::IoT => C::SmartHome,
+            DeviceType::Medical | DeviceType::TestInstrument | DeviceType::JtagAdapter => {
+                C::Specialized
+            }
+            DeviceType::Unidentified => C::Unidentified,
+        }
+    }
+}
+
 impl std::fmt::Display for DeviceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.id())
@@ -248,6 +380,10 @@ impl EntityMetadataProvider for DeviceType {
 }
 
 impl TypeMetadataProvider for DeviceType {
+    fn category(&self) -> &'static str {
+        DeviceType::category(self).into()
+    }
+
     fn name(&self) -> &'static str {
         match self {
             DeviceType::Ips => "Intrusion Prevention System",
