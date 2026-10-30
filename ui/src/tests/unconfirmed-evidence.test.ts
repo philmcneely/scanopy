@@ -50,7 +50,7 @@ describe('what the resolve modal shows for an unconfirmed host, through the Host
 				source: { type: 'Inferred', via: 'Neighbour' },
 				chassis_id: 'hq-annex-uplink'
 			} as Partial<HostResponse>,
-			[{ mac_address: null }]
+			[{}]
 		);
 		const evidence = unconfirmedEvidence(host, interfaceCache);
 		expect(evidence.chassisId).toBe('hq-annex-uplink');

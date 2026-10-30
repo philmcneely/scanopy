@@ -227,7 +227,7 @@
      its title, outside the title's pill. The tooltip says which and why. -->
 {#snippet statusBadge()}
 	{#if staleTag}
-		<span data-fixed class="flex shrink-0"><Tag {...staleTag} label={undefined} /></span>
+		<span data-fixed class="flex shrink-0"><Tag {...staleTag} label={undefined} pill /></span>
 	{/if}
 {/snippet}
 
@@ -240,17 +240,15 @@
      two things a container adds: the chevron filling its rounded left end, and a click that opens
      the inspector. -->
 {#snippet entityPill(suffix: string)}
-	<span
-		data-fixed
-		data-container-title
-		class="flex min-w-0 shrink cursor-pointer"
-		use:tooltipAction={{ content: tooltip }}
-	>
+	<!-- The tooltip goes to the Tag itself: a hover finds the nearest tooltip source, which is the
+	     Tag's own, so one set on this wrapper would never show. -->
+	<span data-fixed data-container-title class="flex min-w-0 shrink cursor-pointer">
 		<Tag
 			pill
 			color={entityColor}
 			icon={chipIcon}
 			label={`${headerText}${suffix}`}
+			title={tooltip}
 			leading={isCollapsible ? pillToggle : undefined}
 		/>
 	</span>
@@ -295,12 +293,12 @@
 {/snippet}
 
 {#if variant === 'external' && entityColor}
-	<!-- External title above a container standing for an entity: its chip, then its status badge.
-	     The pointer handlers only keep a press on the title from panning the canvas. -->
+	<!-- External title above a container standing for an entity: its chip, then its status badge,
+	     sitting just above the box's top edge whatever the chip's height. The pointer handlers only
+	     keep a press on the title from panning the canvas. -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="nopan nodrag absolute left-0 z-100 flex max-w-full items-center gap-1"
-		style:top="-{EXTERNAL_TITLE_OFFSET}px"
+		class="nopan nodrag absolute bottom-full left-0 z-100 mb-2 flex max-w-full items-center gap-1"
 		onmousedown={(e) => e.stopPropagation()}
 		onpointerdown={(e) => e.stopPropagation()}
 	>
