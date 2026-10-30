@@ -25,7 +25,7 @@
 	import { credentialColumns } from './CredentialsTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import type { Site } from '$lib/features/sites/types';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { permissions, credentialTypes, billingPlans } from '$lib/shared/stores/metadata';

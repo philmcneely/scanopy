@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SlidersHorizontal } from 'lucide-svelte';
+	import { SlidersHorizontal } from '@lucide/svelte';
 	import type { components } from '$lib/api/schema';
 	import type { Site } from '$lib/features/sites/types';
 	import type { HostWithAddresses, IPAddress } from '$lib/features/hosts/types/base';

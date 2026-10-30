@@ -244,6 +244,20 @@ impl HostService {
                 );
             }
         }
+        // A MAC can sit on an address rather than an interface (where `fdb::learned_hosts` looks
+        // first), so a host reached that way is reported by the same ports.
+        for response in responses.iter().filter(|r| {
+            r.source
+                == EntitySource::Inferred {
+                    via: InferredVia::ForwardingTable,
+                }
+        }) {
+            for ip in &response.ip_addresses {
+                if let Some(mac) = &ip.base.mac_address {
+                    host_of_mac.insert(mac.value().0.to_string().to_lowercase(), response.id);
+                }
+            }
+        }
         if !host_of_mac.is_empty() {
             let macs: Vec<String> = host_of_mac.keys().cloned().collect();
             let ports = self

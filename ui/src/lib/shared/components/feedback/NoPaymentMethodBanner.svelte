@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
-	import { CreditCard } from 'lucide-svelte';
+	import { CreditCard } from '@lucide/svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useHasPendingQuote } from '$lib/features/billing/queries';

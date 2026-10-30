@@ -41,7 +41,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isPlanLapsed } from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
-	import { Info, Crosshair, ScanSearch, Gauge, Calendar, KeyRound, Copy } from 'lucide-svelte';
+	import { Info, Crosshair, ScanSearch, Gauge, Calendar, KeyRound, Copy } from '@lucide/svelte';
 	import CredentialsStep, {
 		type PendingCredential
 	} from '$lib/features/credentials/components/CredentialsStep.svelte';

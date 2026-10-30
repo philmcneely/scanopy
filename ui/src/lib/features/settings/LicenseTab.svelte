@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
-	import { Copy, RefreshCw } from 'lucide-svelte';
+	import { Copy, RefreshCw } from '@lucide/svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';

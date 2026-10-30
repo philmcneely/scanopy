@@ -14,7 +14,7 @@
 	import AnimatedProgressBar from '$lib/features/discovery/components/cards/AnimatedProgressBar.svelte';
 	import ProgressTrack from '$lib/shared/components/data/ProgressTrack.svelte';
 	import OsSelector from '../../OsSelector.svelte';
-	import { Download, Loader2, CheckCircle2, AlertTriangle, SlidersHorizontal } from 'lucide-svelte';
+	import { Download, Loader2, CheckCircle2, AlertTriangle, SlidersHorizontal } from '@lucide/svelte';
 	import type { DaemonConnectionStatus } from '../../../stores/daemon-setup';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import {

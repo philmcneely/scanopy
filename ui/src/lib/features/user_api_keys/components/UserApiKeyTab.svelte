@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
-	import { Edit, Trash2 } from 'lucide-svelte';
+	import { Edit, Trash2 } from '@lucide/svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';

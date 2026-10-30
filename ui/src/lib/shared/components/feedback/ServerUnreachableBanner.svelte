@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CloudOff } from 'lucide-svelte';
+	import { CloudOff } from '@lucide/svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { serverUnreachable } from '$lib/api/server-reachability';
 	import { serverUnreachable_body } from '$lib/paraglide/messages';

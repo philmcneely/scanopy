@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowUpCircle } from 'lucide-svelte';
+	import { ArrowUpCircle } from '@lucide/svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import { VERSION } from '$lib/version';

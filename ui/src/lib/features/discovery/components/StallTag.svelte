@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Clock } from 'lucide-svelte';
+	import { Clock } from '@lucide/svelte';
 	import { sessionStallMinutes } from '$lib/features/discovery/utils/staleness';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import { toColor } from '$lib/shared/utils/styling';

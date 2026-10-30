@@ -6,7 +6,7 @@
 	import { MAX_ITEMS_IN_CELL } from './types';
 	import { common_moreItems, common_tags } from '$lib/paraglide/messages';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import Popover from './Popover.svelte';
 
 	/**

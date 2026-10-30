@@ -8,7 +8,7 @@
 		CalendarCheck,
 		MessageCircle,
 		FlaskConical
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { logoPath } from '$lib/shared/utils/logos';
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';

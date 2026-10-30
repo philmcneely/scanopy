@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, MoreHorizontal } from 'lucide-svelte';
+	import { ChevronDown, MoreHorizontal } from '@lucide/svelte';
 	import Popover from '../Popover.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { resolveTooltip } from './actionShortcuts';

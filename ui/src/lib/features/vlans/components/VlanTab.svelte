@@ -21,7 +21,7 @@
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import VlanEditModal from './VlanEditModal.svelte';
-	import { Edit, Trash2 } from 'lucide-svelte';
+	import { Edit, Trash2 } from '@lucide/svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import type { TabProps } from '$lib/shared/types';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';

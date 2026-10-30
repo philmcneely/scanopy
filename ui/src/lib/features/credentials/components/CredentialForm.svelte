@@ -35,7 +35,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
-	import { Eye, EyeOff, HelpCircle, Plus } from 'lucide-svelte';
+	import { Eye, EyeOff, HelpCircle, Plus } from '@lucide/svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {

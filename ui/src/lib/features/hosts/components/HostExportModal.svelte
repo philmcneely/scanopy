@@ -1,6 +1,6 @@
 <script lang="ts">
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
-	import { FileSpreadsheet, FileArchive } from 'lucide-svelte';
+	import { FileSpreadsheet, FileArchive } from '@lucide/svelte';
 	import { downloadCsv, downloadHostsZip, type CsvExportParams } from '$lib/shared/utils/csvExport';
 	import {
 		hosts_exportChooseFormat,

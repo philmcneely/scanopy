@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 	import { copyText } from '$lib/shared/utils/clipboard';
-	import { Braces, X } from 'lucide-svelte';
+	import { Braces, X } from '@lucide/svelte';
 	import Prism from '@magidoc/plugin-svelte-prismjs';
 	import 'prismjs/components/prism-yaml';
 	import 'prismjs/components/prism-json';

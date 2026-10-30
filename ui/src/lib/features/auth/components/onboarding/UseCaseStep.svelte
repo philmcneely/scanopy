@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Home, Building2, Users, Boxes } from 'lucide-svelte';
+	import { Home, Building2, Users, Boxes } from '@lucide/svelte';
 	import { type UseCase, getUseCases } from '../../types/base';
 	import { useConfigQuery, isCommunity } from '$lib/shared/stores/config-query';
 	import { onboardingStore } from '../../stores/onboarding';

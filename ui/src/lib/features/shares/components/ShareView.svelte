@@ -13,7 +13,7 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import PasswordGate from './PasswordGate.svelte';
 	import ReadOnlyTopologyViewer from './ReadOnlyTopologyViewer.svelte';
-	import { AlertTriangle } from 'lucide-svelte';
+	import { AlertTriangle } from '@lucide/svelte';
 	import { entityBundleFrom, toRenderableTopology } from '$lib/features/topology/enriched';
 	import type { TopologyView } from '$lib/features/topology/queries';
 

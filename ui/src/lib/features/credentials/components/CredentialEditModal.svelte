@@ -19,7 +19,7 @@
 	import CredentialAssignmentsSection from './CredentialAssignmentsSection.svelte';
 	import { submitForm, validateForm } from '$lib/shared/components/forms/form-context';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
-	import { Info, KeyRound, Link } from 'lucide-svelte';
+	import { Info, KeyRound, Link } from '@lucide/svelte';
 	import {
 		common_assignments,
 		common_back,

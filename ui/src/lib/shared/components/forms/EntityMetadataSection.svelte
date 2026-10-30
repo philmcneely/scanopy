@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Braces } from 'lucide-svelte';
+	import { Braces } from '@lucide/svelte';
 	import CodeContainer from '../data/CodeContainer.svelte';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

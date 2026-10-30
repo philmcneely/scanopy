@@ -25,7 +25,7 @@
 	row it belongs to, past the chevron that opened it.
 -->
 <script lang="ts">
-	import { ChevronRight } from 'lucide-svelte';
+	import { ChevronRight } from '@lucide/svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 

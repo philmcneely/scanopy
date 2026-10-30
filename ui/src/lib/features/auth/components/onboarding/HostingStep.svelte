@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Cloud, Server } from 'lucide-svelte';
+	import { Cloud, Server } from '@lucide/svelte';
 	import { onboardingStore } from '../../stores/onboarding';
 	import type { PlanPickerHosting } from '$lib/features/billing/types';
 	import { trackEvent } from '$lib/shared/utils/analytics';

@@ -20,7 +20,7 @@
 	import { formatPort } from '$lib/shared/utils/formatting';
 	import type { IPAddress, Port } from '$lib/features/hosts/types/base';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import type { Service } from '../types/base';
 	import ServiceEditModal from './ServiceEditModal.svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';

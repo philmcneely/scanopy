@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Edit, Check, Eye, EyeOff } from 'lucide-svelte';
+	import { Edit, Check, Eye, EyeOff } from '@lucide/svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { SimpleOptionDisplay } from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import FilterGroup from './FilterGroup.svelte';

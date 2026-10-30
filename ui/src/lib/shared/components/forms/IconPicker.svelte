@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, X } from 'lucide-svelte';
+	import { ChevronDown, X } from '@lucide/svelte';
 	import { createIconComponent } from '$lib/shared/utils/styling';
 	import Popover from '$lib/shared/components/data/Popover.svelte';
 	import {

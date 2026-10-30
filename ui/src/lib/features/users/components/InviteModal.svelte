@@ -2,7 +2,7 @@
 	import { createForm } from '@tanstack/svelte-form';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-	import { UserPlus, Copy, Check, Calendar, RotateCcw, Send } from 'lucide-svelte';
+	import { UserPlus, Copy, Check, Calendar, RotateCcw, Send } from '@lucide/svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import { pushSuccess, pushError } from '$lib/shared/stores/feedback';
 	import { copyText } from '$lib/shared/utils/clipboard';

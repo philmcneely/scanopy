@@ -8,7 +8,7 @@ import type { FormValue } from '$lib/shared/components/forms/validators';
 import type { TagProps } from '$lib/shared/components/data/types';
 import { toColor } from '$lib/shared/utils/styling';
 import { getServerUrl } from '$lib/api/client';
-import { CircleHelp } from 'lucide-svelte';
+import { CircleHelp } from '@lucide/svelte';
 import {
 	common_deprecated,
 	common_freebsd,

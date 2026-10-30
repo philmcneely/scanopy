@@ -2,7 +2,7 @@
 	import type { Node } from '@xyflow/svelte';
 	import { useSvelteFlow } from '@xyflow/svelte';
 	import { focusNodes } from '$lib/features/topology/viewport-fit';
-	import { Crosshair } from 'lucide-svelte';
+	import { Crosshair } from '@lucide/svelte';
 	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { IPAddressDisplay } from '$lib/shared/components/forms/selection/display/IPAddressDisplay.svelte';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';

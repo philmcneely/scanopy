@@ -8,7 +8,7 @@
 	} from '$lib/shared/components/forms/validators';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
-	import { Key } from 'lucide-svelte';
+	import { Key } from '@lucide/svelte';
 	import Password from '$lib/shared/components/forms/input/Password.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';

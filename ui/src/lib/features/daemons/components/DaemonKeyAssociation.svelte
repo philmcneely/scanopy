@@ -14,7 +14,7 @@
 	 *   onwards, while the daemon still only accepts its old one — so it stops being reachable
 	 *   until it is reconfigured.
 	 */
-	import { KeyRound } from 'lucide-svelte';
+	import { KeyRound } from '@lucide/svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import {
 		useProvisionDaemonMutation,

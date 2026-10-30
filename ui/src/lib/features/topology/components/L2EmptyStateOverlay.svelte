@@ -5,7 +5,7 @@
 	 */
 	import TopologyOverlay from './TopologyOverlay.svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
-	import { Cable } from 'lucide-svelte';
+	import { Cable } from '@lucide/svelte';
 	import {
 		topology_l2EmptyTitle,
 		topology_l2EmptyDescription,

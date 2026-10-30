@@ -11,7 +11,7 @@
 
 <!-- C: child item type, X: context passed to the child display -->
 <script lang="ts" generics="C, X">
-	import { ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { ChevronDown, ChevronRight } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import ListSelectItem from './ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from './types';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ShieldAlert } from 'lucide-svelte';
+	import { ShieldAlert } from '@lucide/svelte';
 	import { license_renewByBanner } from '$lib/paraglide/messages';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import AppBanner from './AppBanner.svelte';

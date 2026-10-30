@@ -8,7 +8,7 @@
 	import type { Tag } from '../types/base';
 	import { createDefaultTag } from '../types/base';
 	import { createColorHelper, AVAILABLE_COLORS } from '$lib/shared/utils/styling';
-	import { TagIcon } from 'lucide-svelte';
+	import { TagIcon } from '@lucide/svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { pushError } from '$lib/shared/stores/feedback';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
