@@ -70,7 +70,7 @@
 		onClickRow,
 		onToggleAll,
 		headerControl = undefined,
-		pinHeaderBelow = null
+		bottomInset = 0
 	}: {
 		/** Ungrouped rows. Null when the list is grouped. */
 		items: T[] | null;
@@ -113,56 +113,51 @@
 		 */
 		headerControl?: Snippet<[EntityColumn<T>]>;
 		/**
-		 * The sticky element the header row pins beneath while the page scrolls past the table,
-		 * such as the list's toolbar. Null leaves the header scrolling with the rows.
+		 * Space kept below the last row, in px, for something floating over the table's bottom
+		 * edge (the bulk-tag island), so the last row can scroll clear of it.
 		 */
-		pinHeaderBelow?: HTMLElement | null;
+		bottomInset?: number;
 	} = $props();
 
 	/*
-	 * The header row pins by translating, not with `position: sticky`. The wrapper scrolls
-	 * sideways, which makes it the sticky containing block, so a sticky header would pin to the
-	 * wrapper rather than to the page. The shift is how far the pin line sits below the table's
-	 * top, held between 0 and the table's last row, so the header never leaves the table.
+	 * From `md` up the table scrolls on its own, filling `main` from where it sits down to
+	 * `main`'s bottom padding, and its header row is `position: sticky` at the top of it. The
+	 * wrapper already scrolls sideways, which makes it the sticky containing block, so the header
+	 * can only pin inside it: a header pinned to the page had to be moved by script on every
+	 * scroll, and lagged the toolbar because the browser scrolls off the main thread. The height
+	 * is measured on resize and tab switch, never on scroll. Below `md` the page scrolls and the
+	 * header scrolls with it.
 	 */
+	const MAIN_BOTTOM_PADDING = 16;
+	const fillsViewport = new MediaQuery('min-width: 48rem');
 	let wrapperEl: HTMLDivElement | null = $state(null);
-	let theadEl: HTMLTableSectionElement | null = $state(null);
-	let headerShift = $state(0);
+	let maxHeight = $state<number | null>(null);
 
 	$effect(() => {
 		const wrapper = wrapperEl;
-		const below = pinHeaderBelow;
-		if (!wrapper || !below) {
-			headerShift = 0;
+		const main = wrapper?.closest('main');
+		if (!wrapper || !main || !fillsViewport.current) {
+			maxHeight = null;
 			return;
 		}
-		let frame = 0;
 		const measure = () => {
-			frame = 0;
-			const top = wrapper.getBoundingClientRect().top;
-			const room = wrapper.offsetHeight - (theadEl?.offsetHeight ?? 0);
-			const shift = below.getBoundingClientRect().bottom - top;
-			headerShift = Math.max(0, Math.min(shift, room));
+			const mainRect = main.getBoundingClientRect();
+			// Where the table sits in `main`'s content, whatever `main` is scrolled to.
+			const top = wrapper.getBoundingClientRect().top - mainRect.top + main.scrollTop;
+			const next = Math.max(160, main.clientHeight - top - MAIN_BOTTOM_PADDING);
+			if (maxHeight === null || Math.abs(next - maxHeight) > 0.5) maxHeight = next;
 		};
-		const schedule = () => {
-			if (!frame) frame = requestAnimationFrame(measure);
-		};
-		// Capture catches the scroll of `main`, the element that scrolls, as well as the window's.
-		window.addEventListener('scroll', schedule, { capture: true, passive: true });
-		window.addEventListener('resize', schedule, { passive: true });
-		// Resizes cover rows loading and the toolbar growing; visibility covers a tab switch.
-		const resizes = new ResizeObserver(schedule);
-		resizes.observe(wrapper);
-		resizes.observe(below);
-		const visibility = new IntersectionObserver(schedule);
+		// `main` resizing covers the window and banners; the list resizing covers the toolbar
+		// above the table; visibility covers a tab switch.
+		const resizes = new ResizeObserver(measure);
+		resizes.observe(main);
+		if (wrapper.parentElement) resizes.observe(wrapper.parentElement);
+		const visibility = new IntersectionObserver(measure);
 		visibility.observe(wrapper);
 		measure();
 		return () => {
-			window.removeEventListener('scroll', schedule, { capture: true });
-			window.removeEventListener('resize', schedule);
 			resizes.disconnect();
 			visibility.disconnect();
-			if (frame) cancelAnimationFrame(frame);
 		};
 	});
 
@@ -464,8 +459,8 @@
 	container that only answers to the mouse is a WCAG 2.1.1 failure.
 
 	Note this wrapper is the containing block for `position: sticky`, so a sticky
-	header here would offset from the wrapper rather than the viewport — which is
-	why the header pins by translating instead (`pinHeaderBelow`).
+	header here pins to the wrapper rather than the viewport — which is why, from
+	`md` up, the wrapper is also the vertical scroller (`maxHeight`).
 
 	`relative` is what makes it the containing block for *absolute* descendants as
 	well, and that is load-bearing rather than tidy. `FieldValue` renders an
@@ -481,6 +476,8 @@
 <div
 	bind:this={wrapperEl}
 	class="entity-table relative isolate overflow-x-auto"
+	style:max-height={maxHeight === null ? undefined : `${maxHeight}px`}
+	style:padding-bottom={bottomInset > 0 ? `${bottomInset}px` : undefined}
 	style:--pin-select-width="{selectable ? selectWidth : 0}px"
 	style:--pin-actions-width="{getActions ? actionsWidth : 0}px"
 	data-density={displaySettings.current.table_density}
@@ -490,11 +487,7 @@
 >
 	<table class="w-full border-collapse text-sm">
 		<caption class="sr-only">{caption}</caption>
-		<thead
-			bind:this={theadEl}
-			class:pinned={headerShift > 0}
-			style:transform={headerShift > 0 ? `translateY(${headerShift}px)` : undefined}
-		>
+		<thead>
 			<tr>
 				{#if selectable}
 					<th
