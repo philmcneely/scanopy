@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { rowStatusBadges } from '$lib/shared/utils/row-badges';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import type {
 		Host,
@@ -13,7 +14,7 @@
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 	import OsTag from './OsTag.svelte';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
-	import HostConsolidationModal from './HostConsolidationModal.svelte';
+	import HostMergeModal from './HostMergeModal.svelte';
 	import UnconfirmedHostModal from './UnconfirmedHostModal.svelte';
 	import { isUnconfirmed } from '$lib/shared/utils/confirmation';
 	import HostExportModal from './HostExportModal.svelte';
@@ -22,14 +23,14 @@
 	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { hostColumns } from './HostTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, RefreshCw, Replace, Edit, CloudAlert } from 'lucide-svelte';
+	import { Trash2, RefreshCw, Replace, Edit, CircleDashed } from 'lucide-svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import type { TabProps } from '$lib/shared/types';
 	import {
 		common_confirmDeleteName,
 		common_confirmDeleteNameWithGuests,
-		common_consolidate,
+		common_merge,
 		common_create,
 		common_delete,
 		common_edit,
@@ -40,6 +41,8 @@
 		common_rescan,
 		daemons_installPromptHosts,
 		hosts_alreadyConfirmed,
+		hosts_resolveFirst,
+		hosts_resolveFirstBulk,
 		hosts_rescanNoAddresses,
 		hosts_rescanNoAddressesBulk,
 		hosts_resolveUnconfirmed
@@ -54,7 +57,7 @@
 		useUpdateHostMutation,
 		useDeleteHostMutation,
 		useBulkDeleteHostsMutation,
-		useConsolidateHostsMutation,
+		useMergeHostsMutation,
 		useBulkRescanHostsMutation,
 		useRescanHostMutation,
 		useSettleUnconfirmedHostMutation,
@@ -215,7 +218,7 @@
 	const updateHostMutation = useUpdateHostMutation();
 	const deleteHostMutation = useDeleteHostMutation();
 	const bulkDeleteHostsMutation = useBulkDeleteHostsMutation();
-	const consolidateHostsMutation = useConsolidateHostsMutation();
+	const mergeHostsMutation = useMergeHostsMutation();
 	const rescanHostMutation = useRescanHostMutation();
 	const bulkRescanHostsMutation = useBulkRescanHostsMutation();
 	const settleUnconfirmedMutation = useSettleUnconfirmedHostMutation();
@@ -282,7 +285,7 @@
 	}
 
 	let otherHost = $state<Host | null>(null);
-	let showHostConsolidationModal = $state(false);
+	let showHostMergeModal = $state(false);
 	let resolvingHost = $state<Host | null>(null);
 	let showUnconfirmedHost = $state(false);
 
@@ -372,15 +375,28 @@
 	function hostActions(host: Host): CardAction[] {
 		if (isReadOnly) return [];
 
+		// An unconfirmed host is settled first, through Resolve: confirm, merge or dismiss it.
+		const unresolved = disabledWhen(
+			isUnconfirmed(host),
+			hosts_resolveFirst(),
+			hosts_resolveFirstBulk()
+		);
+
 		return [
 			// Only where there is something to resolve, as on the Subnets tab.
 			{
 				label: hosts_resolveUnconfirmed(),
-				icon: CloudAlert,
+				icon: CircleDashed,
 				onClick: () => handleResolveHost(host),
 				unavailable: hiddenWhen(!isUnconfirmed(host), hosts_alreadyConfirmed())
 			},
-			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditHost(host) },
+			{
+				label: common_edit(),
+				icon: Edit,
+				isOpen: true,
+				onClick: () => handleEditHost(host),
+				unavailable: unresolved
+			},
 			// A rescan targets the host's known addresses, so a host with none (a device identified
 			// purely by a MAC) has nothing to scan, and the endpoint answers 400.
 			{
@@ -388,20 +404,28 @@
 				icon: RefreshCw,
 				onClick: () => handleRescanHost(host),
 				onBulk: handleBulkRescan,
-				unavailable: disabledWhen(
-					hostIPAddresses(host).length === 0,
-					hosts_rescanNoAddresses(),
-					hosts_rescanNoAddressesBulk()
-				)
+				unavailable:
+					unresolved ??
+					disabledWhen(
+						hostIPAddresses(host).length === 0,
+						hosts_rescanNoAddresses(),
+						hosts_rescanNoAddressesBulk()
+					)
 			},
-			{ label: common_consolidate(), icon: Replace, onClick: () => handleStartConsolidate(host) },
+			{
+				label: common_merge(),
+				icon: Replace,
+				onClick: () => handleStartMerge(host),
+				unavailable: unresolved
+			},
 			{
 				label: common_delete(),
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
 				onBulk: handleBulkDelete,
-				onClick: () => handleDeleteHost(host)
+				onClick: () => handleDeleteHost(host),
+				unavailable: unresolved
 			}
 		];
 	}
@@ -437,7 +461,7 @@
 
 	function handleMergeUnconfirmed(host: Host) {
 		handleCloseUnconfirmedHost();
-		handleStartConsolidate(host);
+		handleStartMerge(host);
 	}
 
 	async function handleDismissUnconfirmed(host: Host) {
@@ -449,9 +473,9 @@
 		}
 	}
 
-	function handleStartConsolidate(host: Host) {
+	function handleStartMerge(host: Host) {
 		otherHost = host;
-		showHostConsolidationModal = true;
+		showHostMergeModal = true;
 	}
 
 	function handleRescanHost(host: Host) {
@@ -494,14 +518,14 @@
 		}
 	}
 
-	async function handleConsolidateHosts(destinationHostId: string, otherHostId: string) {
+	async function handleMergeHosts(destinationHostId: string, otherHostId: string) {
 		try {
-			await consolidateHostsMutation.mutateAsync({
+			await mergeHostsMutation.mutateAsync({
 				destinationHostId,
 				otherHostId,
 				otherHostName: otherHost ? hostDisplayName(otherHost) : undefined
 			});
-			showHostConsolidationModal = false;
+			showHostMergeModal = false;
 			otherHost = null;
 		} catch {
 			// Error handled by mutation
@@ -598,6 +622,7 @@
 				showExportModal = true;
 			}}
 			getActions={hostActions}
+			getRowBadges={rowStatusBadges(() => sitesData, 'Host')}
 			entityLabel={common_hosts()}
 		></DataControls>
 	{/if}
@@ -613,11 +638,11 @@
 	onClose={handleCloseHostEditor}
 />
 
-<HostConsolidationModal
-	isOpen={showHostConsolidationModal}
+<HostMergeModal
+	isOpen={showHostMergeModal}
 	{otherHost}
-	onConsolidate={handleConsolidateHosts}
-	onClose={() => (showHostConsolidationModal = false)}
+	onMerge={handleMergeHosts}
+	onClose={() => (showHostMergeModal = false)}
 />
 
 <UnconfirmedHostModal

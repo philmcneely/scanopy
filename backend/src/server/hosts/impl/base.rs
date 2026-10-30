@@ -604,6 +604,20 @@ impl Display for Host {
 }
 
 impl Host {
+    /// Refuse a change to a host that is still unconfirmed. Until a person confirms, merges or
+    /// dismisses it, those are the only things to do with it, so editing, deleting, rescanning or
+    /// merging another host into it are turned away rather than half-settling it.
+    pub fn require_confirmed(
+        &self,
+    ) -> Result<(), crate::server::shared::types::api::ValidationError> {
+        if self.base.source.confirmation().is_unconfirmed() {
+            return Err(crate::server::shared::types::api::ValidationError::new(
+                "This host is unconfirmed. Confirm, merge or dismiss it first.",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn new(base: HostBase) -> Self {
         let now = chrono::Utc::now();
         Self {

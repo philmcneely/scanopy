@@ -65,6 +65,11 @@ pub struct DashboardSummary {
     pub uncovered_integrations: Vec<UncoveredIntegration>,
     /// Credentials no scan will send to a daemon, by name.
     pub targetless_credentials: Vec<TargetlessCredential>,
+    /// Hosts known only from another device's report, waiting to be confirmed, merged or
+    /// dismissed.
+    pub unconfirmed_host_count: u64,
+    /// Subnets whose range was assumed, waiting to be confirmed or corrected.
+    pub unconfirmed_subnet_count: u64,
 }
 
 /// A credential with no site or host assignment that no discovery targets, so no daemon receives it.

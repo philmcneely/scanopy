@@ -211,6 +211,7 @@ impl DaemonResponse for HostResponse {
             // Plain optional UUIDs: an older daemon ignores them, and the daemon never reads them.
             first_discovery_id: _,
             dismissed_at: _,
+            reported_by_host_ids: _,
             last_discovery_id: _,
             name: _,
             display_name: _,

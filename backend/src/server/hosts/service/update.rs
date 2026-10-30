@@ -14,6 +14,7 @@ impl HostService {
             .get_by_id(&request.id)
             .await?
             .ok_or_else(|| anyhow!("Host '{}' not found", request.id))?;
+        existing.require_confirmed()?;
 
         let site_id = existing.base.site_id;
         let UpdateHostRequest {

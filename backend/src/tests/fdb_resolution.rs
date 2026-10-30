@@ -459,10 +459,39 @@ async fn a_bridge_only_device_resolves_its_single_mac_port_via_resolve_fdb_links
         "the collected FDB, not a hand-typed value, is what this test resolves"
     );
 
-    assert_eq!(lab.resolve().await.unwrap(), 1);
+    // Two links: the anchor's, and switch-core-01's Gi0/2, whose one learned MAC belongs to no
+    // scanned host. That device is minted as an unconfirmed host first, then placed on the port.
+    assert_eq!(lab.resolve().await.unwrap(), 2);
     assert_eq!(
         lab.resolved_neighbor(anchor.id).await,
         Some(Neighbor::Interface(far_port.id)),
         "a switch with no LLDP remote table at all must still produce a physical link from FDB"
+    );
+
+    let learned: mac_address::MacAddress = "00:1a:2b:00:12:01".parse().unwrap();
+    let minted_port = lab
+        .storage
+        .interfaces
+        .get_all(StorableFilter::<Interface>::new_from_site_ids(&[
+            lab.site_id
+        ]))
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|i| i.base.mac_address.as_ref().map(|m| m.value().0) == Some(learned))
+        .expect("an interface carrying the learned MAC");
+    let minted = lab
+        .storage
+        .hosts
+        .get_by_id(&minted_port.base.host_id)
+        .await
+        .unwrap()
+        .expect("the host minted for it");
+    assert_eq!(
+        minted.base.source,
+        crate::server::shared::types::entities::EntitySource::Inferred {
+            via: crate::server::shared::types::entities::InferredVia::ForwardingTable
+        },
+        "a device known only from a switch's forwarding table is unconfirmed"
     );
 }

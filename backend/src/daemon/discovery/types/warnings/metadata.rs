@@ -383,7 +383,7 @@ impl DiscoveryWarningCode {
             // every scan until someone answers it.
             | Self::ProvisionalSubnetInferred
             | Self::UnconfirmedHostInferred
-            // Duplicate host records are a Scanopy-side data problem, and consolidating them is a
+            // Duplicate host records are a Scanopy-side data problem, and merging them is a
             // shipped action.
             | Self::LldpNeighbourAmbiguous
             // Narrowing what one scan covers is the lever that brings the pass back inside budget.
@@ -689,7 +689,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
                 "LLDP/CDP neighbours name devices this site has not discovered ({count} in total), so they draw no links. This is expected where the far end is an endpoint or unmanaged device; a device that should have been scanned means the identifier it advertises is not one this site holds."
             }
             Self::LldpNeighbourAmbiguous => {
-                "LLDP/CDP neighbours advertise an identifier that several hosts on this site hold ({count} in total), so none of them can be picked and no link is drawn. This is usually duplicate records for one device rather than a device that was missed — consolidate the duplicates and the link resolves."
+                "LLDP/CDP neighbours advertise an identifier that several hosts on this site hold ({count} in total), so none of them can be picked and no link is drawn. This is usually duplicate records for one device rather than a device that was missed — merge the duplicates and the link resolves."
             }
             Self::LldpPortNoStrategy => {
                 "LLDP/CDP neighbours resolved to a device but advertise a port id of a subtype there is no lookup for ({count} in total), so Physical Topology draws a dashed device-level link instead of a port-to-port one."

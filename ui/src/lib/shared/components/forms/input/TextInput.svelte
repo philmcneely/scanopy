@@ -12,6 +12,8 @@
 		type?: 'text' | 'email' | 'password' | 'number';
 		disabled?: boolean;
 		autofocus?: boolean;
+		/** The field's accessible name when `label` is empty because a label is drawn beside it. */
+		ariaLabel?: string;
 	}
 
 	let {
@@ -23,7 +25,8 @@
 		helpText = '',
 		type = 'text',
 		disabled = false,
-		autofocus = false
+		autofocus = false,
+		ariaLabel = undefined
 	}: Props = $props();
 
 	let hasErrors = $derived(field.state.meta.isTouched && field.state.meta.errors.length > 0);
@@ -46,6 +49,7 @@
 			field.handleChange(type === 'number' ? (value === '' ? '' : Number(value)) : value);
 		}}
 		{placeholder}
+		aria-label={ariaLabel}
 		{disabled}
 		class="input-field"
 		class:input-field-error={hasErrors}

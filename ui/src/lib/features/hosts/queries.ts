@@ -17,7 +17,7 @@ import { requireSuccess, unwrapData, unwrapEnvelope } from '$lib/api/query-helpe
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { hostDisplayName } from './host-display-name';
 import {
-	hosts_consolidatedToast,
+	hosts_mergedToast,
 	hosts_rescanStartedBulkToast,
 	hosts_rescanStartedToast
 } from '$lib/paraglide/messages';
@@ -735,9 +735,9 @@ export function useBulkDeleteHostsMutation() {
 }
 
 /**
- * Mutation hook for consolidating hosts
+ * Mutation hook for merging hosts
  */
-export function useConsolidateHostsMutation() {
+export function useMergeHostsMutation() {
 	const queryClient = useQueryClient();
 
 	return createMutation(() => ({
@@ -751,7 +751,7 @@ export function useConsolidateHostsMutation() {
 			otherHostName?: string;
 		}) => {
 			const response = unwrapData(
-				await apiClient.POST('/api/v1/hosts/{id}/consolidate/{other_id}', {
+				await apiClient.POST('/api/v1/hosts/{id}/merge/{other_id}', {
 					params: { path: { id: destinationHostId, other_id: otherHostId } }
 				})
 			);
@@ -761,7 +761,7 @@ export function useConsolidateHostsMutation() {
 			// Invalidate all host list queries to refetch with updated data
 			invalidateHostLists(queryClient);
 
-			// Remove children of consolidated host and update destination host children
+			// Remove children of the merged-away host and update destination host children
 			queryClient.setQueryData<IPAddress[]>(queryKeys.ipAddresses.all, (old) => {
 				const others =
 					old?.filter((i) => i.host_id !== otherHostId && i.host_id !== response.id) ?? [];
@@ -785,7 +785,7 @@ export function useConsolidateHostsMutation() {
 
 			if (otherHostName) {
 				pushSuccess(
-					hosts_consolidatedToast({
+					hosts_mergedToast({
 						source: otherHostName,
 						destination: hostDisplayName(response)
 					})

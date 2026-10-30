@@ -48,7 +48,7 @@ use crate::server::{
         storage::{
             filter::StorableFilter,
             generic::GenericPostgresStorage,
-            lock::{CONSOLIDATE_LOCK_TIMEOUT, DEFAULT_LOCK_TIMEOUT, LockKey},
+            lock::{DEFAULT_LOCK_TIMEOUT, LockKey, MERGE_LOCK_TIMEOUT},
             traits::{Entity, PaginatedResult, Storable, Storage},
         },
         types::{
@@ -214,7 +214,6 @@ impl CrudService<Host> for HostService {
     }
 }
 
-mod consolidate;
 mod container_reports;
 mod create;
 mod delete;
@@ -222,6 +221,7 @@ mod detach;
 mod discovery;
 mod lifecycle;
 pub(crate) mod mac_identity;
+mod merge;
 mod open_ports;
 mod removed_guests;
 mod same_device;
@@ -1018,7 +1018,7 @@ mod tests {
     }
 
     /// Two hosts carrying one chassis id are a duplicate this cannot choose between, and merging a
-    /// scan into an arbitrary one of them is worse than creating a row somebody can consolidate.
+    /// scan into an arbitrary one of them is worse than creating a row somebody can merge.
     /// The same single-match rule every other chassis lookup applies.
     #[test]
     fn a_chassis_id_held_by_two_hosts_matches_neither() {
@@ -1433,7 +1433,7 @@ mod tests {
             },
         ];
 
-        let carriers = consolidate::mac_carriers(&[ipvlan_row, runtime_row], &[], &[], &candidates);
+        let carriers = merge::mac_carriers(&[ipvlan_row, runtime_row], &[], &[], &candidates);
         let incoming = [MacEvidence::new(
             MacEvidenceValue(parent_mac()),
             AttributeSource::ArpReply,
@@ -1511,7 +1511,7 @@ mod tests {
 
         assert_eq!(select_matching_host(&incoming, None, &candidates), None);
 
-        let carriers = consolidate::mac_carriers(&[listed], &[], &incoming, &candidates);
+        let carriers = merge::mac_carriers(&[listed], &[], &incoming, &candidates);
         let macs = [MacEvidence::new(
             MacEvidenceValue(lab_ens19()),
             AttributeSource::ArpReply,
@@ -1573,7 +1573,7 @@ mod tests {
         let vm = Uuid::new_v4();
         let listed = listed_by_hypervisor(vm, "192.168.4.63", lan);
         let candidates = vec![candidate(vm, vec![listed.clone()])];
-        let carriers = consolidate::mac_carriers(&[listed], &[], &[], &candidates);
+        let carriers = merge::mac_carriers(&[listed], &[], &[], &candidates);
         let macs = [MacEvidence::new(
             MacEvidenceValue(lab_ens19()),
             AttributeSource::ArpReply,
@@ -1657,7 +1657,7 @@ mod tests {
         if let Some((id, _)) = select_matching_host(incoming, None, candidates) {
             return Some(id);
         }
-        let carriers = consolidate::mac_carriers(ip_rows, interface_rows, incoming, candidates);
+        let carriers = merge::mac_carriers(ip_rows, interface_rows, incoming, candidates);
         mac_identity::select_matching_host_by_mac(
             &mac_identity::payload_macs(incoming, &[]),
             &carriers,
@@ -1849,7 +1849,7 @@ mod tests {
             })),
         ] {
             guest.virtualization = virtualization;
-            let carriers = consolidate::mac_carriers(
+            let carriers = merge::mac_carriers(
                 &snmp_test_nic_rows(vm, lan),
                 &[],
                 &[],
@@ -1908,6 +1908,18 @@ impl HostService {
                 StorableFilter::<Host>::new_from_site_ids(site_ids)
                     .live()
                     .unconfirmed(false),
+            )
+            .await
+    }
+
+    /// Live hosts on these sites waiting for a person to confirm, merge or dismiss them.
+    pub async fn unconfirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
+        self.storage
+            .count(
+                StorableFilter::<Host>::new_from_site_ids(site_ids)
+                    .live()
+                    .not_dismissed()
+                    .unconfirmed(true),
             )
             .await
     }

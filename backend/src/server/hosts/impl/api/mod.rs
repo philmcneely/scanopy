@@ -993,6 +993,12 @@ pub struct HostResponse {
     #[serde(default)]
     #[schema(read_only)]
     pub dismissed_at: Option<DateTime<Utc>>,
+    /// For an unconfirmed host, the hosts whose report it is known from: the switch whose
+    /// forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+    /// host. Read-only.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub reported_by_host_ids: Vec<Uuid>,
     /// How the host is virtualized, when it is a VM or container guest.
     #[serde(
         default,

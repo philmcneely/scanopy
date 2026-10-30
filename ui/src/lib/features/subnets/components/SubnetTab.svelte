@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { rowStatusBadges } from '$lib/shared/utils/row-badges';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { isProvisionalCidr } from '$lib/shared/utils/cidr-source';
 	import { cidrContains } from '$lib/shared/utils/cidr';
@@ -18,7 +19,7 @@
 	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { subnetColumns } from './SubnetTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, Edit, CloudAlert } from 'lucide-svelte';
+	import { Trash2, Edit, CircleDashed } from 'lucide-svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import {
@@ -53,6 +54,8 @@
 		common_subnets,
 		daemons_installPromptSubnets,
 		subnets_rangeSettled,
+		subnets_resolveFirst,
+		subnets_resolveFirstBulk,
 		subnets_resolveRange,
 		subnets_sharedRangeReadOnly,
 		subnets_sharedRangeReadOnlyBulk
@@ -217,6 +220,12 @@
 			subnets_sharedRangeReadOnly(),
 			subnets_sharedRangeReadOnlyBulk()
 		);
+		// An assumed range is settled first, through Resolve range.
+		const unresolved = disabledWhen(
+			isProvisionalCidr(subnet),
+			subnets_resolveFirst(),
+			subnets_resolveFirstBulk()
+		);
 
 		return [
 			// Only where there is something to resolve. A badge that says a range was guessed and
@@ -226,7 +235,7 @@
 			// which is exactly what an assumed range is not.
 			{
 				label: subnets_resolveRange(),
-				icon: CloudAlert,
+				icon: CircleDashed,
 				onClick: () => handleResolveRange(subnet),
 				unavailable: hiddenWhen(!isProvisionalCidr(subnet), subnets_rangeSettled())
 			},
@@ -235,7 +244,7 @@
 				icon: Edit,
 				isOpen: true,
 				onClick: () => handleEditSubnet(subnet),
-				unavailable: shared
+				unavailable: shared ?? unresolved
 			},
 			{
 				label: common_delete(),
@@ -244,7 +253,7 @@
 				isDelete: true,
 				onBulk: handleBulkDelete,
 				onClick: () => handleDeleteSubnet(subnet),
-				unavailable: shared
+				unavailable: shared ?? unresolved
 			}
 		];
 	}
@@ -445,6 +454,7 @@
 			onQueryChange={page.onQueryChange}
 			onCsvExport={handleCsvExport}
 			getActions={subnetActions}
+			getRowBadges={rowStatusBadges(() => sitesData, 'Subnet')}
 			entityLabel={common_subnets()}
 		></DataControls>
 	{/if}

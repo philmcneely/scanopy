@@ -455,3 +455,17 @@ fn a_payload_cannot_claim_a_person_typed_a_host_fact() {
     );
     assert!(!base.reject_manual_attribute_claims());
 }
+
+/// An unconfirmed host is settled through Resolve before anything else touches it; a confirmed
+/// one is not held back.
+#[test]
+fn only_a_confirmed_host_may_be_edited_deleted_rescanned_or_merged_into() {
+    use crate::server::shared::types::entities::{EntitySource, InferredVia};
+    let mut host = nameless_host();
+    host.base.source = EntitySource::Inferred {
+        via: InferredVia::ForwardingTable,
+    };
+    assert!(host.require_confirmed().is_err());
+    host.base.source = EntitySource::Discovery;
+    assert!(host.require_confirmed().is_ok());
+}

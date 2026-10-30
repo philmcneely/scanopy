@@ -8,11 +8,11 @@
  * assumed range) share it, the way every entity shares `getFreshnessTag`, and it renders wherever
  * the Stale pill does.
  *
- * Indigo rather than Stale's amber or a daemon's red: nothing is behind and nothing is broken; a
- * guess is waiting to be confirmed.
+ * Violet, the Inferred source's colour, since an unconfirmed entity is exactly an inferred one; not
+ * Stale's amber or a daemon's red: nothing is behind and nothing is broken; a guess awaits a person.
  */
 
-import { CloudAlert } from 'lucide-svelte';
+import { CircleDashed } from 'lucide-svelte';
 
 import type { components } from '$lib/api/schema';
 import type { TagProps } from '$lib/shared/components/data/types';
@@ -64,8 +64,8 @@ export function getConfirmationTag(entity: ConfirmationSubject): TagProps | null
 	if (!via) return null;
 	return {
 		label: common_unconfirmed(),
-		color: toColor('indigo'),
-		icon: CloudAlert,
+		color: toColor('violet'),
+		icon: CircleDashed,
 		title: unconfirmedReason(via)
 	};
 }

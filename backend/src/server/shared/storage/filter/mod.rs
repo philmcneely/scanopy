@@ -266,6 +266,23 @@ mod tests {
         }
     }
 
+    // A port is found by a learned MAC whatever case the device reported it in, and an empty set
+    // of MACs finds no port rather than every port.
+    #[test]
+    fn fdb_macs_contain_matches_case_insensitively_and_an_empty_set_matches_nothing() {
+        use crate::server::interfaces::r#impl::base::Interface;
+        let none = StorableFilter::<Interface>::new_unfiltered().fdb_macs_contain(&[]);
+        assert_eq!(none.to_where_clause().trim(), "WHERE FALSE");
+        let some = StorableFilter::<Interface>::new_unfiltered()
+            .fdb_macs_contain(&["00:80:63:2A:51:07".to_string()]);
+        assert!(some.to_where_clause().contains("lower(learned)"));
+        assert!(matches!(
+            some.values().first(),
+            Some(crate::server::shared::storage::traits::SqlValue::StringArray(v))
+                if v == &vec!["00:80:63:2a:51:07".to_string()]
+        ));
+    }
+
     #[test]
     fn live_filter_emits_valid_to_is_null() {
         let filter = StorableFilter::<Tag>::new_unfiltered().live();

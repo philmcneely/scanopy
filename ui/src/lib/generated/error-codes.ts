@@ -60,7 +60,7 @@ export const ERROR_CODES = {
 	entity_delete_forbidden: 'Cannot delete this {entity}: {reason}',
 	entity_update_forbidden: 'Cannot update this {entity}',
 	entity_site_mismatch: '{entity} is on a different site',
-	hosts_consolidate_failed: 'Failed to consolidate hosts: {reason}',
+	hosts_merge_failed: 'Failed to merge hosts: {reason}',
 	sites_access_denied: "You don't have access to site '{site}'",
 	share_password_required: 'Password required for this share',
 	share_password_incorrect: 'Incorrect password',
@@ -171,7 +171,7 @@ export interface ErrorParams {
 	entity_delete_forbidden: { entity: string | number; reason: string | number };
 	entity_update_forbidden: { entity: string | number };
 	entity_site_mismatch: { entity: string | number };
-	hosts_consolidate_failed: { reason: string | number };
+	hosts_merge_failed: { reason: string | number };
 	sites_access_denied: { site: string | number };
 	share_password_required: Record<string, never>;
 	share_password_incorrect: Record<string, never>;

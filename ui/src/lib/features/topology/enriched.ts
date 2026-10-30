@@ -60,6 +60,8 @@ export interface EntityBundle {
 	entity_tags: Tag[];
 	/** The organization's Application tag group: its tags place entities in applications. */
 	application_group_id: string | null;
+	/** How many entities of each type a Visibility tag left out — see `TopologyData.hidden_by_tag`. */
+	hidden_by_tag?: TopologyData['hidden_by_tag'];
 	/** Per-view graph built on request by the backend (keyed by view). */
 	nodes?: Partial<Record<TopologyView, TopologyNode[]>>;
 	edges?: Partial<Record<TopologyView, TopologyEdge[]>>;
@@ -181,6 +183,7 @@ export function toRenderableTopology(
 		// filtering the way the entity arrays above do.
 		filtered_out: bundle.filtered_out ?? {},
 		dependencies,
+		hidden_by_tag: bundle.hidden_by_tag ?? {},
 		vlans,
 		entity_tags: entityTags,
 		application_group_id: bundle.application_group_id,

@@ -8,7 +8,8 @@
 		type GroupSlice,
 		type PageSizeOption,
 		type CardAction,
-		type TableDefaults
+		type TableDefaults,
+		type TagProps
 	} from './types';
 	import { filterOptionsOf } from './controls/fieldValues';
 	import {
@@ -65,7 +66,12 @@
 		PAGE_PARAM,
 		type ServerQuery
 	} from './controls/listQuery';
-	import { registerUrlOwner, syncUrl, takeInitialParams } from '$lib/shared/stores/url-state';
+	import {
+		queuedInitialParams,
+		registerUrlOwner,
+		syncUrl,
+		takeInitialParams
+	} from '$lib/shared/stores/url-state';
 	import ControlsBar from './controls/ControlsBar.svelte';
 	import ColumnControlsMenu from './table/ColumnControlsMenu.svelte';
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
@@ -85,7 +91,7 @@
 		withTagColumn,
 		type EntityColumn
 	} from './table/columns';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import {
 		common_all,
 		common_clear,
@@ -166,6 +172,7 @@
 		onExportClick = null,
 		// Row actions, rendered in the table's trailing column.
 		getActions = null,
+		getRowBadges = null,
 		// Names the table for screen readers, e.g. "Hosts".
 		entityLabel = null,
 		// The grouping and sort the tab opens with until the user picks their own.
@@ -202,6 +209,8 @@
 		onExportClick?: (() => void | Promise<void>) | null;
 		// Row actions.
 		getActions?: ((item: T) => CardAction[]) | null;
+		/** Icon-only status badges beside each row's name, whatever columns are shown. */
+		getRowBadges?: ((item: T) => TagProps[]) | null;
 		// Accessible name for the table, e.g. "Hosts".
 		entityLabel?: string | null;
 		defaults?: TableDefaults;
@@ -756,6 +765,12 @@
 		const params = new URLSearchParams(viewParams.url);
 		if (effectiveCurrentPage > 1) params.set(PAGE_PARAM, String(effectiveCurrentPage));
 		return params;
+	});
+
+	// A link opened from inside the app (a nudge's filtered list) queues its params while this list
+	// is already mounted, so the list on screen takes them when they arrive.
+	$effect(() => {
+		if ($queuedInitialParams > 0) untrack(loadUrlView);
 	});
 
 	$effect(() =>
@@ -1355,6 +1370,7 @@
 		someSelected={isPartiallySelected(flat, selectedIds, getItemId)}
 		{getItemId}
 		{getActions}
+		{getRowBadges}
 		caption={caption ?? tableCaptionText}
 		onToggleSort={toggleSort}
 		onClickRow={clickRow}

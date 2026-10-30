@@ -142,8 +142,8 @@ pub enum ErrorCode {
     EntitySiteMismatch { entity: String },
 
     // === Hosts ===
-    /// Host consolidation failed
-    HostsConsolidateFailed { reason: String },
+    /// Host merge failed
+    HostsMergeFailed { reason: String },
 
     // === Sites ===
     /// User doesn't have access to this site
@@ -363,7 +363,7 @@ impl ErrorCode {
             Self::EntitySiteMismatch { .. } => "{entity} is on a different site",
 
             // Hosts
-            Self::HostsConsolidateFailed { .. } => "Failed to consolidate hosts: {reason}",
+            Self::HostsMergeFailed { .. } => "Failed to merge hosts: {reason}",
 
             // Sites
             Self::SitesAccessDenied { .. } => "You don't have access to site '{site}'",
@@ -577,7 +577,7 @@ impl ErrorCode {
             }),
 
             // Domain-specific with params
-            Self::HostsConsolidateFailed { reason } => Some(json_map! { "reason" => reason }),
+            Self::HostsMergeFailed { reason } => Some(json_map! { "reason" => reason }),
             Self::SitesAccessDenied { site } => Some(json_map! { "site" => site }),
             Self::CredentialDefaultExists { name }
             | Self::CredentialDefaultDeleteForbidden { name }

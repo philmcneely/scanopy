@@ -63,7 +63,7 @@
 	"errors_entity_site_mismatch": "{entity} is on a different site",
 	"errors_entity_update_forbidden": "Cannot update this {entity}",
 	"errors_external_service_error": "Error from {service}: {reason}",
-	"errors_hosts_consolidate_failed": "Failed to consolidate hosts: {reason}",
+	"errors_hosts_merge_failed": "Failed to merge hosts: {reason}",
 	"errors_invite_already_accepted": "This invite has already been accepted",
 	"errors_invite_email_mismatch": "Invite email doesn't match your account",
 	"errors_ip_address_out_of_range": "IP address '{ip}' is not within subnet '{subnet}' range",

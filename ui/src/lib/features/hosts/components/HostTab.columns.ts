@@ -1,5 +1,4 @@
 import type { Snippet } from 'svelte';
-import { lastSeenItems } from '$lib/shared/utils/freshness';
 import type { Host, IPAddress, Port } from '../types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { hostOsFamilyIds, hostOsFamilyName } from '$lib/features/hosts/host-os';
@@ -51,7 +50,7 @@ import {
 	hosts_snmp_sysName,
 	hosts_snmp_sysObjectId
 } from '$lib/paraglide/messages';
-import { entitySourceWithConfirmationItems } from '$lib/shared/utils/entity-source';
+import { entitySourceItems } from '$lib/shared/utils/entity-source';
 import {
 	virtualizationGroupKey,
 	virtualizationGroupLabel,
@@ -292,7 +291,7 @@ export function hostColumns(ctx: HostColumnsContext) {
 				label: common_lastSeen(),
 				type: 'date',
 				staleFilter: true,
-				display: { recency: true, order: 1, getItems: lastSeenItems(ctx.sites, 'Host') }
+				display: { recency: true, order: 1 }
 			},
 			// How the host came to exist, read from `source.type`. An inferred host (one a
 			// neighbour advertised and nothing scanned) looks the same as a down device by its
@@ -307,7 +306,7 @@ export function hostColumns(ctx: HostColumnsContext) {
 				filterLabel: (id) => entitySources.getName(id),
 				// The server groups on the raw `source.type`.
 				getGroupValue: (host) => host.source.type,
-				display: { order: 1, getItems: (host) => entitySourceWithConfirmationItems(host.source) }
+				display: { order: 1, getItems: (host) => entitySourceItems(host.source) }
 			},
 			// Hardware identity, off by default: populated only for hosts a credentialed scan
 			// reached. The options come from every stored value, and the server groups on the

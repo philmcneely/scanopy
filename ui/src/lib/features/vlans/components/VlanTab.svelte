@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { rowStatusBadges } from '$lib/shared/utils/row-badges';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
 	import { loadFailure } from '$lib/shared/utils/load-failure';
@@ -236,6 +237,7 @@
 			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={vlanActions}
+			getRowBadges={rowStatusBadges(() => sitesData, 'Vlan')}
 			entityLabel={common_vlans()}
 		></DataControls>
 	{/if}

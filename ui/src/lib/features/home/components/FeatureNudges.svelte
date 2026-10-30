@@ -11,6 +11,7 @@
 		entities,
 		billingPlans,
 		credentialIntegrations,
+		entitySources,
 		interfaceIntegrationsList
 	} from '$lib/shared/stores/metadata';
 	import {
@@ -24,7 +25,9 @@
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { hasSunsetWarning } from '$lib/features/daemons/utils';
 	import type { IconComponent } from '$lib/shared/utils/types';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { CircleDashed } from 'lucide-svelte';
+	import { queueInitialParams } from '$lib/shared/stores/url-state';
 	import {
 		common_getStarted,
 		home_nudges_apiKeysAction,
@@ -58,7 +61,10 @@
 		home_nudges_tagsTitle,
 		home_nudges_targetlessCredentialAction,
 		home_nudges_targetlessCredentialDescription,
-		home_nudges_targetlessCredentialTitle
+		home_nudges_targetlessCredentialTitle,
+		common_review,
+		home_nudges_unconfirmedDescription,
+		home_nudges_unconfirmedTitle
 	} from '$lib/paraglide/messages';
 
 	type Organization = components['schemas']['Organization'];
@@ -142,6 +148,26 @@
 			})),
 			// One per credential no scan sends to a daemon. Gone once it has a target, so acting on it
 			// does not dismiss it.
+			// Hosts and subnets known only from another device's report. Opens the list filtered to the
+			// Inferred source, which is exactly the unconfirmed rows; Subnets when only subnets wait.
+			{
+				id: 'unconfirmed-entities',
+				title: home_nudges_unconfirmedTitle(),
+				description: home_nudges_unconfirmedDescription({
+					hosts: dashboard.unconfirmed_host_count,
+					subnets: dashboard.unconfirmed_subnet_count
+				}),
+				actionLabel: common_review(),
+				action: async () => {
+					onNavigate(dashboard.unconfirmed_host_count > 0 ? 'hosts' : 'subnets');
+					await tick();
+					queueInitialParams(new URLSearchParams({ sources: 'Inferred' }));
+				},
+				visible: dashboard.unconfirmed_host_count + dashboard.unconfirmed_subnet_count > 0,
+				icon: CircleDashed,
+				iconColor: entitySources.getColorHelper('Inferred').icon,
+				dismissOnAction: false
+			},
 			...dashboard.targetless_credentials.map(({ id, name, integration }): Nudge => ({
 				id: `targetless-credential-${id}`,
 				title: home_nudges_targetlessCredentialTitle({ name }),

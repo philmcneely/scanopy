@@ -139,6 +139,26 @@ impl<T: Storable> StorableFilter<T> {
         self
     }
 
+    /// Interfaces whose forwarding table learned any of these MACs: the switch ports a device is
+    /// seen behind. Compared case-insensitively, since the stored list keeps whatever case the
+    /// device reported. An empty list matches nothing.
+    pub fn fdb_macs_contain(mut self, macs: &[String]) -> Self {
+        if macs.is_empty() {
+            self.conditions.push("FALSE".to_string());
+            return self;
+        }
+        let fdb_col = self.qualify_column("fdb_macs");
+        self.conditions.push(format!(
+            "{fdb_col} IS NOT NULL AND EXISTS (SELECT 1 FROM jsonb_array_elements_text({fdb_col}) learned \
+             WHERE lower(learned) = ANY(${}))",
+            self.values.len() + 1
+        ));
+        self.values.push(SqlValue::StringArray(
+            macs.iter().map(|m| m.to_lowercase()).collect(),
+        ));
+        self
+    }
+
     /// Filter interfaces with unresolved single-MAC FDB data in a site.
     ///
     /// Matches entries that have exactly 1 learned MAC, no candidate row (raw LLDP/CDP evidence —

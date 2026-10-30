@@ -35,7 +35,7 @@
 		subnets_mergeIntoDetail,
 		subnets_rangeEvidenceAddresses,
 		subnets_rangeEvidenceOpenScan,
-		subnets_rangeEvidenceSeenBy,
+		common_reportedBy,
 		subnets_resolveRange,
 		subnets_resolveRangeIntro
 	} from '$lib/paraglide/messages';
@@ -159,7 +159,7 @@
 			<div class="space-y-2 text-sm">
 				{#if seenBy.length > 0}
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-secondary">{subnets_rangeEvidenceSeenBy()}</span>
+						<span class="text-secondary">{common_reportedBy()}</span>
 						{#each seenBy as host (host.id)}
 							<EntityTag
 								entityRef={entityRef('Host', host.id, host)}
