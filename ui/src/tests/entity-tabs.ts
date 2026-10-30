@@ -344,7 +344,9 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				device_type: 'device_type',
 				// The Device type tag's hover text.
 				device_type_source: 'device_type',
-				dismissed_at: excluded('A dismissed host is left out of the list, so every listed row has none'),
+				dismissed_at: excluded(
+					'A dismissed host is left out of the list, so every listed row has none'
+				),
 				firmware_revision: 'firmware_revision',
 				hidden: excluded(
 					'Always false, kept for older daemons; the Visibility tag group hides a host'

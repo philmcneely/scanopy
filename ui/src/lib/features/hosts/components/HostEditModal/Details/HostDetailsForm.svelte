@@ -7,7 +7,6 @@
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import IdentitySection from './IdentitySection.svelte';
 	import DeviceFactsSection from './DeviceFactsSection.svelte';
-	import DeviceLabelFields from './DeviceLabelFields.svelte';
 	import {
 		common_tags,
 		common_description,
@@ -30,10 +29,11 @@
 	// auto-default (first site) on the falsy initial capture.
 </script>
 
-<!-- Side by side when the device facts card renders (editing a host that has facts), so it and the
-     metadata below stay in view. With one card it keeps the full width. -->
-<div class="grid grid-cols-1 items-start gap-6 p-6 lg:has-[>:nth-child(2)]:grid-cols-2">
-	<div class="card-static card space-y-6">
+<!-- One balanced flow: the name card first, then a card per facts section, filled down two columns
+     so a short name card and a long run of facts still end level. Create mode has no facts, so the
+     name card keeps the full width. -->
+<div class={isEditing ? 'columns-1 gap-6 p-6 lg:columns-2' : 'p-6'}>
+	<div class="card-static card mb-6 break-inside-avoid space-y-6">
 		<IdentitySection {form} {formData} {isEditing} />
 
 		<!-- Create only: an update keeps the host's existing site whatever the request says. -->
@@ -66,13 +66,9 @@
 			selectedTagIds={formData.tags}
 			onChange={(tags) => (formData.tags = tags)}
 		/>
-
-		{#if isEditing}
-			<DeviceLabelFields {form} {formData} />
-		{/if}
 	</div>
 
 	{#if isEditing}
-		<DeviceFactsSection host={formData} />
+		<DeviceFactsSection {form} host={formData} />
 	{/if}
 </div>

@@ -7,6 +7,10 @@
 	import { type HostOs } from '$lib/features/hosts/host-os';
 	import OsTag from '../../OsTag.svelte';
 	import DeviceTypeLabel from '../../DeviceTypeLabel.svelte';
+	import EditableFactRow from './EditableFactRow.svelte';
+	import { EDITABLE_TEXT_FACTS, deviceLabelDefaults } from './device-labels';
+	import { deviceTypeSourceTag } from '$lib/features/hosts/device-type-source';
+	import { sysContactEmail } from '$lib/features/hosts/sys-contact';
 	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import CopyableValue from '$lib/shared/components/data/CopyableValue.svelte';
 	import GuestStateTag from '$lib/shared/components/virtualization/GuestStateTag.svelte';
@@ -14,6 +18,7 @@
 	import type { Color } from '$lib/shared/utils/styling';
 	import {
 		containerNetworkTypes,
+		deviceTypes,
 		entities,
 		entitySources,
 		guestStates,
@@ -53,11 +58,20 @@
 		hosts_deviceFacts_guestName,
 		hosts_deviceFacts_guestType,
 		hosts_deviceFacts_identityGroup,
+		hosts_deviceFacts_locationGroup,
 		hosts_deviceFacts_networkType,
-		hosts_deviceFacts_vmId
+		hosts_deviceFacts_vmId,
+		hosts_deviceType
 	} from '$lib/paraglide/messages';
 
-	let { host }: { host: HostFormData } = $props();
+	let {
+		form,
+		host
+	}: {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		form: { Field: any };
+		host: HostFormData;
+	} = $props();
 
 	type DeviceType = components['schemas']['DeviceType'];
 
@@ -92,6 +106,8 @@
 		entitySource?: components['schemas']['EntitySource']['type'];
 		/** Drawn in place of the source tag, for a value whose provenance is not an attribute source. */
 		sourceTag?: TagProps;
+		/** A fact a person can set, edited in place through its form field. */
+		editable?: { name: string; kind: 'text' | 'deviceType'; initial: string };
 	}
 
 	interface Section {
@@ -236,17 +252,41 @@
 		entitySource: host.source.type
 	}));
 
+	// What the form opened with, so each editable row can tell a typed value from the stored one.
+	let initial = $derived(deviceLabelDefaults(host));
+
+	/** A registry fact a person can set: always shown, with a pencil that opens its field. */
+	function editableFact(id: (typeof EDITABLE_TEXT_FACTS)[number], extras: Partial<Fact> = {}) {
+		return registryFact(id, {
+			editable: { name: id, kind: 'text', initial: initial[id] },
+			...extras
+		});
+	}
+
+	// Shown even when nothing identifies the host: "Unidentified" is the answer, not a missing value.
+	// Its tag names the stored match's source, or what the type was derived from.
+	let deviceTypeFact = $derived.by((): Fact => {
+		const deviceType = host.device_type ?? 'Unidentified';
+		return {
+			...sourceless(hosts_deviceType(), deviceTypes.getName(deviceType)),
+			deviceType,
+			sourceTag: host.device_type_source ? deviceTypeSourceTag(host.device_type_source) : undefined,
+			editable: { name: 'device_type', kind: 'deviceType', initial: initial.device_type }
+		};
+	});
+
 	// Grouped by what each value describes, not by the protocol that carried it. A model arrives
 	// from ENTITY-MIB, a controller or an industrial probe, and each value's own tag says which.
+	// Facts a person can set are always listed, so there is always a pencil to set them with; the
+	// rest are listed only when something reported them.
 	let sections = $derived(
 		(
 			[
 				{
 					title: hosts_deviceFacts_identityGroup(),
-					// Device type and the typed facts below are edited in `DeviceLabelFields`, which shows
-					// each with its source, so they are not repeated here.
 					facts: [
 						entitySourceFact,
+						deviceTypeFact,
 						registryFact('hostname'),
 						registryFact('sys_name'),
 						registryFact('chassis_id')
@@ -254,7 +294,13 @@
 				},
 				{
 					title: common_hardware(),
-					facts: [registryFact('sys_object_id')]
+					facts: [
+						editableFact('manufacturer'),
+						editableFact('model'),
+						editableFact('serial_number'),
+						editableFact('asset_tag'),
+						registryFact('sys_object_id')
+					]
 				},
 				{
 					title: hosts_deviceFacts_firmwareGroup(),
@@ -263,6 +309,14 @@
 						registryFact('firmware_revision'),
 						registryFact('software_revision'),
 						registryFact('sys_descr')
+					]
+				},
+				{
+					title: hosts_deviceFacts_locationGroup(),
+					facts: [
+						editableFact('sys_location'),
+						editableFact('sys_contact', { mailto: sysContactEmail(host.sys_contact) }),
+						editableFact('management_url', { link: true })
 					]
 				},
 				{
@@ -280,80 +334,96 @@
 		)
 			.map((section): Section => ({
 				...section,
-				facts: section.facts.filter((fact) => fact.value?.trim())
+				facts: section.facts.filter((fact) => fact.editable || fact.value?.trim())
 			}))
 			.filter((section) => section.facts.length > 0)
 	);
 </script>
 
-{#if sections.length > 0}
-	<div class="card-static card">
-		<div class="divide-y divide-gray-200 dark:divide-gray-700">
-			{#each sections as section (section.title)}
-				<div class="space-y-2 py-3 first:pt-0 last:pb-0">
-					<h4 class="text-xs font-semibold tracking-wide text-secondary uppercase">
-						{section.title}
-					</h4>
-					{#if section.summary}
-						<p class="text-sm text-secondary">{section.summary}</p>
-					{/if}
-					{#each section.facts as fact (fact.label)}
-						<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-							<span class="w-40 shrink-0 text-sm text-secondary">{fact.label}</span>
-							<span class="min-w-0 flex-1 text-sm wrap-break-word text-primary">
-								{#if fact.entitySource}
-									<Tag
-										{...entitySources.getTag(fact.entitySource)}
-										icon={entitySources.getIconComponent(fact.entitySource)}
-										title={entitySources.getDescription(fact.entitySource)}
-									/>
-								{:else if fact.guestState}
-									<GuestStateTag state={fact.guestState} />
-								{:else if fact.entity}
-									<EntityTag
-										entityRef={fact.entity.ref}
-										label={fact.value ?? undefined}
-										icon={fact.entity.icon ?? entities.getIconComponent(fact.entity.ref.entityType)}
-										color={fact.entity.color}
-									/>
-								{:else if fact.deviceType}
-									<DeviceTypeLabel deviceType={fact.deviceType} />
-								{:else if fact.os}
-									<!-- The same tooltip the hosts table shows: every detail and the source. -->
-									<OsTag os={fact.os} source={fact.source} />
-								{:else if fact.mailto}
-									<a
-										href="mailto:{fact.mailto}"
-										class="break-all text-blue-400 hover:text-blue-300"
-									>
-										{fact.value}
-									</a>
-								{:else if fact.link}
-									<!-- eslint-disable svelte/no-navigation-without-resolve -->
-									<a
-										href={fact.value}
-										target="_blank"
-										rel="external noopener noreferrer"
-										class="break-all text-blue-400 hover:text-blue-300"
-									>
-										{fact.value}
-									</a>
-									<!-- eslint-enable svelte/no-navigation-without-resolve -->
-								{:else if fact.identifier && fact.value}
-									<CopyableValue value={fact.value} variant="inline" />
-								{:else}
-									{fact.value}
-								{/if}
-							</span>
-							{#if fact.sourceTag}
-								<span class="shrink-0"><Tag {...fact.sourceTag} /></span>
-							{:else if !fact.sourceless}
-								<span class="shrink-0"><AttributeSourceTag source={fact.source} /></span>
-							{/if}
-						</div>
-					{/each}
+{#snippet factValue(fact: Fact)}
+	{#if !fact.value?.trim()}
+		<span class="text-secondary">—</span>
+	{:else if fact.entitySource}
+		<Tag
+			{...entitySources.getTag(fact.entitySource)}
+			icon={entitySources.getIconComponent(fact.entitySource)}
+			title={entitySources.getDescription(fact.entitySource)}
+		/>
+	{:else if fact.guestState}
+		<GuestStateTag state={fact.guestState} />
+	{:else if fact.entity}
+		<EntityTag
+			entityRef={fact.entity.ref}
+			label={fact.value ?? undefined}
+			icon={fact.entity.icon ?? entities.getIconComponent(fact.entity.ref.entityType)}
+			color={fact.entity.color}
+		/>
+	{:else if fact.deviceType}
+		<DeviceTypeLabel deviceType={fact.deviceType} />
+	{:else if fact.os}
+		<!-- The same tooltip the hosts table shows: every detail and the source. -->
+		<OsTag os={fact.os} source={fact.source} />
+	{:else if fact.mailto}
+		<a href="mailto:{fact.mailto}" class="break-all text-blue-400 hover:text-blue-300">
+			{fact.value}
+		</a>
+	{:else if fact.link}
+		<!-- eslint-disable svelte/no-navigation-without-resolve -->
+		<a
+			href={fact.value}
+			target="_blank"
+			rel="external noopener noreferrer"
+			class="break-all text-blue-400 hover:text-blue-300"
+		>
+			{fact.value}
+		</a>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+	{:else if fact.identifier && fact.value}
+		<CopyableValue value={fact.value} variant="inline" />
+	{:else}
+		{fact.value}
+	{/if}
+{/snippet}
+
+{#snippet factSource(fact: Fact)}
+	{#if fact.sourceTag}
+		<Tag {...fact.sourceTag} />
+	{:else if !fact.sourceless && fact.value?.trim()}
+		<AttributeSourceTag source={fact.source} />
+	{/if}
+{/snippet}
+
+<!-- One card per section, as siblings, so the Details tab's column flow can balance them. -->
+{#each sections as section (section.title)}
+	<div class="card-static card mb-6 break-inside-avoid space-y-2">
+		<h4 class="text-xs font-semibold tracking-wide text-secondary uppercase">
+			{section.title}
+		</h4>
+		{#if section.summary}
+			<p class="text-sm text-secondary">{section.summary}</p>
+		{/if}
+		{#each section.facts as fact (fact.label)}
+			{#if fact.editable}
+				<EditableFactRow
+					{form}
+					name={fact.editable.name}
+					label={fact.label}
+					kind={fact.editable.kind}
+					initial={fact.editable.initial}
+					hostId={host.id}
+				>
+					{#snippet display()}{@render factValue(fact)}{/snippet}
+					{#snippet source()}{@render factSource(fact)}{/snippet}
+				</EditableFactRow>
+			{:else}
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+					<span class="w-40 shrink-0 text-sm text-secondary">{fact.label}</span>
+					<span class="min-w-0 flex-1 text-sm wrap-break-word text-primary">
+						{@render factValue(fact)}
+					</span>
+					<span class="shrink-0">{@render factSource(fact)}</span>
 				</div>
-			{/each}
-		</div>
+			{/if}
+		{/each}
 	</div>
-{/if}
+{/each}
