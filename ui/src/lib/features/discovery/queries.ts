@@ -14,9 +14,8 @@ import { useListPageQuery, type ListPageParams } from '$lib/api/list-page';
 import type { DiscoveryUpdatePayload } from './types/api';
 import type { Organization } from '../organizations/types';
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
-import { BaseSSEManager, type SSEConfig } from '$lib/shared/utils/sse';
 import { discoveryTerminalReasons, discoveryTypes } from '$lib/shared/stores/metadata';
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import * as m from '$lib/paraglide/messages';
 import { siteItems } from '$lib/features/sites/columns';
 import { daemonItems } from '$lib/features/daemons/columns';
@@ -600,9 +599,6 @@ export function useInitiateDiscoveryMutation() {
 				return [...old, session];
 			});
 
-			// Connect SSE to receive updates
-			discoverySSEManager.connect();
-
 			pushSuccess(
 				`${session.discovery_type.type} discovery session created with session ID ${session.session_id}`
 			);
@@ -688,7 +684,8 @@ function pushFailureToast(update: DiscoveryUpdatePayload) {
 // Throttle configuration for query invalidations
 const INVALIDATION_THROTTLE_MS = 1000; // At most 1 invalidation per second
 
-class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
+/** Discovery events on the live-update stream (`liveUpdatesSSEManager`). */
+class DiscoveryStream {
 	private invalidationPending = false;
 	private invalidationTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -716,9 +713,10 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 	}
 
 	/**
-	 * Clean up resources on disconnect
+	 * The stream closed (disconnect, or a hidden tab): drop the pending invalidation and the
+	 * per-session tracking, which only means something while updates arrive.
 	 */
-	override disconnect() {
+	reset() {
 		// Clear any pending invalidation
 		if (this.invalidationTimeout) {
 			clearTimeout(this.invalidationTimeout);
@@ -730,125 +728,120 @@ class DiscoverySSEManager extends BaseSSEManager<DiscoveryUpdatePayload> {
 		lastProgress.clear();
 		sessionLastMessageAt.set(new Map());
 		discoveryStreamConnected.set(false);
-
-		super.disconnect();
 	}
 
-	protected createConfig(): SSEConfig<DiscoveryUpdatePayload> {
-		return {
-			url: '/api/v1/discoveries/stream',
-			onMessage: async (update) => {
+	/** The stream dropped. Toasts once per lost connection, not on every reconnect attempt. */
+	lost() {
+		if (get(discoveryStreamConnected)) pushError(m.discovery_lostConnection());
+		discoveryStreamConnected.set(false);
+	}
+
+	opened() {
+		// Silence while the stream was down says nothing about the daemon, so every session
+		// starts a fresh clock from the reconnect.
+		sessionLastMessageAt.set(new Map());
+		const sessions = queryClient.getQueryData<DiscoveryUpdatePayload[]>(
+			queryKeys.discovery.sessions()
+		);
+		observeSessions(
+			(sessions ?? []).map((s) => s.session_id),
+			Date.now()
+		);
+		discoveryStreamConnected.set(true);
+	}
+
+	async handleUpdate(update: DiscoveryUpdatePayload) {
+		if (isTerminalPhase(update.phase)) {
+			forgetSession(update.session_id);
+		} else {
+			recordSessionMessage(update.session_id, Date.now());
+		}
+
+		// Check if progress increased
+		const last = lastProgress.get(update.session_id) || 0;
+		const current = update.progress || 0;
+
+		if (current > last) {
+			// Schedule throttled invalidation instead of immediate
+			this.scheduleInvalidation();
+			lastProgress.set(update.session_id, current);
+		}
+
+		// Handle terminal phases
+		if (update.phase === 'Complete') {
+			// The scan completed either way, so that is what the toast says. Warnings are
+			// not toasted: a sticky toast carrying several paragraphs is the wrong surface
+			// for detail the user needs to read at their own pace, and the run's history
+			// card already tags itself "Warnings" and lists them in full.
+			pushSuccess(m.discovery_completed({ type: update.discovery_type.type }));
+			// Final refresh on completion - do this immediately, not throttled
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeys.hosts.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.services.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.subnets.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all })
+			]);
+		} else if (update.phase === 'Cancelled') {
+			pushWarning(m.discovery_cancelled());
+		} else if (update.phase === 'Failed') {
+			pushFailureToast(update);
+		}
+
+		// Invalidate org cache until FirstDiscoveryCompleted milestone appears
+		const org = queryClient.getQueryData<Organization>(queryKeys.organizations.current());
+		if (org && !org.onboarding.includes('FirstDiscoveryCompleted')) {
+			queryClient.invalidateQueries({ queryKey: queryKeys.organizations.current() });
+		}
+
+		// Update sessions in TanStack cache
+		queryClient.setQueryData<DiscoveryUpdatePayload[]>(
+			queryKeys.discovery.sessions(),
+			(current) => {
+				if (!current) current = [];
+
+				// Cleanup for terminal phases
 				if (isTerminalPhase(update.phase)) {
-					forgetSession(update.session_id);
+					// Clear cancelling state
+					cancellingSessions.update((c) => {
+						const m = new Map(c);
+						m.delete(update.session_id);
+						return m;
+					});
+
+					lastProgress.delete(update.session_id);
+
+					// Remove completed/cancelled/failed sessions
+					return current.filter((session) => session.session_id !== update.session_id);
+				}
+
+				// For non-terminal phases, update or add the session
+				const existingIndex = current.findIndex((s) => s.session_id === update.session_id);
+
+				if (existingIndex >= 0) {
+					const updated = [...current];
+					updated[existingIndex] = update;
+					return updated;
 				} else {
-					recordSessionMessage(update.session_id, Date.now());
+					return [...current, update];
 				}
-
-				// Check if progress increased
-				const last = lastProgress.get(update.session_id) || 0;
-				const current = update.progress || 0;
-
-				if (current > last) {
-					// Schedule throttled invalidation instead of immediate
-					this.scheduleInvalidation();
-					lastProgress.set(update.session_id, current);
-				}
-
-				// Handle terminal phases
-				if (update.phase === 'Complete') {
-					// The scan completed either way, so that is what the toast says. Warnings are
-					// not toasted: a sticky toast carrying several paragraphs is the wrong surface
-					// for detail the user needs to read at their own pace, and the run's history
-					// card already tags itself "Warnings" and lists them in full.
-					pushSuccess(m.discovery_completed({ type: update.discovery_type.type }));
-					// Final refresh on completion - do this immediately, not throttled
-					await Promise.all([
-						queryClient.invalidateQueries({ queryKey: queryKeys.hosts.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.services.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.subnets.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all }),
-						queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all })
-					]);
-				} else if (update.phase === 'Cancelled') {
-					pushWarning(m.discovery_cancelled());
-				} else if (update.phase === 'Failed') {
-					pushFailureToast(update);
-				}
-
-				// Invalidate org cache until FirstDiscoveryCompleted milestone appears
-				const org = queryClient.getQueryData<Organization>(queryKeys.organizations.current());
-				if (org && !org.onboarding.includes('FirstDiscoveryCompleted')) {
-					queryClient.invalidateQueries({ queryKey: queryKeys.organizations.current() });
-				}
-
-				// Update sessions in TanStack cache
-				queryClient.setQueryData<DiscoveryUpdatePayload[]>(
-					queryKeys.discovery.sessions(),
-					(current) => {
-						if (!current) current = [];
-
-						// Cleanup for terminal phases
-						if (isTerminalPhase(update.phase)) {
-							// Clear cancelling state
-							cancellingSessions.update((c) => {
-								const m = new Map(c);
-								m.delete(update.session_id);
-								return m;
-							});
-
-							lastProgress.delete(update.session_id);
-
-							// Remove completed/cancelled/failed sessions
-							return current.filter((session) => session.session_id !== update.session_id);
-						}
-
-						// For non-terminal phases, update or add the session
-						const existingIndex = current.findIndex((s) => s.session_id === update.session_id);
-
-						if (existingIndex >= 0) {
-							const updated = [...current];
-							updated[existingIndex] = update;
-							return updated;
-						} else {
-							return [...current, update];
-						}
-					}
-				);
-
-				// If this session references a discovery not yet in cache
-				// (e.g. auto-created on daemon registration), refetch discoveries. A paged list
-				// holds only its page, so absence from it says nothing: each id refetches once.
-				if (update.discovery_id && !sessionDiscoveryIds.has(update.discovery_id)) {
-					sessionDiscoveryIds.add(update.discovery_id);
-					const discoveries = queryClient.getQueryData<Discovery[]>(queryKeys.discovery.all);
-					if (!discoveries?.some((d) => d.id === update.discovery_id)) {
-						queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
-					}
-				}
-			},
-			onError: (error) => {
-				console.error('Discovery SSE error:', error);
-				discoveryStreamConnected.set(false);
-				pushError(m.discovery_lostConnection());
-			},
-			onOpen: () => {
-				// Silence while the stream was down says nothing about the daemon, so every session
-				// starts a fresh clock from the reconnect.
-				sessionLastMessageAt.set(new Map());
-				const sessions = queryClient.getQueryData<DiscoveryUpdatePayload[]>(
-					queryKeys.discovery.sessions()
-				);
-				observeSessions(
-					(sessions ?? []).map((s) => s.session_id),
-					Date.now()
-				);
-				discoveryStreamConnected.set(true);
 			}
-		};
+		);
+
+		// If this session references a discovery not yet in cache
+		// (e.g. auto-created on daemon registration), refetch discoveries. A paged list
+		// holds only its page, so absence from it says nothing: each id refetches once.
+		if (update.discovery_id && !sessionDiscoveryIds.has(update.discovery_id)) {
+			sessionDiscoveryIds.add(update.discovery_id);
+			const discoveries = queryClient.getQueryData<Discovery[]>(queryKeys.discovery.all);
+			if (!discoveries?.some((d) => d.id === update.discovery_id)) {
+				queryClient.invalidateQueries({ queryKey: queryKeys.discovery.all });
+			}
+		}
 	}
 }
 
-export const discoverySSEManager = new DiscoverySSEManager();
+export const discoveryStream = new DiscoveryStream();
 
 /** Adds sessions to the active-sessions cache, replacing any it already holds. */
 export function upsertSessions(
@@ -877,7 +870,6 @@ export function useBulkStartDiscoveriesMutation() {
 		},
 		onSuccess: (sessions: DiscoveryUpdatePayload[]) => {
 			upsertSessions(qc, sessions);
-			discoverySSEManager.connect();
 			pushSuccess(m.discovery_sessionsStartedToast({ count: sessions.length }));
 		}
 	}));

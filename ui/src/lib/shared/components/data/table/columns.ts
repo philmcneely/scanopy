@@ -200,6 +200,25 @@ function pinColumns<T>(order: string[], columns: EntityColumn<T>[]): string[] {
 }
 
 /**
+ * The visibility to store after toggling `id`: only the columns whose visibility differs from
+ * their default. A column left at its default stores nothing, so a later change to that default
+ * still reaches the user.
+ */
+export function toggledColumnVisibility<T>(
+	columns: EntityColumn<T>[],
+	visibility: Record<string, boolean>,
+	id: string
+): Record<string, boolean> {
+	const defaults = defaultColumnVisibility(columns);
+	const next = { ...visibility, [id]: visibility[id] === false };
+	const stored: Record<string, boolean> = {};
+	for (const [key, visible] of Object.entries(next)) {
+		if (visible !== defaults[key]) stored[key] = visible;
+	}
+	return stored;
+}
+
+/**
  * Fold persisted column state onto the columns that exist now.
  *
  * Renaming or removing a field must not leave a stale entry deciding anything,

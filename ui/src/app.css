@@ -214,6 +214,34 @@
 			right: var(--pin-right, 0px);
 		}
 
+		/*
+		 * The header row pins to the top of the table while its rows scroll (EntityTable's
+		 * `maxHeight`). It sits above the rows and their pinned cells, and every header cell is
+		 * opaque so the rows scrolling under it never show through.
+		 */
+		& thead {
+			position: sticky;
+			top: 0;
+			z-index: 30;
+		}
+
+		& thead th {
+			background: var(--color-bg-body);
+			box-shadow: inset 0 -1px var(--color-border);
+		}
+
+		& thead th.pin-edge-right {
+			box-shadow:
+				inset -1px 0 var(--color-border),
+				inset 0 -1px var(--color-border);
+		}
+
+		& thead th.pin-edge-left {
+			box-shadow:
+				inset 1px 0 var(--color-border),
+				inset 0 -1px var(--color-border);
+		}
+
 		/* Below `md` only the left pins hold: pinned tags and actions on both sides left a phone
 		   no room for the columns between. */
 		@media (width < 48rem) {
@@ -280,7 +308,8 @@
 
 	.sidebar {
 		/* Sidebar component */
-		@apply fixed top-0 left-0 z-10 flex h-dvh w-48 flex-col;
+		/* Fills the row below the app banners, which span the full width above it. */
+		@apply relative z-10 flex h-full w-48 flex-col;
 		border-right: 1px solid var(--color-border);
 		background-color: var(--color-bg-sidebar);
 	}

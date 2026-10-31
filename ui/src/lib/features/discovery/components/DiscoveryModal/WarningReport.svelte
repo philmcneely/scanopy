@@ -25,7 +25,7 @@
 	row it belongs to, past the chevron that opened it.
 -->
 <script lang="ts">
-	import { ChevronRight } from 'lucide-svelte';
+	import { ChevronRight } from '@lucide/svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 
@@ -43,7 +43,11 @@
 	import { useHostsByIds } from '$lib/features/hosts/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
 	import { closeModal, navigateToEntity, openModal } from '$lib/shared/stores/modal-registry';
-	import { credentialIntegrations, entities } from '$lib/shared/stores/metadata';
+	import {
+		credentialIntegrations,
+		discoveryTerminalReasons,
+		entities
+	} from '$lib/shared/stores/metadata';
 	import {
 		createIntegrationCredentialLabel,
 		openCredentialCreate
@@ -55,6 +59,8 @@
 		common_credentials,
 		common_warnings,
 		daemons_upgradeDaemon,
+		discovery_daemonLogsHint,
+		discovery_daemonLogsTitle,
 		discovery_noWarnings,
 		discovery_noWarningsBeforeStop,
 		discovery_noWarningsSubtitle,
@@ -63,11 +69,15 @@
 		discovery_warningAffectsAddresses,
 		discovery_warningAffectsHosts,
 		discovery_warningAffectsSubnets,
+		hosts_resolveUnconfirmed,
 		subnets_resolveRange
 	} from '$lib/paraglide/messages';
 	import type { EntityDiscriminants } from '$lib/api/entities';
 	import type { DiscoveryUpdatePayload } from '../../types/api';
 	import { runOutcomeReason } from '../../utils/outcome';
+	import daemonVersionGates from '$lib/data/daemon-version-gates.json';
+	import { useDaemonsQuery } from '$lib/features/daemons/queries';
+	import { daemonVersionAtOrBelow, runLogCommand } from '$lib/features/daemons/utils';
 	import {
 		buildWarningReport,
 		credentialIdsOf,
@@ -108,6 +118,29 @@
 			label: reason?.name ?? payload.phase,
 			body: [payload.error, reason?.description].filter(Boolean).join(' ') || null
 		};
+	});
+
+	const daemonsQuery = useDaemonsQuery();
+
+	/**
+	 * The command that prints this run's log lines on its daemon's host, for a failure the daemon's
+	 * logs explain. Only when the run's own daemon version tagged its lines with the session, and the
+	 * daemon has said which OS it runs on, which picks the command. Read from the daemons list, so a
+	 * daemon deleted since simply shows none.
+	 */
+	let logCommand = $derived.by(() => {
+		if (payload.phase !== 'Failed' || !payload.reason || !payload.daemon_version) return null;
+		if (!discoveryTerminalReasons.getMetadata(payload.reason).explained_by_daemon_logs) return null;
+		if (
+			daemonVersionAtOrBelow(
+				daemonVersionGates.last_without_session_log_lines,
+				payload.daemon_version
+			)
+		) {
+			return null;
+		}
+		const os = (daemonsQuery.data ?? []).find((d) => d.id === payload.daemon_id)?.os;
+		return os ? runLogCommand(os, payload.session_id) : null;
 	});
 
 	/**
@@ -259,13 +292,31 @@
 			if (subnetIds.length === 0) return null;
 			return {
 				label: subnets_resolveRange(),
-				icon: createIconComponent('cloud-alert'),
+				icon: createIconComponent('circle-dashed-check'),
 				run: () => {
 					window.location.hash = 'subnets';
 					// One range resolves in place; several is a trip to the list, because the
 					// four-way choice is made per subnet and there is no "all of them" answer.
 					// Opening the resolve modal replaces this one; the list needs this one closed.
 					if (subnetIds.length === 1) openModal('provisional-range', { id: subnetIds[0] });
+					else closeModal();
+				}
+			};
+		}
+
+		if (entry.code === 'UnconfirmedHostInferred') {
+			// The same hand-off as an assumed range: one host resolves in place, several is the list,
+			// where each one is settled on its own.
+			const hostIds = entry.warnings.flatMap((w) =>
+				w.code === 'UnconfirmedHostInferred' && w.host_id ? [w.host_id] : []
+			);
+			if (hostIds.length === 0) return null;
+			return {
+				label: hosts_resolveUnconfirmed(),
+				icon: createIconComponent('circle-dashed-check'),
+				run: () => {
+					window.location.hash = 'hosts';
+					if (hostIds.length === 1) openModal('unconfirmed-host', { id: hostIds[0] });
 					else closeModal();
 				}
 			};
@@ -365,6 +416,14 @@
 	{:else}
 		<InlineWarning title={outcome.label} body={outcome.body} />
 	{/if}
+{/if}
+
+{#if logCommand}
+	<div class="space-y-1">
+		<p class="text-sm font-medium text-primary">{discovery_daemonLogsTitle()}</p>
+		<p class="text-xs text-tertiary">{discovery_daemonLogsHint()}</p>
+		<CodeContainer code={logCommand} language="bash" expandable={false} />
+	</div>
 {/if}
 
 {#if sections.length === 0}

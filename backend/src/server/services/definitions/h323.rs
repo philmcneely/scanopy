@@ -1,8 +1,8 @@
 use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::h323::H323Probe;
-use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 
@@ -19,8 +19,8 @@ impl ServiceDefinition for H323 {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Telephony
     }
-    fn device_type(&self) -> Option<DeviceType> {
-        Some(DeviceType::Server)
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
 
     /// Call signalling on 1720, qualified by a Q.931 response to a `SETUP`.

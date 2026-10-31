@@ -8,7 +8,8 @@
 		type GroupSlice,
 		type PageSizeOption,
 		type CardAction,
-		type TableDefaults
+		type TableDefaults,
+		type TagProps
 	} from './types';
 	import { filterOptionsOf } from './controls/fieldValues';
 	import {
@@ -79,6 +80,7 @@
 	import {
 		fieldsToColumns,
 		reconcileColumnState,
+		toggledColumnVisibility,
 		visibleColumns,
 		buildTagColumn,
 		withTagColumn,
@@ -105,7 +107,7 @@
 		common_yes
 	} from '$lib/paraglide/messages';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { SearchX } from 'lucide-svelte';
+	import { SearchX } from '@lucide/svelte';
 	import {
 		useTagsQuery,
 		useTagGroupsQuery,
@@ -165,6 +167,7 @@
 		onExportClick = null,
 		// Row actions, rendered in the table's trailing column.
 		getActions = null,
+		getRowBadges = null,
 		// Names the table for screen readers, e.g. "Hosts".
 		entityLabel = null,
 		// The grouping and sort the tab opens with until the user picks their own.
@@ -201,6 +204,8 @@
 		onExportClick?: (() => void | Promise<void>) | null;
 		// Row actions.
 		getActions?: ((item: T) => CardAction[]) | null;
+		/** Icon-only status badges ahead of each row's name, whatever columns are shown. */
+		getRowBadges?: ((item: T) => TagProps[]) | null;
 		// Accessible name for the table, e.g. "Hosts".
 		entityLabel?: string | null;
 		defaults?: TableDefaults;
@@ -309,8 +314,11 @@
 	 */
 	function loadUrlView() {
 		if (!isOnVisiblePage(rootRef)) return;
+		applyLinkView(takeInitialParams('list'));
+	}
 
-		const params = takeInitialParams('list');
+	/** Apply a link's list view: one the page loaded with, or an in-app link to this tab. */
+	function applyLinkView(params: URLSearchParams) {
 		if (params.size === 0) return;
 		linkParams = params;
 		// Plain on purpose: the late-field effect writes it, so tracking it would re-run that effect.
@@ -762,7 +770,9 @@
 			scope: 'list',
 			isActive: () => isOnVisiblePage(rootRef),
 			params: () => urlView,
-			keys: () => listParamKeys(fields)
+			keys: () => listParamKeys(fields),
+			// An in-app link to this tab (a nudge's filtered list), taken as the tab comes on screen.
+			restore: (params) => applyLinkView(params)
 		})
 	);
 
@@ -822,7 +832,7 @@
 	);
 
 	function toggleColumn(id: string) {
-		columnVisibility = { ...columnState.visibility, [id]: columnState.visibility[id] === false };
+		columnVisibility = toggledColumnVisibility(allColumns, columnState.visibility, id);
 		dropHiddenColumns();
 	}
 
@@ -934,6 +944,10 @@
 	// The bulk-tag island is fixed to the bottom of the viewport, and centred over this list
 	// rather than the window, so it tracks the list's horizontal extent (sidebar collapse, resize).
 	let rootRef: HTMLDivElement | null = $state(null);
+	/** The island's height, for the space the table keeps below its last row. */
+	let islandHeight = $state(0);
+	/** The island's gap above the viewport's bottom edge (`bottom-6`), plus 16px of clearance. */
+	const ISLAND_INSET = 40;
 	let islandFrame = $state({ left: 0, width: 0 });
 
 	$effect(() => {
@@ -1156,12 +1170,13 @@
 
 <div bind:this={rootRef} class="space-y-4">
 	<!-- Sentinel for sticky detection -->
-	<div bind:this={sentinelRef} class="h-0 w-full"></div>
+	<!-- `mb-0!`: `space-y-4` gives every child but the last a bottom margin, so the zero-height
+	     sentinel would otherwise push the toolbar 16px below the sidebar's first row. -->
+	<div bind:this={sentinelRef} class="mb-0! h-0 w-full"></div>
 
-	<!-- Sticky Controls Bar. `mt-0!`: the zero-height sentinel above would otherwise give it the
-	     group's gap, putting the toolbar 16px below the sidebar's first row instead of level. -->
+	<!-- Sticky Controls Bar -->
 	<div
-		class="z-20 -mx-4 mt-0! border-b bg-(--color-bg-body) px-4 pb-4 md:sticky md:top-0 {isStuck
+		class="z-20 -mx-4 border-b bg-(--color-bg-body) px-4 pb-4 md:sticky md:top-0 {isStuck
 			? 'border-(--color-border) pt-4 shadow-lg'
 			: 'border-transparent'}"
 	>
@@ -1271,6 +1286,7 @@
 		>
 			<div
 				data-keeps-selection
+				bind:offsetHeight={islandHeight}
 				onfocusin={() => (editingTags = true)}
 				onfocusout={(e) => {
 					if (!e.currentTarget.contains(e.relatedTarget as Node | null)) editingTags = false;
@@ -1353,11 +1369,13 @@
 		someSelected={isPartiallySelected(flat, selectedIds, getItemId)}
 		{getItemId}
 		{getActions}
+		{getRowBadges}
 		caption={caption ?? tableCaptionText}
 		onToggleSort={toggleSort}
 		onClickRow={clickRow}
 		onToggleAll={() => toggleAllIn(flat)}
 		{headerControl}
+		bottomInset={showTagIsland ? islandHeight + ISLAND_INSET : 0}
 	/>
 {/snippet}
 

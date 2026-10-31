@@ -53,6 +53,10 @@ COPY ui/ ./
 # Copy i18n messages (paraglide source - referenced by ../messages/ from project.inlang)
 COPY messages/ ../messages/
 
+# The Rust half of the notices, which the UI build's third-party-licenses.txt starts with
+# (vite.config.ts)
+COPY backend/THIRD-PARTY-NOTICES.txt ../backend/THIRD-PARTY-NOTICES.txt
+
 # Copy generated fixtures from rust-builder
 COPY --from=rust-builder /fixtures/ ./src/lib/data/
 
@@ -115,9 +119,13 @@ RUN chmod +x /usr/local/bin/server
 # Copy UI static assets from ui-builder stage
 COPY --from=ui-builder /app/ui/build ./static
 
-# Notices for third-party data compiled into the binary.
+# Notices for third-party software and data in the binary and the UI. THIRD-PARTY-NOTICES.txt
+# covers every crate and bundled data file; the UI serves the same list plus its npm packages
+# at /third-party-licenses.txt.
+COPY backend/THIRD-PARTY-NOTICES.txt /usr/share/doc/scanopy/THIRD-PARTY-NOTICES.txt
 COPY backend/assets/recog/LICENSE /usr/share/doc/scanopy/recog/LICENSE
 COPY backend/assets/dashboard-icons/LICENSE /usr/share/doc/scanopy/dashboard-icons/LICENSE
+COPY backend/assets/libvirt/LICENSE /usr/share/doc/scanopy/libvirt/LICENSE
 
 # Verify UI files are present
 RUN ls -la /app/static && \

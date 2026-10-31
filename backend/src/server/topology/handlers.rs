@@ -1,13 +1,12 @@
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::extractors::Query;
-use crate::server::shared::sse::until_shutdown;
 use crate::server::shared::storage::traits::Entity;
 use crate::server::shared::types::api::ApiJson;
 use crate::server::{
     auth::middleware::{
         auth::AuthenticatedEntity,
         features::{ConfluenceExportFeature, MermaidExportFeature, RequireFeature},
-        permissions::{Authorized, IsUser, Member, Viewer},
+        permissions::{Authorized, Member, Viewer},
     },
     config::AppState,
     shared::{
@@ -34,16 +33,10 @@ use axum::{
     body::Body,
     extract::{Path, State},
     http::{HeaderMap, HeaderValue, header},
-    response::{
-        IntoResponse, Json, Sse,
-        sse::{Event, KeepAlive},
-    },
-    routing::get,
+    response::{IntoResponse, Json},
 };
-use futures::{Stream, stream};
 use serde::Deserialize;
-use serde_json::json;
-use std::{convert::Infallible, sync::Arc};
+use std::sync::Arc;
 use strum::IntoEnumIterator;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -61,7 +54,8 @@ mod generated {
 /// A topology row now holds only the user's grouping `options` (one live row
 /// per site). The per-view graph is built on request and returned on the
 /// `/data` bundle; `get_all` / `get_by_id` list the slim rows, `update_topology`
-/// persists `options`, plus exports and a single SSE channel.
+/// persists `options`, plus exports. Live changes reach the app on the live-update stream
+/// (`live_updates::handlers`).
 ///
 /// Creation, deletion, lock/unlock, refresh, rebuild, metadata updates, and the
 /// layout-override mutators are gone (overrides aren't persisted — see the
@@ -75,15 +69,13 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::export_csv))
         .routes(routes!(export_mermaid))
         .routes(routes!(export_confluence))
-        // Layout-override endpoints are DISABLED — overrides are no longer
-        // persisted (the graph builds on request and ELK re-lays out every
-        // render, so there's no mechanism to save position/size/handle
-        // changes). Kept (commented) for revival; see the handlers below.
-        // .routes(routes!(update_node_position))
-        // .routes(routes!(update_node_resize))
-        // .routes(routes!(update_edge_handles))
-        // SSE endpoint (not well-supported by OpenAPI)
-        .route("/stream", get(live_topology_updates_stream))
+    // Layout-override endpoints are DISABLED — overrides are no longer
+    // persisted (the graph builds on request and ELK re-lays out every
+    // render, so there's no mechanism to save position/size/handle
+    // changes). Kept (commented) for revival; see the handlers below.
+    // .routes(routes!(update_node_position))
+    // .routes(routes!(update_node_resize))
+    // .routes(routes!(update_edge_handles))
 }
 
 #[derive(Debug, Deserialize, IntoParams, ToSchema)]
@@ -186,7 +178,7 @@ async fn get_topology_data(
             .organization_service
             .get_by_id(&site.base.organization_id)
             .await
-        && org.base.plan.features().topology_view
+        && org.base.plan.features().includes_topology()
         && org.has_onboarded(&OnboardingOperationDiscriminants::FirstDiscoveryCompleted)
         && org.not_onboarded(&OnboardingOperationDiscriminants::FirstTopologyRebuild)
         && let Ok(true) = state
@@ -621,38 +613,4 @@ async fn export_confluence(
     );
 
     Ok((headers, Body::from(content)))
-}
-
-/// SSE stream of live-topology updates: emits `{ "site_id": "<uuid>" }`
-/// on every change to a site's live entity set. Frontends invalidate
-/// their topology query and refetch on receipt.
-async fn live_topology_updates_stream(
-    State(state): State<Arc<AppState>>,
-    auth: Authorized<IsUser>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let rx = state
-        .services
-        .topology_service
-        .subscribe_live_topology_updates();
-
-    let allowed_sites = auth.site_ids();
-
-    let stream = stream::unfold(rx, move |mut rx| {
-        let allowed = allowed_sites.clone();
-        async move {
-            loop {
-                match rx.recv().await {
-                    Ok(site_id) => {
-                        if allowed.contains(&site_id) {
-                            let payload = json!({ "site_id": site_id }).to_string();
-                            return Some((Ok(Event::default().data(payload)), rx));
-                        }
-                    }
-                    Err(_) => return None,
-                }
-            }
-        }
-    });
-
-    Sse::new(until_shutdown(stream, &state.shutdown)).keep_alive(KeepAlive::default())
 }

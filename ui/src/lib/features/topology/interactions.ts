@@ -2,7 +2,6 @@ import { writable, get } from 'svelte/store';
 import type { Edge } from '@xyflow/svelte';
 import type { Node } from '@xyflow/svelte';
 import { edgeTypes, entities, views } from '$lib/shared/stores/metadata';
-import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import type {
 	ElementInlineGroup,
 	TopologyEdge,
@@ -16,10 +15,23 @@ import {
 	showDirectionality
 } from './layout/edge-classification';
 import { elevateEdgesToContainers } from './layout/edge-elevation';
-import { buildEntityNodeIndex, entityCollection, type EntityNodeIndex } from './resolvers';
+import {
+	ENTITY_COLLECTIONS,
+	buildEntityNodeIndex,
+	entityCollection,
+	nodeEntity,
+	type EntityNodeIndex
+} from './resolvers';
+import {
+	collectionLookup,
+	entityFields,
+	fieldText,
+	type EntityType
+} from '$lib/shared/entity-fields';
 import { getTopologyIndex } from './entity-index';
 import type { Site } from '$lib/features/sites/types';
 import { entityFreshness, type FreshnessSubject } from '$lib/shared/utils/freshness';
+import { isUnconfirmed, type ConfirmationSubject } from '$lib/shared/utils/confirmation';
 import { buildFullParentMap, resolveCollapsedAncestor } from './collapse';
 import { formatEntityLabelTitle } from './labels';
 import { declaredMetadataFilters, hiddenValuesFor } from './view-filters';
@@ -290,6 +302,7 @@ function hideContainersAndDescendants(
 }
 
 const STALENESS: components['schemas']['MetadataFilterType'] = 'Staleness';
+const CONFIRMATION: components['schemas']['MetadataFilterType'] = 'Confirmation';
 
 /**
  * The value `entity` carries for the metadata filter `filterType` (matching `FilterValue.id` on
@@ -306,6 +319,11 @@ export function filterValueOf(
 	site: Site | undefined
 ): string | null {
 	if (filterType === STALENESS) return entityFreshness(entity as FreshnessSubject, site);
+	// Subnets carry no filter values, so confirmation is read off the source for both hosts and
+	// subnets, by the helper the Unconfirmed badge uses. The ids are the backend's
+	// `ConfirmationFilterValue` ids.
+	if (filterType === CONFIRMATION)
+		return isUnconfirmed(entity as ConfirmationSubject) ? 'unconfirmed' : 'confirmed';
 	return (entity as { filter_values?: Record<string, string> }).filter_values?.[filterType] ?? null;
 }
 
@@ -346,18 +364,46 @@ export const hiddenEntityIdsByType = writable<Map<string, Set<string>>>(new Map(
 
 export const presentFilterValues = writable<Record<string, Record<string, string[]>>>({});
 
+/**
+ * For each entity type the view draws as nodes, the ids it draws: node entities, and the members
+ * of their inline groups. A type left out (a service drawn as a row on an address card) is drawn
+ * wherever the bundle holds it.
+ */
+function drawnEntityIds(topology: RenderableTopology): Map<string, Set<string>> {
+	const drawn = new Map<string, Set<string>>();
+	for (const node of topology.nodes) {
+		const resolved = nodeEntity(node, topology);
+		if (!resolved) continue;
+		const ids = drawn.get(resolved.entityType) ?? new Set<string>();
+		ids.add(resolved.entity.id);
+		drawn.set(resolved.entityType, ids);
+	}
+	for (const node of topology.nodes) {
+		if (node.node_type !== 'Element') continue;
+		for (const group of node.inline_groups ?? []) {
+			drawn.get(group.entity_type)?.add(group.entity_id);
+		}
+	}
+	return drawn;
+}
+
 function computePresentFilterValues(
 	topology: RenderableTopology,
 	view: string | undefined,
 	site: Site | undefined
 ): Record<string, Record<string, string[]>> {
 	const out: Record<string, Record<string, string[]>> = {};
+	// Only what the view draws offers a choice: Workloads leaves out a host with no workloads, so
+	// an unconfirmed host there must not bring the Confirmation filter with it.
+	const drawn = drawnEntityIds(topology);
 	for (const filter of view ? declaredMetadataFilters(view) : []) {
 		for (const entityType of filter.entities) {
 			const collection = entityCollection(topology, entityType);
 			if (!collection) continue;
+			const drawnOfType = drawn.get(entityType);
 			const seen = new Set<string>();
 			for (const entity of collection) {
+				if (drawnOfType && !drawnOfType.has(entity.id)) continue;
 				const value = filterValueOf(entity, filter.filter_type, site);
 				if (value) seen.add(value);
 			}
@@ -1122,10 +1168,46 @@ function resolveEntityToNodes(
 }
 
 /**
+ * The ids of the entities whose searchable fields contain `q`, by entity type.
+ *
+ * Which fields are searchable is backend metadata (`EntityField.searchable`), read through the
+ * same registry the inspector and exports read, so a fact the map shows is findable by what it
+ * shows. A tag matches by name and stands for itself: application containers are drawn for it.
+ */
+export function searchEntityMatches(
+	topology: RenderableTopology,
+	q: string
+): Map<string, string[]> {
+	const lookup = collectionLookup(
+		Object.fromEntries(
+			Object.keys(ENTITY_COLLECTIONS).map((type) => [type, entityCollection(topology, type)])
+		)
+	);
+	const matches = new Map<string, string[]>();
+	for (const type of Object.keys(ENTITY_COLLECTIONS)) {
+		const fields = entityFields(type as EntityType).filter((f) => f.searchable);
+		if (type !== 'Tag' && fields.length === 0) continue;
+		const ids: string[] = [];
+		for (const entity of entityCollection(topology, type) ?? []) {
+			const hit =
+				type === 'Tag'
+					? (entity as { name?: string }).name?.toLowerCase().includes(q)
+					: fields.some((f) => fieldText(f, entity, lookup).toLowerCase().includes(q));
+			if (hit) ids.push(entity.id);
+		}
+		if (ids.length) matches.set(type, ids);
+	}
+	return matches;
+}
+
+/**
  * Update search filter: find nodes matching query, set non-matching nodes to fade.
- * Uses resolveEntityToNodes for view-aware entity→node resolution.
- * Searches hosts (name/hostname), ip addresses (ip_address/name), services (name),
- * subnets (name/cidr), and tags (name matched to entities).
+ *
+ * An entity matches through its searchable fields (`searchEntityMatches`). It selects the nodes
+ * that stand for it in this view (`resolveEntityToNodes`) and every node the backend associates
+ * with it (`node_entities`: the L2 ports an address is reached through, the cards a service bound
+ * to every address sits on). A tagged entity matches through its tags' names, and a container
+ * through the header drawn on it (a VLAN, a compose project, a hypervisor).
  */
 export function updateSearchFilter(
 	topology: RenderableTopology | undefined,
@@ -1144,6 +1226,15 @@ export function updateSearchFilter(
 	const config = getViewElementConfig(view);
 	const matchingSet = new Set<string>();
 
+	const nodesOfEntity = new Map<string, string[]>();
+	for (const [nodeId, entityIds] of Object.entries(topology.node_entities)) {
+		for (const entityId of entityIds) {
+			const nodes = nodesOfEntity.get(entityId);
+			if (nodes) nodes.push(nodeId);
+			else nodesOfEntity.set(entityId, [nodeId]);
+		}
+	}
+
 	/** Resolve an entity match to visible nodes and add them to matchingSet */
 	const addResolved = (entityType: string, entityId: string) => {
 		const { elementNodeIds, containerNodeIds } = resolveEntityToNodes(
@@ -1155,92 +1246,39 @@ export function updateSearchFilter(
 		);
 		for (const id of elementNodeIds) matchingSet.add(id);
 		for (const id of containerNodeIds) matchingSet.add(id);
+		for (const id of nodesOfEntity.get(entityId) ?? []) matchingSet.add(id);
+		for (const id of index.entityIdToContainerIds.get(entityId) ?? []) matchingSet.add(id);
 	};
 
-	// allNodeIds = all element nodes + container nodes
-	const allNodeIds = new Set<string>([...index.allElementNodeIds, ...index.allContainerNodeIds]);
-
-	// Search hosts
-	for (const host of topology.hosts) {
-		// The title, not the stored name — a host labelled `core-sw-01` on the canvas because that
-		// is its sysName has to be findable by typing what is drawn on it. Checking `name` as well
-		// would be redundant: it is the ladder's first rung, so a named host's title *is* its name.
-		const nameMatch = hostDisplayName(host).toLowerCase().includes(q);
-		const hostnameMatch = host.hostname?.toLowerCase().includes(q) ?? false;
-		if (nameMatch || hostnameMatch) {
-			addResolved('Host', host.id);
-		}
+	const matches = searchEntityMatches(topology, q);
+	for (const [type, ids] of matches) {
+		if (type === 'Tag') continue;
+		for (const id of ids) addResolved(type, id);
 	}
 
-	// Search IP addresses
-	for (const ipAddr of topology.ip_addresses) {
-		const ipMatch = ipAddr.ip_address?.toLowerCase().includes(q) ?? false;
-		const nameMatch = ipAddr.name?.toLowerCase().includes(q) ?? false;
-		if (ipMatch || nameMatch) {
-			addResolved('IPAddress', ipAddr.id);
-		}
-	}
-
-	// Search services
-	for (const service of topology.services) {
-		if (service.name.toLowerCase().includes(q)) {
-			addResolved('Service', service.id);
-		}
-	}
-
-	// Search subnets
-	for (const subnet of topology.subnets) {
-		const nameMatch = subnet.name.toLowerCase().includes(q);
-		const cidrMatch = subnet.cidr.toLowerCase().includes(q);
-		if (nameMatch || cidrMatch) {
-			addResolved('Subnet', subnet.id);
-		}
-	}
-
-	// Search interfaces
-	if (topology.interfaces) {
-		for (const iface of topology.interfaces) {
-			const aliasMatch = iface.if_alias?.toLowerCase().includes(q) ?? false;
-			const nameMatch = iface.if_name?.toLowerCase().includes(q) ?? false;
-			if (aliasMatch || nameMatch) {
-				addResolved('Interface', iface.id);
+	// Tags: the entities carrying a matching tag, and the containers drawn for the tag itself.
+	const matchedTags = new Set(matches.get('Tag') ?? []);
+	if (matchedTags.size) {
+		for (const type of Object.keys(ENTITY_COLLECTIONS)) {
+			for (const entity of entityCollection(topology, type) ?? []) {
+				const tags = (entity as { tags?: string[] }).tags ?? [];
+				if (tags.some((t) => matchedTags.has(t))) addResolved(type, entity.id);
 			}
 		}
-	}
-
-	// Search tags -> match entities with matching tag names
-	const entityTags = topology.entity_tags ?? [];
-	for (const host of topology.hosts) {
-		for (const tagId of host.tags) {
-			const tag = entityTags.find((t) => t.id === tagId);
-			if (tag && tag.name.toLowerCase().includes(q)) {
-				addResolved('Host', host.id);
-				break;
-			}
+		for (const tagId of matchedTags) {
+			for (const id of index.entityIdToContainerIds.get(tagId) ?? []) matchingSet.add(id);
 		}
 	}
 
-	for (const service of topology.services) {
-		for (const tagId of service.tags) {
-			const tag = entityTags.find((t) => t.id === tagId);
-			if (tag && tag.name.toLowerCase().includes(q)) {
-				addResolved('Service', service.id);
-				break;
-			}
-		}
-	}
-
-	for (const subnet of topology.subnets) {
-		for (const tagId of subnet.tags) {
-			const tag = entityTags.find((t) => t.id === tagId);
-			if (tag && tag.name.toLowerCase().includes(q)) {
-				addResolved('Subnet', subnet.id);
-				break;
-			}
+	// Container headers: subcontainers that stand for no entity are found by what they say.
+	for (const node of topology.nodes) {
+		if (node.node_type === 'Container' && node.header?.toLowerCase().includes(q)) {
+			matchingSet.add(node.id);
 		}
 	}
 
 	// Hidden = all nodes NOT in the matching set
+	const allNodeIds = new Set<string>([...index.allElementNodeIds, ...index.allContainerNodeIds]);
 	const hiddenIds = new Set<string>();
 	for (const nodeId of allNodeIds) {
 		if (!matchingSet.has(nodeId)) {

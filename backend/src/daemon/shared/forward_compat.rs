@@ -210,6 +210,9 @@ impl DaemonResponse for HostResponse {
             last_seen_at: _,
             // Plain optional UUIDs: an older daemon ignores them, and the daemon never reads them.
             first_discovery_id: _,
+            dismissed_at: _,
+            reported_by_host_ids: _,
+            found_by_discovery_id: _,
             last_discovery_id: _,
             name: _,
             display_name: _,
@@ -219,6 +222,8 @@ impl DaemonResponse for HostResponse {
             name_ladder: _,
             // An enum the daemon never reads; an unknown role reads as `Unidentified` (`serde(other)`).
             device_type: _,
+            // Internally tagged; an unknown rung reads as `NoEvidence` (`serde(other)`).
+            device_type_source: _,
             name_source: _,
             site_id: _,
             hostname: _,

@@ -69,6 +69,43 @@ impl DiscoveryWarningService {
         Ok(by_run)
     }
 
+    /// For each of these unconfirmed hosts, given with its site, the scan that first reported it:
+    /// the oldest `UnconfirmedHostInferred` warning naming it. A host no scan reported (one from
+    /// before these warnings existed) is absent.
+    pub async fn unconfirmed_host_discoveries(
+        &self,
+        hosts: &[(Uuid, Uuid)],
+    ) -> Result<HashMap<Uuid, Uuid>> {
+        if hosts.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let site_of: HashMap<Uuid, Uuid> = hosts.iter().copied().collect();
+        let host_ids: Vec<Uuid> = site_of.keys().copied().collect();
+        let site_ids: Vec<Uuid> = site_of.values().copied().collect();
+        let filter = StorableFilter::<DiscoveryWarningRecord>::new_from_site_ids(&site_ids)
+            .uuids_column("host_id", &host_ids);
+        let records = self
+            .storage
+            .inner()
+            .get_all_ordered(filter, "created_at ASC, id ASC")
+            .await?;
+
+        let mut found = HashMap::new();
+        for record in records {
+            let (Some(host_id), discovery_id) = (record.base.host_id, record.base.discovery_id)
+            else {
+                continue;
+            };
+            if found.contains_key(&host_id) || site_of.get(&host_id) != Some(&record.base.site_id) {
+                continue;
+            }
+            if let DiscoveryWarning::UnconfirmedHostInferred(_) = record.into_warning() {
+                found.insert(host_id, discovery_id);
+            }
+        }
+        Ok(found)
+    }
+
     /// For each of these assumed ranges, given with its site, the evidence it was drawn from. A row
     /// on another site than its range is never read.
     ///

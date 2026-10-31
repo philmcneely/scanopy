@@ -29,6 +29,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::interface_neighbors::r#impl::base::InterfaceNeighborRow;
+use crate::server::interfaces::r#impl::base::Interface;
+use crate::server::ip_addresses::r#impl::base::IPAddress;
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::topology::types::base::TopologyOptions;
 use crate::server::topology::types::views::{
@@ -152,6 +154,25 @@ impl FilterValueContext {
         Self {
             interfaces_referenced_as_neighbours: referenced_neighbour_interfaces(neighbours.iter()),
             interfaces_with_neighbours: interfaces_with_neighbours(neighbours.iter()),
+            interfaces_learning_known_hosts: HashSet::new(),
+            interfaces_learned_by_ports: HashSet::new(),
+        }
+    }
+
+    /// [`Self::from_neighbours`] plus the ports whose forwarding table learned a known host.
+    pub fn for_bundle<'a>(
+        neighbours: &[InterfaceNeighborRow],
+        interfaces: impl IntoIterator<Item = &'a Interface> + Clone,
+        ip_addresses: impl IntoIterator<Item = &'a IPAddress>,
+    ) -> Self {
+        let learned =
+            crate::server::topology::service::fdb::learned_hosts(interfaces, ip_addresses);
+        Self {
+            interfaces_learned_by_ports: crate::server::topology::service::fdb::learned_interfaces(
+                &learned,
+            ),
+            interfaces_learning_known_hosts: learned.into_keys().collect(),
+            ..Self::from_neighbours(neighbours)
         }
     }
 }

@@ -1,4 +1,4 @@
-.PHONY: daemon-build daemon-rebuild daemon-dev daemon-fix-perms help build test test-unit clean format lint lint-migrations generate-schema generate-messages generate-fixtures refresh-vendored-data seed-dev set-plan-community set-plan-starter set-plan-pro set-plan-team set-plan-business set-plan-enterprise set-plan-self-hosted-standard set-plan-self-hosted-plus test-plan test-merge test-results install-dev-mac install-dev-linux install-dev-windows snmp-seed-credentials snmp-fixtures snmp-deploy snmp-verify snmp-status ssh-lab-deploy ssh-lab-verify ssh-lab-status ssh-lab-rotate-hostkey wol-lab-provision wol-lab-listener wol-lab-sleep wol-lab-hibernate wol-lab-verify wol-lab-status wol-lab-log dcp-start dcp-stop dcp-verify dcp-status docker-proxy-up docker-proxy-up-tls docker-proxy-down docker-proxy-status podman-proxy-up podman-proxy-up-tls podman-proxy-down podman-proxy-status podman-workload-up podman-workload-down unifi-status unifi-capture issue-license new-terms-update daemon-clean daemon-purge daemon-logs daemon-restart daemon-config
+.PHONY: daemon-build daemon-rebuild daemon-dev daemon-fix-perms help build test test-unit clean format lint lint-migrations generate-schema generate-messages generate-fixtures refresh-vendored-data third-party-notices seed-dev set-plan-community set-plan-starter set-plan-pro set-plan-team set-plan-business set-plan-enterprise set-plan-self-hosted-standard set-plan-self-hosted-plus test-plan test-merge test-results install-dev-mac install-dev-linux install-dev-windows snmp-seed-credentials snmp-fixtures snmp-deploy snmp-verify snmp-status ssh-lab-deploy ssh-lab-verify ssh-lab-status ssh-lab-rotate-hostkey wol-lab-provision wol-lab-listener wol-lab-sleep wol-lab-hibernate wol-lab-verify wol-lab-status wol-lab-log dcp-start dcp-stop dcp-verify dcp-status docker-proxy-up docker-proxy-up-tls docker-proxy-down docker-proxy-status podman-proxy-up podman-proxy-up-tls podman-proxy-down podman-proxy-status podman-workload-up podman-workload-down unifi-status unifi-capture issue-license new-terms-update daemon-clean daemon-purge daemon-logs daemon-restart daemon-stop daemon-start daemon-config
 
 DAYS ?= 365
 PLAN ?= standard
@@ -74,6 +74,8 @@ help:
 	@echo "  make daemon-purge    - Uninstall with --purge (also removes the binary)"
 	@echo "  make daemon-logs     - Tail the last 40 lines of the daemon log"
 	@echo "  make daemon-restart  - Restart the daemon via launchctl"
+	@echo "  make daemon-stop     - Stop the background daemon service"
+	@echo "  make daemon-start    - Start the background daemon service"
 	@echo "  make daemon-config   - Open the daemon config.json in VS Code"
 	@echo ""
 	@echo "Plan Management (sets plan for all organizations):"
@@ -175,6 +177,13 @@ daemon-logs:
 
 daemon-restart:
 	sudo launchctl kickstart -k system/$(DAEMON_LABEL)
+
+# bootout unloads the service, so launchd will not restart it until daemon-start loads it again.
+daemon-stop:
+	sudo launchctl bootout system/$(DAEMON_LABEL)
+
+daemon-start:
+	sudo launchctl bootstrap system $(DAEMON_PLIST)
 
 daemon-config:
 	open -a "Visual Studio Code" "$(DAEMON_CONFIG_DIR)/config.json"
@@ -387,6 +396,10 @@ lint:
 	@# missed test code, which is how a broken tests/integration reached dev. `generate-fixtures`
 	@# compiles the release workflow's fixture target, which a stale enum match broke unnoticed.
 	cd backend && cargo fmt -- --check && $(SCANOPY_BUILD_WRAPPER) cargo clippy --workspace --all-targets --features generate-fixtures -- -D warnings
+	@echo "Linting the OpenAPI spec..."
+	@# Every documented field, union variant title and response body in the public spec. As a
+	@# lib test it otherwise only ran inside the full `cargo test --lib`, so gaps reached CI.
+	cd backend && $(SCANOPY_BUILD_WRAPPER) cargo test --lib openapi::lint
 	@echo "Generating paraglide i18n..."
 	cd ui && npx paraglide-js compile --outdir ./src/lib/paraglide --silent
 	@echo "Linting UI..."
@@ -455,9 +468,14 @@ $(FIXTURE_STAMP): $(FIXTURE_INPUTS)
 	@mv $@.next $@
 
 refresh-vendored-data:
-	@echo "Refreshing vendored data assets (oui.csv)..."
+	@echo "Refreshing vendored data assets (IEEE MAC registries)..."
 	backend/scripts/refresh-vendored-data.sh
 	@echo "✅ Vendored data refreshed. Rebuild to embed new data."
+
+# Needs cargo-about: cargo install cargo-about --version 0.9.3 --locked --features cli
+third-party-notices:
+	@echo "Generating backend/THIRD-PARTY-NOTICES.txt..."
+	$(SCANOPY_BUILD_WRAPPER) backend/scripts/third-party-notices.sh
 
 # Forwards events in the account's default API version, as the live endpoint
 # receives them. The server reads only the event envelope and fetches each

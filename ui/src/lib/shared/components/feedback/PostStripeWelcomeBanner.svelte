@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckCircle } from 'lucide-svelte';
+	import { CheckCircle } from '@lucide/svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isBillingPlanActive } from '$lib/features/organizations/types';

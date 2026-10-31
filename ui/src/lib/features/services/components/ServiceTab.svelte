@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { rowStatusBadges } from '$lib/shared/utils/row-badges';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -17,7 +20,7 @@
 	import { formatPort } from '$lib/shared/utils/formatting';
 	import type { IPAddress, Port } from '$lib/features/hosts/types/base';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import type { Service } from '../types/base';
 	import ServiceEditModal from './ServiceEditModal.svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
@@ -53,6 +56,7 @@
 		common_services,
 		common_unbound,
 		daemons_installPromptServices,
+		gettingStarted_stepDiscoveryLabel,
 		services_subtitle
 	} from '$lib/paraglide/messages';
 	import { serviceDefinitions, ports as ports_metadata } from '$lib/shared/stores/metadata';
@@ -207,6 +211,7 @@
 	let subnetsData = $derived(subnetsQuery.data ?? []);
 	// Only show full loading on initial load (no data yet)
 	let isInitialLoading = $derived(servicesQuery.isPending && !servicesQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, servicesQuery));
 
 	function isContainerSubnetFn(subnetId: string): boolean {
 		const subnet = subnetsData.find((s) => s.id === subnetId);
@@ -442,14 +447,21 @@
 </script>
 
 <div class="space-y-6">
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptServices()} {isReadOnly} />
 	{:else if isInitialLoading}
 		<!-- Loading state (only on initial load) -->
 		<Loading />
 	{:else if servicesData.length === 0 && !servicesPagination}
 		<!-- Empty state -->
-		<EmptyState title={common_noEntityYet({ entity: common_services() })} subtitle="" />
+		<EmptyState
+			title={common_noEntityYet({ entity: common_services() })}
+			subtitle=""
+			onClick={isReadOnly ? undefined : () => (window.location.hash = 'discovery-scans')}
+			cta={isReadOnly ? '' : gettingStarted_stepDiscoveryLabel()}
+		/>
 	{:else}
 		<DataControls
 			title={common_services()}
@@ -467,6 +479,7 @@
 			onQueryChange={(query) => (listQuery = query)}
 			onCsvExport={handleCsvExport}
 			getActions={serviceActions}
+			getRowBadges={rowStatusBadges(() => sitesData, 'Service')}
 			entityLabel={common_services()}
 		></DataControls>
 	{/if}

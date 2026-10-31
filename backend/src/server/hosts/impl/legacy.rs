@@ -366,6 +366,7 @@ impl LegacyHostWithServicesRequest {
             last_seen_at: host.updated_at,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             base: crate::server::hosts::r#impl::base::HostBase {
                 // A legacy daemon says nothing about where the name came from, so it enters
                 // at the bottom of the ladder and cannot displace a better-attributed one.
@@ -398,6 +399,7 @@ impl LegacyHostWithServicesRequest {
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             },
         };

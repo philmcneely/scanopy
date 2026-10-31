@@ -1,9 +1,11 @@
 <script lang="ts">
 	import type { components } from '$lib/api/schema';
-	import { Check, Circle, Info, Loader2, ExternalLink } from 'lucide-svelte';
+	import { Check, Circle, Info, Loader2, ExternalLink } from '@lucide/svelte';
 	import ChecklistItem from '$lib/shared/components/data/ChecklistItem.svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import { onMount } from 'svelte';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import { queryKeys } from '$lib/api/query-client';
 	import { trackEvent } from '$lib/shared/utils/analytics';
 	import confetti from 'canvas-confetti';
 	import { daemonSetupState } from '$lib/features/daemons/stores/daemon-setup';
@@ -82,6 +84,7 @@
 
 	// Poll org query while daemon is waiting/trouble
 	const organizationQuery = useOrganizationQuery();
+	const queryClient = useQueryClient();
 
 	// Active sessions query
 	const sessionsQuery = useActiveSessionsQuery();
@@ -142,6 +145,8 @@
 			onboarding.includes('FirstDaemonRegistered')
 		) {
 			daemonSetupState.set({ connectionStatus: 'connected' });
+			// The Daemons table reads the list pages, which still hold the daemon as never seen.
+			queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all });
 		}
 	});
 

@@ -7,7 +7,7 @@
 	 * alternative is the view's setup prompt claiming discovery found nothing, which sent two
 	 * separate investigations after data that was there the whole time.
 	 */
-	import { Funnel } from 'lucide-svelte';
+	import { Funnel } from '@lucide/svelte';
 	import TopologyOverlay from './TopologyOverlay.svelte';
 	import type { ActiveFilterSummary } from '../interactions';
 	import { showEverythingIn, activeView } from '../queries';

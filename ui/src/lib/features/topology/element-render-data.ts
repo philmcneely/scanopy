@@ -54,6 +54,7 @@ import {
 	views
 } from '$lib/shared/stores/metadata';
 import { getFreshnessTag } from '$lib/shared/utils/freshness';
+import { getConfirmationTag } from '$lib/shared/utils/confirmation';
 import { createColorHelper } from '$lib/shared/utils/styling';
 import type {
 	TooltipContent,
@@ -63,7 +64,6 @@ import type {
 } from '$lib/shared/actions/tooltip';
 import { formatPort } from '$lib/shared/utils/formatting';
 import {
-	collectionLookup,
 	entityDisplayText,
 	entityFieldLabel,
 	entityFields,
@@ -252,10 +252,17 @@ function resolveStaleTag(
 ): ReturnType<typeof getFreshnessTag> {
 	const subject = elementEntity(node, topology);
 	if (!subject) return null;
-	return getFreshnessTag(
-		subject,
-		sites.find((n) => n.id === subject.site_id),
-		{ entityTypeLabel: entities.getName(resolved.elementType ?? 'Host') || undefined }
+	// One status pill per card. Unconfirmed says the device may not be what the map shows at all,
+	// which outranks it not having been seen lately.
+	return (
+		getConfirmationTag(subject) ??
+		getFreshnessTag(
+			subject,
+			sites.find((n) => n.id === subject.site_id),
+			{
+				entityTypeLabel: entities.getName(resolved.elementType ?? 'Host') || undefined
+			}
+		)
 	);
 }
 
@@ -429,22 +436,24 @@ const PORT_TOOLTIP_FIELDS = [
 	'oper_status',
 	'speed_bps',
 	'mac_address',
+	'ip_address_id',
 	'native_vlan_id',
 	'vlan_ids'
 ];
 
 /**
  * A port's hover text: its name as the title, then its status, with a dot in the colour the view's
- * Status mark paints it, and its speed, MAC and VLANs. Labels and formatting are the backend field
- * registry's, as the inspector shows them.
+ * Status mark paints it, and its speed, MAC, address and VLANs. Labels and formatting are the backend
+ * field registry's, as the inspector shows them; the address and VLANs resolve from `topology`.
  */
 export function interfaceTooltip(
 	iface: object,
 	name: string,
-	status: MarkValue | undefined
+	status: MarkValue | undefined,
+	topology: RenderableTopology
 ): TooltipContent {
 	const fields = entityFields('Interface');
-	const lookup = collectionLookup({});
+	const lookup = topologyLookup(topology);
 	return titledTooltip(
 		name,
 		PORT_TOOLTIP_FIELDS.flatMap((id) => {
@@ -514,20 +523,29 @@ export function entityTooltip(
 			});
 		}
 		case 'Interface':
-			return interfaceTooltip(entity, name ?? entityDisplayText('Interface', entity), status);
+			return interfaceTooltip(
+				entity,
+				name ?? entityDisplayText('Interface', entity),
+				status,
+				topology
+			);
 		default: {
 			const type = entityType as EntityType;
 			const title = name ?? entityDisplayText(type, entity);
 			const lookup = topologyLookup(topology);
 			// The entity's own summary fields, then the related entities the topology carries (a
 			// subnet's VLANs, the service managing it). A relation into a collection the topology
-			// does not load would read as empty, so it is left out.
+			// does not load would read as empty, so it is left out. A list of related entities is
+			// shown only where the registry marks it a summary (a subnet's VLANs); a long one (a
+			// VLAN's interfaces) is the inspector's.
 			const fields = entityFields(type);
 			const reachable = (f: (typeof fields)[number]) =>
 				f.path.every((hop) => hop.type === 'Embedded' || hop.entity in ENTITY_COLLECTIONS);
 			const rows = fields
 				.filter(
-					(f) => (f.summary && f.path.length === 0) || (f.format.type === 'Entity' && reachable(f))
+					(f) =>
+						(f.summary && f.path.length === 0) ||
+						(f.format.type === 'Entity' && (!f.many || f.summary) && reachable(f))
 				)
 				.map((f) => ({ label: entityFieldLabel(type, f), value: fieldText(f, entity, lookup) }))
 				.filter((row) => row.value !== title);
@@ -562,7 +580,7 @@ function buildIconCard(
 			label,
 			sublabel: null,
 			os: null,
-			tooltip: () => interfaceTooltip(iface, label, marks.Status),
+			tooltip: () => interfaceTooltip(iface, label, marks.Status, inputs.topology),
 			groups: []
 		};
 	}

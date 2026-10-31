@@ -22,9 +22,12 @@ export type Host = components['schemas']['Host'] &
 		| 'display_name_rung'
 		| 'name_ladder'
 		| 'device_type'
+		| 'device_type_source'
 		| 'virtualization_parent_host_id'
 		| 'virtualization_root_host_id'
 		| 'virtualization_depth'
+		| 'reported_by_host_ids'
+		| 'found_by_discovery_id'
 	>;
 /** A host with its addresses, as the summary and picker queries return it. */
 export type HostWithAddresses = Host & Pick<components['schemas']['HostResponse'], 'ip_addresses'>;
@@ -84,7 +87,12 @@ type HostSourceKeys = Extract<keyof HostResponse, `${string}_source`>;
 export interface HostFormData extends Partial<
 	Pick<
 		HostResponse,
-		'display_name' | 'display_name_rung' | 'name_ladder' | 'device_type' | HostSourceKeys
+		| 'display_name'
+		| 'display_name_rung'
+		| 'name_ladder'
+		| 'device_type'
+		| 'device_type_source'
+		| HostSourceKeys
 	>
 > {
 	// Host primitive fields
@@ -154,7 +162,25 @@ export interface UpdateHostWithServicesRequest {
 	ports: Port[] | null;
 	/** Services to sync - if provided, will create/update/delete to match */
 	services: Service[] | null;
+	/**
+	 * Device facts a person typed. Omitted for an update that does not edit them (a managed VM's
+	 * host fields), so the server leaves them as they are.
+	 */
+	facts?: HostDeviceFacts;
 }
+
+/** The device facts the host editor edits, as `UpdateHostRequest` names them. */
+export type HostDeviceFacts = Pick<
+	components['schemas']['UpdateHostRequest'],
+	| 'manufacturer'
+	| 'model'
+	| 'serial_number'
+	| 'asset_tag'
+	| 'sys_location'
+	| 'sys_contact'
+	| 'management_url'
+	| 'device_type'
+>;
 
 // Frontend-specific types
 export interface AllIPAddresses {

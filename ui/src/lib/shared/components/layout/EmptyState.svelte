@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Search } from 'lucide-svelte';
+	import { Search } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { IconComponent as IconComponentType } from '$lib/shared/utils/types';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';

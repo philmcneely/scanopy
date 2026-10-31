@@ -3,7 +3,7 @@
  *
  * The delete action takes Delete, and an action naming a `shortcut` takes it when free. Every
  * other action takes the first letter of its label that no earlier action and no list-wide key
- * has claimed: Edit is E, Rescan R, and Consolidate O, since C is Create. An action left with no
+ * has claimed: Edit is E, Rescan R, Merge M, and an action starting with C its next letter, since C is Create. An action left with no
  * free letter shows without a key.
  */
 import type { ActionTone, CardAction } from '../types';

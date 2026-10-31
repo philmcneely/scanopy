@@ -18,3 +18,17 @@ export function supportEmailAddress(
 	if (!features?.email_support) return null;
 	return features.priority_support ? 'priority@scanopy.net' : 'support@scanopy.net';
 }
+
+/** Where in the app a visitor opened the beta program sign-up. The website records it with the consent. */
+export type BetaProgramSource = 'app_settings' | 'app_plans';
+
+/**
+ * The beta program sign-up on the website: the MCP Server page, which explains the feature the
+ * program opens first and holds the form. The query names only where the link was opened and the
+ * deployment, so nothing that identifies the user leaves a self-hosted server until they type it
+ * into the form.
+ */
+export function betaProgramUrl(source: BetaProgramSource, cloud: boolean): string {
+	const params = new URLSearchParams({ source, deployment: cloud ? 'cloud' : 'self_hosted' });
+	return `https://scanopy.net/product/mcp-server?${params}`;
+}

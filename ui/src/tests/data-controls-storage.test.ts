@@ -138,6 +138,22 @@ describe('parseStoredState', () => {
 		expect(parsed!.columnOrder).toEqual(['name', 'created_at']);
 		expect(parsed!.columnSizing).toEqual({ name: 240 });
 	});
+
+	it("drops an older build's column visibility, which froze every default", () => {
+		const parsed = parseStoredState(
+			JSON.stringify({
+				...baseState(),
+				version: 3,
+				columnVisibility: { description: false },
+				columnOrder: ['name', 'description'],
+				filterState: { site_id: { type: 'string', values: ['a'] } }
+			})
+		);
+
+		expect(parsed!.columnVisibility).toBeUndefined();
+		expect(parsed!.columnOrder).toEqual(['name', 'description']);
+		expect(parsed!.filterState.site_id.values).toEqual(['a']);
+	});
 });
 
 describe('resolveOrdering', () => {

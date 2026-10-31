@@ -10,7 +10,7 @@ use crate::server::{
     },
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
 };
@@ -169,8 +169,8 @@ impl Entity for Discovery {
     const ENTITY_NAME_PLURAL: &'static str = "Discoveries";
     const ENTITY_DESCRIPTION: &'static str = "Network discovery operations. Trigger and monitor scans that detect hosts, services, and network topology.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Discover
+    fn product_area() -> ProductArea {
+        ProductArea::Discovery
     }
 
     fn preserve_immutable_fields(&mut self, existing: &Self) {

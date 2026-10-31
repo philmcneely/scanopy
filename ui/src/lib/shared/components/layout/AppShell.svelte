@@ -17,7 +17,11 @@
 	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
 	import { useConfigQuery } from '$lib/shared/stores/config-query';
 	import { displaySettings } from '$lib/shared/stores/display-settings.svelte';
-	import { isBillingPlanActive, isPaidSubscriptionActive } from '$lib/features/organizations/types';
+	import {
+		hasLicensedPlan,
+		isBillingPlanActive,
+		isPaidSubscriptionActive
+	} from '$lib/features/organizations/types';
 	import { getRoute } from '$lib/shared/utils/navigation';
 	import type { PostHog } from 'posthog-js';
 	import { browser } from '$app/environment';
@@ -29,6 +33,9 @@
 		markLandingPageviewDropped
 	} from '$lib/shared/utils/first-touch';
 	import PaymentMethodModal from '$lib/features/billing/PaymentMethodModal.svelte';
+	import LoadFailedState from './LoadFailedState.svelte';
+	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
+	import { serverUnreachable } from '$lib/api/server-reachability';
 	import {
 		billing_paymentMethodAdded,
 		billing_subscriptionActivated,
@@ -44,7 +51,16 @@
 	let currentUser = $derived(currentUserQuery.data);
 	let isAuthenticated = $derived(currentUser != null);
 	let isCheckingAuth = $derived(currentUserQuery.isPending);
-	let authCheckComplete = $derived(!currentUserQuery.isPending);
+	// Only an answer from the server settles who is signed in: `null` is its 401. A first load
+	// that couldn't reach the server has no answer, and must neither route to the login page nor
+	// count as a logout.
+	let authCheckComplete = $derived(currentUser !== undefined);
+	let authUnreachable = $derived(currentUserQuery.isError && currentUser === undefined);
+	// While the server is down the unreachable banner shows above a spinner, and the recovery
+	// refetch brings the app up by itself. Only an error the server sent shows the failed state.
+	let authWaitingForServer = $derived(
+		authUnreachable && ($serverUnreachable || currentUserQuery.isFetching)
+	);
 
 	// Dates everywhere follow the signed-in user's display settings; defaults when signed out.
 	$effect(() => {
@@ -54,6 +70,14 @@
 	// TanStack Query for organization
 	const organizationQuery = useOrganizationQuery();
 	let organization = $derived(organizationQuery.data);
+
+	// Only a license plan has a key. When the org is on any other plan, at load or
+	// after a plan change, drop any key still cached from an earlier license plan.
+	$effect(() => {
+		if (organization && !hasLicensedPlan(organization)) {
+			queryClient.removeQueries({ queryKey: queryKeys.licenses.all });
+		}
+	});
 
 	// TanStack Query for config
 	const configQuery = useConfigQuery();
@@ -71,6 +95,9 @@
 				// User logged out - clear data
 				resetTopologyOptions();
 				queryClient.clear();
+				// Route again: a session that expired mid-use leaves the page behind it with no
+				// data, and the routing below runs only once unless reset.
+				hasInitialized = false;
 			}
 			previouslyAuthenticated = isAuthenticated;
 		}
@@ -288,9 +315,16 @@
 	});
 </script>
 
-{#if isCheckingAuth && !$page.url.pathname.startsWith('/onboarding')}
+{#if (isCheckingAuth && !$page.url.pathname.startsWith('/onboarding')) || authWaitingForServer}
+	<div class="flex min-h-screen flex-col bg-(--color-bg-elevated)">
+		<ServerUnreachableBanner />
+		<div class="flex flex-1 items-center justify-center">
+			<Loading />
+		</div>
+	</div>
+{:else if authUnreachable}
 	<div class="flex min-h-screen items-center justify-center bg-(--color-bg-elevated)">
-		<Loading />
+		<LoadFailedState onRetry={() => currentUserQuery.refetch()} />
 	</div>
 {:else}
 	{@render children()}

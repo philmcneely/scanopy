@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, ChevronUp, ChevronDown } from 'lucide-svelte';
+	import { X, ChevronUp, ChevronDown } from '@lucide/svelte';
 	import { createForm } from '@tanstack/svelte-form';
 	import SearchInput from '$lib/shared/components/forms/input/SearchInput.svelte';
 	import SearchHint from '$lib/shared/components/forms/input/SearchHint.svelte';

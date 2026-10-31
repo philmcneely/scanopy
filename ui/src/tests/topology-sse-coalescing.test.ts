@@ -1,26 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { topologySSEManager } from '$lib/features/topology/queries';
+import { topologyStream } from '$lib/features/topology/queries';
 import { queryClient } from '$lib/api/query-client';
 
 /**
- * The topology SSE stream pings ~5×/sec/site during discovery, and each ping
+ * The live-update stream sends topology pings ~5×/sec/site during discovery, and each ping
  * would otherwise refetch the uncached, full-rebuild `/topology/data`. The
- * manager coalesces a burst of pings into at most one invalidation pass per
+ * handler coalesces a burst of pings into at most one invalidation pass per
  * ~1s window (trailing edge). These tests assert the coalescing *ratio* and
  * that the final ping is never dropped — behavior, not the throttle constant.
  */
 
-// The manager wires its ping handler inside createConfig(); reach it to drive pings.
 function ping(siteId: string) {
-	const cfg = (
-		topologySSEManager as unknown as {
-			createConfig(): { onMessage(u: { site_id: string }): void };
-		}
-	).createConfig();
-	cfg.onMessage({ site_id: siteId });
+	topologyStream.handleUpdate({ site_id: siteId });
 }
 
-describe('TopologySSEManager ping coalescing', () => {
+describe('Topology live-update coalescing', () => {
 	let invalidateSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
@@ -31,7 +25,7 @@ describe('TopologySSEManager ping coalescing', () => {
 	});
 
 	afterEach(() => {
-		topologySSEManager.disconnect();
+		topologyStream.reset();
 		vi.clearAllTimers();
 		vi.useRealTimers();
 		vi.restoreAllMocks();

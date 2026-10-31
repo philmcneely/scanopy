@@ -5,7 +5,7 @@ use crate::server::openapi::tags as api_tags;
 use crate::server::shared::attribution::AttributeSource;
 use crate::server::shared::extractors::Query;
 use crate::server::shared::handlers::list::list_page;
-use crate::server::shared::handlers::ordering::OrderField;
+use crate::server::shared::handlers::ordering::{OrderField, in_sql};
 use crate::server::shared::handlers::query::{
     FilterQueryExtractor, OrderDirection, PaginationParams, on_requested_sites,
 };
@@ -18,12 +18,14 @@ use crate::server::shared::types::api::{
     ApiError, ApiErrorResponse, ApiJson, ApiResponse, ApiResult, PaginatedApiResponse,
 };
 use crate::server::shared::types::entities::{EntitySource, EntitySourceDiscriminants};
+use crate::server::shared::types::metadata::HasId;
 use crate::server::shared::validation::validate_read_access;
 use crate::server::sites::r#impl::Site;
 use crate::server::{
     config::AppState,
     subnets::r#impl::base::{Subnet, SubnetCidr, SubnetName, SubnetTypeAttributed},
     subnets::r#impl::nesting::SubnetResponse,
+    subnets::r#impl::types::SubnetType,
 };
 use axum::extract::{Path, State};
 use axum::response::Json;
@@ -86,6 +88,27 @@ impl OrderField for SubnetOrderField {
     fn nulls_last(&self) -> bool {
         matches!(self, Self::ManagedBy)
     }
+
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
+    }
+
+    /// The seeded Internet and Remote rows stand for every site, so a site sort lists them first
+    /// rather than among the site whose copy is listed.
+    fn leading_sql(&self) -> Option<String> {
+        match self {
+            Self::SiteId => {
+                let seeded = in_sql(
+                    "subnets.subnet_type",
+                    SubnetType::seeded_per_site().iter().map(|t| t.id()),
+                );
+                Some(format!(
+                    "(CASE WHEN subnets.source->>'type' = 'System' AND {seeded} THEN 0 ELSE 1 END)"
+                ))
+            }
+            _ => None,
+        }
+    }
 }
 
 // ============================================================================
@@ -109,6 +132,9 @@ pub struct SubnetFilterQuery {
     /// `true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates
     /// (`Subnet::is_user_managed`).
     pub user_managed: Option<bool>,
+    /// With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+    /// seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+    pub include_shared_ranges: Option<bool>,
     /// Filter by tag IDs (returns subnets that have ANY of the specified tags)
     pub tag_ids: Option<Vec<Uuid>>,
     /// Tag sets the subnet must hold one tag from each of. Each entry is a comma-separated list
@@ -143,6 +169,22 @@ pub struct SubnetFilterQuery {
     pub search: Option<String>,
 }
 
+impl SubnetFilterQuery {
+    /// The site whose seeded Internet and Remote ranges stand for every site's: the lowest id
+    /// among the requested sites the caller can see, or among all their sites when none is
+    /// requested. Lowest id, so every page and the field values read the same copy.
+    fn shared_ranges_site(&self, user_site_ids: &[Uuid]) -> Option<Uuid> {
+        match self.site_ids.as_deref() {
+            Some(requested) => requested
+                .iter()
+                .filter(|id| user_site_ids.contains(id))
+                .min()
+                .copied(),
+            None => user_site_ids.iter().min().copied(),
+        }
+    }
+}
+
 impl FilterQueryExtractor for SubnetFilterQuery {
     fn apply_to_filter<T: Storable>(
         &self,
@@ -171,8 +213,11 @@ impl FilterQueryExtractor for SubnetFilterQuery {
             _ => filter,
         };
         // Here so the field values, which share this extractor, count only the ranges listed.
-        match self.user_managed {
-            Some(true) => filter.user_managed(),
+        match (self.user_managed, self.include_shared_ranges) {
+            (Some(true), Some(true)) => {
+                filter.user_managed_with_shared(self.shared_ranges_site(user_site_ids))
+            }
+            (Some(true), _) => filter.user_managed(),
             _ => filter,
         }
     }
@@ -377,6 +422,7 @@ async fn create_subnet(
             if !site_ids.contains(&request.base.site_id) {
                 return Err(ApiError::entity_access_denied::<Site>(request.base.site_id));
             }
+            refuse_seeded_type(None, request.base.subnet_type())?;
             // A range a person typed is an assertion, not a reading: `set_source` settles the
             // confidence ladder along with the source, so nothing a later scan reads displaces it.
             // Every other entity gets this from `create_handler`; subnets miss it because this
@@ -439,6 +485,8 @@ async fn update_subnet(
             SubnetTypeAttributed::new(*subnet.base.subnet_type.value(), AttributeSource::Manual);
     }
 
+    refuse_seeded_type(Some(current.base.subnet_type()), subnet.base.subnet_type())?;
+
     if current.base.cidr != subnet.base.cidr {
         // Moving the range through this endpoint is a person's assertion, so it settles the
         // confidence ladder: `Confirmed` outranks anything a scan reads, which is what stops a
@@ -447,6 +495,10 @@ async fn update_subnet(
         // and no daemon can reach it — whereas storage sees every writer alike.
         subnet.base.cidr =
             SubnetCidr::new(subnet.base.cidr.value().clone(), AttributeSource::Manual);
+        // Confirming or correcting an assumed range is what confirms the subnet itself.
+        if current.base.source.confirmation().is_unconfirmed() {
+            subnet.base.source = EntitySource::Manual;
+        }
 
         // CIDR is changing - validate that all existing ip_addresses are within the new CIDR
         let filter = StorableFilter::<IPAddress>::new_from_subnet_id(&id);
@@ -469,6 +521,16 @@ async fn update_subnet(
 
     // Delegate to generic handler
     update_handler::<Subnet>(State(state), auth, Path(id), ApiJson(subnet)).await
+}
+
+/// Refuses a person putting a range into a category every site is seeded with
+/// ([`SubnetType::seeded_per_site`]), which would make a second Internet or Remote range on the
+/// site. A range that already holds one (a user's own Remote subnet, GH #677) keeps it.
+fn refuse_seeded_type(current: Option<SubnetType>, requested: SubnetType) -> ApiResult<()> {
+    if requested.is_seeded_per_site() && current != Some(requested) {
+        return Err(ApiError::subnet_type_seeded_per_site(requested.id()));
+    }
+    Ok(())
 }
 
 /// Request body for merging a subnet into the range that contains it.
@@ -511,4 +573,29 @@ async fn merge_subnet(
         .map_err(|e| ApiError::bad_request(&e.to_string()))?;
 
     Ok(Json(ApiResponse::success(merged)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn people_cannot_add_a_range_to_a_category_every_site_is_seeded_with() {
+        for seeded in SubnetType::seeded_per_site() {
+            assert!(
+                refuse_seeded_type(None, *seeded).is_err(),
+                "creating {seeded:?}"
+            );
+            assert!(
+                refuse_seeded_type(Some(SubnetType::Lan), *seeded).is_err(),
+                "moving a LAN range to {seeded:?}"
+            );
+            assert!(
+                refuse_seeded_type(Some(*seeded), *seeded).is_ok(),
+                "saving a range that already is {seeded:?}"
+            );
+        }
+        assert!(refuse_seeded_type(None, SubnetType::Lan).is_ok());
+        assert!(refuse_seeded_type(Some(SubnetType::Remote), SubnetType::Lan).is_ok());
+    }
 }

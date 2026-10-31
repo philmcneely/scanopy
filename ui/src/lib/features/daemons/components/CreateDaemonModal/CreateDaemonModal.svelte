@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { untrack, tick } from 'svelte';
 	import { createForm } from '@tanstack/svelte-form';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import { queryKeys } from '$lib/api/query-client';
 	import { validateForm } from '$lib/shared/components/forms/form-context';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
@@ -20,7 +22,7 @@
 		Copy,
 		Check,
 		KeyRound
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import confetti from 'canvas-confetti';
 	import type { DaemonMode } from '../../types/base';
 	import { fillInstallArtifactsKey, installStepCommand } from '../../types/base';
@@ -265,6 +267,7 @@
 	let troubleTimeoutId = $state<ReturnType<typeof setTimeout> | null>(null);
 
 	// Daemon-specific queries for connection detection
+	const queryClient = useQueryClient();
 	const provisionedDaemonQuery = useDaemonQuery(() => provisionedDaemonId || null, {
 		enabled: () =>
 			(connectionStatus === 'waiting' || connectionStatus === 'trouble') && !!provisionedDaemonId
@@ -658,6 +661,10 @@
 	function markConnected() {
 		connectionStatus = 'connected';
 		daemonSetupState.set({ connectionStatus: 'connected' });
+		// The connection poll refreshes only this daemon's own query. The Daemons table reads the list
+		// pages, which still hold the daemon as never seen. Refetch rather than patch: the server
+		// derives its status.
+		queryClient.invalidateQueries({ queryKey: queryKeys.daemons.all });
 		if (troubleTimeoutId) {
 			clearTimeout(troubleTimeoutId);
 			troubleTimeoutId = null;

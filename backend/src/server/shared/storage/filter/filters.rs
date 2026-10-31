@@ -695,6 +695,26 @@ impl<T: Storable> StorableFilter<T> {
         self
     }
 
+    /// SQL form of the confirmation verdict: entities whose `source` is (`unconfirmed = true`) or
+    /// is not (`false`) `Inferred`. Mirrors
+    /// [`EntitySource::confirmation`](crate::server::shared::types::entities::EntitySource::confirmation)
+    /// — the two must be changed together.
+    pub fn unconfirmed(mut self, unconfirmed: bool) -> Self {
+        let source_col = self.qualify_column("source");
+        let inferred = EntitySourceDiscriminants::Inferred.id();
+        let comparison = if unconfirmed { "=" } else { "<>" };
+        self.conditions
+            .push(format!("{source_col}->>'type' {comparison} '{inferred}'"));
+        self
+    }
+
+    /// Rows a person has not dismissed (`hosts.dismissed_at IS NULL`).
+    pub fn not_dismissed(mut self) -> Self {
+        let col = self.qualify_column("dismissed_at");
+        self.conditions.push(format!("{col} IS NULL"));
+        self
+    }
+
     /// Entities whose `source` tag is one of `sources`.
     ///
     /// `source` is JSONB, so the predicate reads the `type` tag out, as

@@ -5,7 +5,7 @@
 		ArrowDownWideNarrow,
 		ChevronDown,
 		ChevronRight
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import type {
 		ColumnDef,
 		columnResizingState,
@@ -35,7 +35,8 @@
 	import { iconButtonClass, resolveTooltip, shownActions } from '../controls/actionShortcuts';
 	import type { RenderGroup, TreeCell, TreeContinuation, TreeEntry } from '../controls/grouping';
 	import type { SortState } from '../controls/sorting';
-	import type { CardAction, GroupSlice } from '../types';
+	import type { CardAction, GroupSlice, TagProps } from '../types';
+	import Tag from '../Tag.svelte';
 	import {
 		common_actions,
 		common_selectRow,
@@ -63,11 +64,13 @@
 		someSelected,
 		getItemId,
 		getActions,
+		getRowBadges = null,
 		caption,
 		onToggleSort,
 		onClickRow,
 		onToggleAll,
-		headerControl = undefined
+		headerControl = undefined,
+		bottomInset = 0
 	}: {
 		/** Ungrouped rows. Null when the list is grouped. */
 		items: T[] | null;
@@ -91,6 +94,11 @@
 		someSelected: boolean;
 		getItemId: (item: T) => string;
 		getActions: ((item: T) => CardAction[]) | null;
+		/**
+		 * Icon-only status badges drawn ahead of the row's name (Stale, Unconfirmed), whatever columns
+		 * are shown. Each badge says what it means in its tooltip.
+		 */
+		getRowBadges?: ((item: T) => TagProps[]) | null;
 		caption: string;
 		onToggleSort: (fieldKey: string) => void;
 		/**
@@ -104,7 +112,54 @@
 		 * the caller, which holds the filter state, so the table stays a renderer.
 		 */
 		headerControl?: Snippet<[EntityColumn<T>]>;
+		/**
+		 * Space kept below the last row, in px, for something floating over the table's bottom
+		 * edge (the bulk-tag island), so the last row can scroll clear of it.
+		 */
+		bottomInset?: number;
 	} = $props();
+
+	/*
+	 * From `md` up the table scrolls on its own, filling `main` from where it sits down to
+	 * `main`'s bottom padding, and its header row is `position: sticky` at the top of it. The
+	 * wrapper already scrolls sideways, which makes it the sticky containing block, so the header
+	 * can only pin inside it: a header pinned to the page had to be moved by script on every
+	 * scroll, and lagged the toolbar because the browser scrolls off the main thread. The height
+	 * is measured on resize and tab switch, never on scroll. Below `md` the page scrolls and the
+	 * header scrolls with it.
+	 */
+	const MAIN_BOTTOM_PADDING = 16;
+	const fillsViewport = new MediaQuery('min-width: 48rem');
+	let wrapperEl: HTMLDivElement | null = $state(null);
+	let maxHeight = $state<number | null>(null);
+
+	$effect(() => {
+		const wrapper = wrapperEl;
+		const main = wrapper?.closest('main');
+		if (!wrapper || !main || !fillsViewport.current) {
+			maxHeight = null;
+			return;
+		}
+		const measure = () => {
+			const mainRect = main.getBoundingClientRect();
+			// Where the table sits in `main`'s content, whatever `main` is scrolled to.
+			const top = wrapper.getBoundingClientRect().top - mainRect.top + main.scrollTop;
+			const next = Math.max(160, main.clientHeight - top - MAIN_BOTTOM_PADDING);
+			if (maxHeight === null || Math.abs(next - maxHeight) > 0.5) maxHeight = next;
+		};
+		// `main` resizing covers the window and banners; the list resizing covers the toolbar
+		// above the table; visibility covers a tab switch.
+		const resizes = new ResizeObserver(measure);
+		resizes.observe(main);
+		if (wrapper.parentElement) resizes.observe(wrapper.parentElement);
+		const visibility = new IntersectionObserver(measure);
+		visibility.observe(wrapper);
+		measure();
+		return () => {
+			resizes.disconnect();
+			visibility.disconnect();
+		};
+	});
 
 	/**
 	 * Column identity is keyed on the field keys, not the array.
@@ -404,8 +459,8 @@
 	container that only answers to the mouse is a WCAG 2.1.1 failure.
 
 	Note this wrapper is the containing block for `position: sticky`, so a sticky
-	header here would offset from the wrapper rather than the viewport — which is
-	why the header scrolls with the rows instead of pinning.
+	header here pins to the wrapper rather than the viewport — which is why, from
+	`md` up, the wrapper is also the vertical scroller (`maxHeight`).
 
 	`relative` is what makes it the containing block for *absolute* descendants as
 	well, and that is load-bearing rather than tidy. `FieldValue` renders an
@@ -419,7 +474,10 @@
 -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
+	bind:this={wrapperEl}
 	class="entity-table relative isolate overflow-x-auto"
+	style:max-height={maxHeight === null ? undefined : `${maxHeight}px`}
+	style:padding-bottom={bottomInset > 0 ? `${bottomInset}px` : undefined}
 	style:--pin-select-width="{selectable ? selectWidth : 0}px"
 	style:--pin-actions-width="{getActions ? actionsWidth : 0}px"
 	data-density={displaySettings.current.table_density}
@@ -630,6 +688,13 @@
 	</tr>
 {/snippet}
 
+<!-- A row's status badges, icon-only, ahead of its name. -->
+{#snippet rowBadges(item: T)}
+	{#each getRowBadges?.(item) ?? [] as badge, index (index)}
+		<span class="shrink-0"><Tag {...badge} label={undefined} /></span>
+	{/each}
+{/snippet}
+
 <!-- A tree row's chevron, or the same width of space for a row with no children, so names line
      up across a level. A parent's chevron collapses its children and shows how many there are. -->
 {#snippet treeToggle(tree: TreeCell<T>)}
@@ -735,14 +800,18 @@
 							{/if}
 							<div class="flex items-center gap-1.5" style="padding-left: {depth}rem">
 								{@render treeToggle(tree)}
+								{@render rowBadges(item)}
 								<div class="min-w-0" style={contentMaxWidth(column)}>
 									<FieldValue {item} {column} />
 								</div>
 								{@render treeCount(tree)}
 							</div>
 						{:else}
-							<div style={contentMaxWidth(column)}>
-								<FieldValue {item} {column} />
+							<div class="flex items-center gap-1.5">
+								{@render rowBadges(item)}
+								<div class="min-w-0" style={contentMaxWidth(column)}>
+									<FieldValue {item} {column} />
+								</div>
 							</div>
 						{/if}
 					</th>

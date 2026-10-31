@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
-	import { CreditCard } from 'lucide-svelte';
+	import { CreditCard } from '@lucide/svelte';
 	import ProgressTrack from '$lib/shared/components/data/ProgressTrack.svelte';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';

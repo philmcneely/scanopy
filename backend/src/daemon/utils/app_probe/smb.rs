@@ -87,6 +87,7 @@ impl AppProbe for SmbProbe {
             SmbDialect::Smb1 => None,
         };
         let identity = os.map(|os| DeviceIdentity {
+            matched: None,
             manufacturer: None,
             model: None,
             serial_number: None,

@@ -426,7 +426,7 @@ pub(crate) async fn insert_demo_data(
             );
             let target_key = (
                 neighbor_update.target_host_name.clone(),
-                Some(neighbor_update.target_if_index),
+                neighbor_update.target_if_index,
             );
             if let (Some(&source_id), Some(&target_id)) = (
                 interface_lookup.get(&source_key),

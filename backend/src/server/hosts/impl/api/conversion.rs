@@ -17,6 +17,9 @@ impl HostResponse {
             updated_at,
             last_seen_at,
             first_discovery_id,
+            dismissed_at,
+            reported_by_host_ids: _,
+            found_by_discovery_id: _,
             last_discovery_id,
             name,
             // Derived from the fields below on the way out; nothing to carry back in.
@@ -24,6 +27,7 @@ impl HostResponse {
             display_name_rung: _,
             name_ladder: _,
             device_type: _,
+            device_type_source: _,
             name_source,
             site_id,
             hostname,
@@ -88,6 +92,7 @@ impl HostResponse {
             last_seen_at: *last_seen_at,
             last_discovery_id: *last_discovery_id,
             first_discovery_id: *first_discovery_id,
+            dismissed_at: *dismissed_at,
             base: HostBase {
                 name: host_name_from_parts(name.clone(), *name_source),
                 site_id: *site_id,
@@ -142,6 +147,8 @@ impl HostResponse {
                 os: os
                     .clone()
                     .map(|v| Attributed::new(HostOsValue(v), *os_source)),
+                // Not on the response; the daemon never writes back what it reads here.
+                matched_device_type: None,
                 credential_assignments: credential_assignments.clone(),
             },
         }
@@ -162,7 +169,8 @@ impl HostResponse {
         // The title, the rung it came from and the rungs it beat are read off one ladder, so the
         // editor's explanation of a title cannot disagree with the title.
         // The same function the topology bundle uses, so a host wears one device type on every surface.
-        let device_type = host.device_type(&services, &ip_addresses);
+        let (device_type, device_type_source) =
+            host.device_type_with_source(&services, &ip_addresses);
         let name_ladder = host.name_ladder(ip_addresses.iter());
         let (display_name, display_name_rung) =
             match crate::server::hosts::r#impl::name_ladder::resolve_name_ladder(&name_ladder) {
@@ -198,6 +206,7 @@ impl HostResponse {
             lineage_id: _,
             last_discovery_id,
             first_discovery_id,
+            dismissed_at,
             base,
         } = host;
 
@@ -227,6 +236,9 @@ impl HostResponse {
             firmware_revision,
             software_revision,
             os,
+            // A rung of the device type the response carries (`Host::device_type`), not a field
+            // of its own.
+            matched_device_type: _,
             credential_assignments,
         } = base;
 
@@ -241,12 +253,16 @@ impl HostResponse {
             display_name_rung,
             name_ladder: name_ladder.to_vec(),
             device_type,
+            device_type_source,
             name_source: name.source(),
             name: name.value().to_string(),
             site_id,
             hostname_source: hostname.as_ref().map(|v| v.source()).unwrap_or_default(),
             hostname: attribution::text_of(&hostname),
             description,
+            dismissed_at,
+            reported_by_host_ids: Vec::new(),
+            found_by_discovery_id: None,
             source,
             virtualization_metadata,
             virtualization_service_id,

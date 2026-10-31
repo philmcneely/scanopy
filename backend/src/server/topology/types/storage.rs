@@ -1,7 +1,7 @@
 use crate::server::shared::entities::EntityDiscriminants;
 use crate::server::{
     shared::{
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
     topology::types::base::{Topology, TopologyBase, TopologyOptions},
@@ -97,8 +97,8 @@ impl Entity for Topology {
     const ENTITY_DESCRIPTION: &'static str =
         "Network topology maps showing host relationships and connections.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Visualization
+    fn product_area() -> ProductArea {
+        ProductArea::Topology
     }
 
     fn site_id(&self) -> Option<Uuid> {

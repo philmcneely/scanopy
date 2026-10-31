@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { components } from '$lib/api/schema';
-	import FeatureNudge from './FeatureNudge.svelte';
+	import FeatureNudge, { type NudgeAction } from './FeatureNudge.svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import {
 		activeView,
@@ -11,6 +11,7 @@
 		entities,
 		billingPlans,
 		credentialIntegrations,
+		entitySources,
 		interfaceIntegrationsList
 	} from '$lib/shared/stores/metadata';
 	import {
@@ -25,6 +26,8 @@
 	import { hasSunsetWarning } from '$lib/features/daemons/utils';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { onMount } from 'svelte';
+	import { CircleDashedCheck } from '@lucide/svelte';
+	import { openTab } from '$lib/shared/stores/url-state';
 	import {
 		common_getStarted,
 		home_nudges_apiKeysAction,
@@ -58,7 +61,11 @@
 		home_nudges_tagsTitle,
 		home_nudges_targetlessCredentialAction,
 		home_nudges_targetlessCredentialDescription,
-		home_nudges_targetlessCredentialTitle
+		home_nudges_targetlessCredentialTitle,
+		home_nudges_unconfirmedReviewHosts,
+		home_nudges_unconfirmedReviewSubnets,
+		home_nudges_unconfirmedDescription,
+		home_nudges_unconfirmedTitle
 	} from '$lib/paraglide/messages';
 
 	type Organization = components['schemas']['Organization'];
@@ -101,17 +108,16 @@
 
 	const planMetadata = $derived(billingPlans.getMetadata(planType));
 	const features = $derived(planMetadata?.features ?? {});
-	interface Nudge {
+	/** A nudge with one action, or with several buttons side by side. */
+	type Nudge = {
 		id: string;
 		title: string;
 		description: string;
-		actionLabel: string;
-		action: () => void;
 		visible: boolean;
 		icon: IconComponent;
 		iconColor: string;
 		dismissOnAction?: boolean;
-	}
+	} & ({ actionLabel: string; action: () => void } | { actions: NudgeAction[] });
 
 	let nudges = $derived.by((): Nudge[] => {
 		const all: Nudge[] = [
@@ -142,6 +148,37 @@
 			})),
 			// One per credential no scan sends to a daemon. Gone once it has a target, so acting on it
 			// does not dismiss it.
+			// Hosts and subnets known only from another device's report. Each button opens its list
+			// filtered to the Inferred source, which is exactly the unconfirmed rows.
+			{
+				id: 'unconfirmed-entities',
+				title: home_nudges_unconfirmedTitle(),
+				description: home_nudges_unconfirmedDescription({
+					hosts: dashboard.unconfirmed_host_count,
+					subnets: dashboard.unconfirmed_subnet_count
+				}),
+				actions: [
+					{
+						tab: 'hosts',
+						count: dashboard.unconfirmed_host_count,
+						label: home_nudges_unconfirmedReviewHosts()
+					},
+					{
+						tab: 'subnets',
+						count: dashboard.unconfirmed_subnet_count,
+						label: home_nudges_unconfirmedReviewSubnets()
+					}
+				]
+					.filter(({ count }) => count > 0)
+					.map(({ tab, label }) => ({
+						label,
+						onAction: () => openTab(tab, new URLSearchParams({ sources: 'Inferred' }))
+					})),
+				visible: dashboard.unconfirmed_host_count + dashboard.unconfirmed_subnet_count > 0,
+				icon: CircleDashedCheck,
+				iconColor: entitySources.getColorHelper('Inferred').icon,
+				dismissOnAction: false
+			},
 			...dashboard.targetless_credentials.map(({ id, name, integration }): Nudge => ({
 				id: `targetless-credential-${id}`,
 				title: home_nudges_targetlessCredentialTitle({ name }),
@@ -280,7 +317,7 @@
 					onNavigate('topology');
 					openModal('topology-share');
 				},
-				visible: features.share_views && has('FirstTopologyRebuild'),
+				visible: features.sharing && has('FirstTopologyRebuild'),
 				icon: entities.getIconComponent('Share'),
 				iconColor: entities.getColorHelper('Share').icon
 			}
@@ -314,8 +351,9 @@
 					id={nudge.id}
 					title={nudge.title}
 					description={nudge.description}
-					actionLabel={nudge.actionLabel}
-					onAction={nudge.action}
+					actions={'actions' in nudge
+						? nudge.actions
+						: [{ label: nudge.actionLabel, onAction: nudge.action }]}
 					Icon={nudge.icon}
 					iconColor={nudge.iconColor}
 					dismissOnAction={nudge.dismissOnAction}

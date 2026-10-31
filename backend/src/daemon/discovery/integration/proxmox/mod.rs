@@ -25,6 +25,7 @@
 pub mod client;
 pub mod identities;
 pub mod mapping;
+pub mod reach;
 pub mod types;
 
 use std::collections::{HashMap, HashSet};
@@ -58,10 +59,11 @@ use super::{
     IntegrationFailure, ProbeContext, ProbeFailure, ProbeSuccess, merge_subnets,
 };
 use crate::daemon::discovery::service::ops::HostData;
-use crate::daemon::discovery::service::warnings::AttemptOutcome;
+use crate::daemon::discovery::service::warnings::{AttemptOutcome, UnreachedProxmoxGuest};
 use client::ProxmoxClient;
 use identities::NetworkIdentity;
 use mapping::{GuestReading, GuestRecord, GuestSummary, NodeReading, NodeSpec, REPORTED};
+use reach::NodeBridge;
 use types::{
     AgentHostName, AgentInterfaces, AgentOsInfo, ClusterResource, ClusterStatusEntry, GuestConfig,
     LxcInterface, NodeNetworkEntry, NodeStatus,
@@ -171,6 +173,7 @@ impl DiscoveryIntegration for ProxmoxIntegration {
         // Nodes first, so each guest can carry its node's stored service id.
         let mut owners: HashMap<String, Uuid> = HashMap::new();
         let mut node_hosts: HashMap<String, Uuid> = HashMap::new();
+        let mut bridges: HashMap<String, Vec<NodeBridge>> = HashMap::new();
         for node in &nodes {
             if ctx.cancel.is_cancelled() {
                 return Err(IntegrationFailure::cancelled());
@@ -185,6 +188,7 @@ impl DiscoveryIntegration for ProxmoxIntegration {
             {
                 host_data.offer_os(Attributed::new(HostOsValue(os.clone()), REPORTED));
             }
+            bridges.insert(node.name.clone(), reading.bridges.clone());
             match create_node_host(ctx, &subnets, node, &reading, handle.port).await {
                 Ok(Some((host_id, service_id))) => {
                     owners.insert(node.name.clone(), service_id);
@@ -206,7 +210,9 @@ impl DiscoveryIntegration for ProxmoxIntegration {
         let syncs: Vec<_> = guests
             .iter()
             .map(|guest| {
-                sync_and_report(ctx, client, guest, &owners, &subnets, site_id, &done, total)
+                sync_and_report(
+                    ctx, client, guest, &owners, &bridges, &subnets, site_id, &done, total,
+                )
             })
             .collect();
         let GuestSync {
@@ -330,6 +336,7 @@ async fn sync_and_report(
     client: &ProxmoxClient,
     guest: &GuestSummary,
     owners: &HashMap<String, Uuid>,
+    bridges: &HashMap<String, Vec<NodeBridge>>,
     subnets: &[Subnet],
     site_id: Uuid,
     done: &AtomicUsize,
@@ -340,7 +347,7 @@ async fn sync_and_report(
             node: guest.node.clone(),
         }
     } else {
-        sync_guest(ctx, client, guest, owners, subnets, site_id).await
+        sync_guest(ctx, client, guest, owners, bridges, subnets, site_id).await
     };
     let synced = done.fetch_add(1, Ordering::Relaxed) + 1;
     ctx.ops
@@ -350,12 +357,14 @@ async fn sync_and_report(
     outcome
 }
 
-/// Read one guest and record it with its network identities.
+/// Read one guest and record it with its network identities. A running guest at addresses no subnet
+/// this scan covers is recorded as unreached, with what would reach it.
 async fn sync_guest(
     ctx: &IntegrationContext<'_>,
     client: &ProxmoxClient,
     guest: &GuestSummary,
     owners: &HashMap<String, Uuid>,
+    bridges: &HashMap<String, Vec<NodeBridge>>,
     subnets: &[Subnet],
     site_id: Uuid,
 ) -> GuestOutcome {
@@ -371,10 +380,29 @@ async fn sync_guest(
     };
     let identities = identities::network_identities(&reading.nics, &reading.reported, subnets);
     match create_guest_host(ctx, subnets, guest, record, &identities, site_id).await {
-        Ok((host_id, all_identities_recorded)) => GuestOutcome::Recorded {
-            host_id,
-            identities_listed: reading.interfaces_read && all_identities_recorded,
-        },
+        Ok((host_id, all_identities_recorded)) => {
+            if guest.state == GuestState::Running
+                && let Some(unreached) = reach::unreached(
+                    &reading.nics,
+                    &reading.addresses,
+                    bridges.get(&guest.node).map_or(&[][..], Vec::as_slice),
+                    ctx.scanned_subnets,
+                    &guest.node,
+                )
+            {
+                ctx.ops
+                    .record_unreached_proxmox_guest(UnreachedProxmoxGuest {
+                        ip: unreached.address,
+                        guest: guest.name.clone().unwrap_or_else(|| guest.vmid.to_string()),
+                        reason: unreached.reason,
+                    })
+                    .await;
+            }
+            GuestOutcome::Recorded {
+                host_id,
+                identities_listed: reading.interfaces_read && all_identities_recorded,
+            }
+        }
         Err(e) => {
             tracing::warn!(guest = %guest_label(guest), error = %e, "Failed to record Proxmox VE guest");
             GuestOutcome::Failed {
@@ -622,6 +650,10 @@ async fn read_node(client: &ProxmoxClient, node: &NodeSpec) -> NodeReading {
             .as_deref()
             .map(mapping::node_addresses)
             .unwrap_or_default(),
+        bridges: network
+            .as_deref()
+            .map(reach::node_bridges)
+            .unwrap_or_default(),
     }
 }
 
@@ -669,6 +701,7 @@ async fn create_node_host(
             managed_device: &None,
             dns_sd: &None,
             certificates: &[],
+            fingerprints: &[],
         },
         &[],
         &daemon_id,

@@ -47,6 +47,8 @@ export const ERROR_CODES = {
 	license_locked: 'Your license is not active. The server is in read-only mode.',
 	license_instance_limit_reached:
 		'This license key is in use on {active} servers and your plan covers {limit}, so this server is in read-only mode. Delete a server you no longer run under License in Scanopy Cloud, then restart this one.',
+	license_plan_has_no_key:
+		"This organization's plan has no license key. License keys come with the Self-Hosted Standard and Plus plans.",
 	entity_not_found: "{entity} with ID '{id}' not found",
 	entity_already_exists: "{entity} '{name}' already exists",
 	entity_in_use: "Cannot delete {entity} '{name}' because it's used by {used_by}",
@@ -58,7 +60,7 @@ export const ERROR_CODES = {
 	entity_delete_forbidden: 'Cannot delete this {entity}: {reason}',
 	entity_update_forbidden: 'Cannot update this {entity}',
 	entity_site_mismatch: '{entity} is on a different site',
-	hosts_consolidate_failed: 'Failed to consolidate hosts: {reason}',
+	hosts_merge_failed: 'Failed to merge hosts: {reason}',
 	sites_access_denied: "You don't have access to site '{site}'",
 	share_password_required: 'Password required for this share',
 	share_password_incorrect: 'Incorrect password',
@@ -78,6 +80,8 @@ export const ERROR_CODES = {
 	discovery_subnet_site_mismatch: "Subnet '{subnet}' is on a different site",
 	discovery_session_not_found: "Discovery session '{id}' not found",
 	ip_address_out_of_range: "IP address '{ip}' is not within subnet '{subnet}' range",
+	subnet_type_seeded_per_site:
+		"Every site already has its own {subnet_type} subnet, so a new one can't be created",
 	daemon_site_mismatch: 'Cannot send updates for a different site',
 	daemon_identity_mismatch: 'Cannot send updates for a different daemon',
 	daemon_standby:
@@ -155,6 +159,7 @@ export interface ErrorParams {
 	auth_verification_email_cooldown: { seconds: string | number };
 	license_locked: Record<string, never>;
 	license_instance_limit_reached: { active: string | number; limit: string | number };
+	license_plan_has_no_key: Record<string, never>;
 	entity_not_found: { entity: string | number; id: string | number };
 	entity_already_exists: { entity: string | number; name: string | number };
 	entity_in_use: { entity: string | number; name: string | number; used_by: string | number };
@@ -166,7 +171,7 @@ export interface ErrorParams {
 	entity_delete_forbidden: { entity: string | number; reason: string | number };
 	entity_update_forbidden: { entity: string | number };
 	entity_site_mismatch: { entity: string | number };
-	hosts_consolidate_failed: { reason: string | number };
+	hosts_merge_failed: { reason: string | number };
 	sites_access_denied: { site: string | number };
 	share_password_required: Record<string, never>;
 	share_password_incorrect: Record<string, never>;
@@ -182,6 +187,7 @@ export interface ErrorParams {
 	discovery_subnet_site_mismatch: { subnet: string | number };
 	discovery_session_not_found: { id: string | number };
 	ip_address_out_of_range: { ip: string | number; subnet: string | number };
+	subnet_type_seeded_per_site: { subnet_type: string | number };
 	daemon_site_mismatch: Record<string, never>;
 	daemon_identity_mismatch: Record<string, never>;
 	daemon_standby: Record<string, never>;

@@ -14,7 +14,7 @@
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
-	import { ArrowRightLeft } from 'lucide-svelte';
+	import { ArrowRightLeft } from '@lucide/svelte';
 	import {
 		common_confirmDeleteNameWithGuests,
 		common_noEntitySelected,
@@ -154,7 +154,7 @@
 				itemClickAction="edit"
 				showSearch={true}
 				{items}
-				allowItemRemove={() => !isTransferringPortBindings}
+				allowItemRemove={!isTransferringPortBindings}
 				allowReorder={!isTransferringPortBindings}
 				optionDisplayComponent={ServiceTypeDisplay}
 				getOptionContext={() => ({ hideTags: ['category' as const] })}

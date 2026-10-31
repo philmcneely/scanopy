@@ -94,6 +94,12 @@ pub struct ServerCli {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     disable_update_check: Option<bool>,
 
+    /// Have the daemon install and upgrade commands this server generates download from GitHub
+    /// and ghcr.io instead of get.scanopy.net and docker.scanopy.net. Community Edition servers
+    /// already download from GitHub.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    disable_download_gateway: Option<bool>,
+
     /// Stripe publishable key (exposed to the frontend for Stripe Elements)
     #[arg(long, hide = true)]
     stripe_key: Option<String>,
@@ -220,6 +226,9 @@ pub struct ServerConfig {
     /// `SCANOPY_DISABLE_UPDATE_CHECK`: no GitHub release check, no upgrade banner.
     #[serde(default)]
     pub disable_update_check: bool,
+    /// `SCANOPY_DISABLE_DOWNLOAD_GATEWAY`: generated daemon downloads come from GitHub and GHCR.
+    #[serde(default)]
+    pub disable_download_gateway: bool,
     pub client_ip_source: Option<String>,
     pub smtp_username: Option<String>,
     pub smtp_password: Option<String>,
@@ -444,6 +453,8 @@ pub struct PublicConfigResponse {
     pub license_key_buffer_days: u32,
     /// Further days past the user-visible expiry before a key stops working.
     pub license_key_grace_days: u32,
+    /// The staleness window, in hours, a site uses when it sets none of its own.
+    pub default_site_stale_after_hours: i64,
     /// The newest promoted release, when it is newer than this server. `None`
     /// on cloud, with `SCANOPY_DISABLE_UPDATE_CHECK` set, before the first
     /// check answers, or when this server is current.
@@ -464,6 +475,7 @@ impl Default for ServerConfig {
             disable_registration: false,
             disable_password_login: false,
             disable_update_check: false,
+            disable_download_gateway: false,
             stripe_key: None,
             stripe_secret: None,
             stripe_webhook_secret: None,
@@ -602,6 +614,9 @@ impl ServerConfig {
         }
         if let Some(disable_update_check) = cli_args.disable_update_check {
             figment = figment.merge(("disable_update_check", disable_update_check));
+        }
+        if let Some(disable_download_gateway) = cli_args.disable_download_gateway {
+            figment = figment.merge(("disable_download_gateway", disable_download_gateway));
         }
         if let Some(metrics_token) = cli_args.metrics_token {
             figment = figment.merge(("metrics_token", metrics_token));
@@ -940,6 +955,7 @@ pub async fn get_public_config(
             license_signing_available: state.license_issuer.is_some(),
             license_key_buffer_days: crate::server::license::mint::PAID_THROUGH_BUFFER_DAYS as u32,
             license_key_grace_days: crate::server::license::mint::GRACE_PERIOD_DAYS as u32,
+            default_site_stale_after_hours: crate::server::sites::r#impl::DEFAULT_STALE_AFTER_HOURS,
             available_upgrade,
         })),
     )

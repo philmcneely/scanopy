@@ -51,6 +51,28 @@ pub(crate) fn resolve_owner_service_id(
 }
 
 impl HostService {
+    /// Whether `interface` is a port the forwarding-table pass recorded that a switch port on its
+    /// site still learns. A device's own walk doesn't report such a port (a virtual MAC, a NIC the
+    /// walk missed), so pruning it there would only see the next pass record it again; it goes
+    /// once no switch learns its MAC.
+    pub(crate) async fn still_learned_by_a_switch(&self, interface: &Interface) -> Result<bool> {
+        if interface.base.interface_source != AttributeSource::ForwardingTable {
+            return Ok(false);
+        }
+        let Some(mac) = &interface.base.mac_address else {
+            return Ok(false);
+        };
+        let learning = self
+            .interface_service
+            .get_all(
+                StorableFilter::<Interface>::new_from_site_ids(&[interface.base.site_id])
+                    .live()
+                    .fdb_macs_contain(&[mac.value().0.to_string().to_lowercase()]),
+            )
+            .await?;
+        Ok(!learning.is_empty())
+    }
+
     /// Keep a discovery-supplied hypervisor service only if it is a real service on the host's
     /// own site; otherwise drop it and say so.
     ///
@@ -291,6 +313,7 @@ impl HostService {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments,
         };
         host_base.apply_name(HostName::manual(name.clone()));
@@ -531,6 +554,35 @@ impl HostService {
             other => other,
         };
 
+        // A guest whose hypervisor names its NICs gives up rows another NIC answered for, each to
+        // a host of its own (`rows_a_guest_sheds`).
+        let shed_devices: Vec<HashSet<Uuid>> = match &matching_result {
+            Some(m) if matches!(conflict_behavior, ConflictBehavior::Upsert) => {
+                m.rows_a_guest_sheds(&ip_addresses, &interfaces)
+            }
+            _ => Vec::new(),
+        };
+
+        // A daemon's report of its own host retires the addresses it no longer has
+        // (`stale_self_reported_rows`).
+        let retired_self_reported: HashSet<Uuid> = match &matching_result {
+            Some(m) if matches!(conflict_behavior, ConflictBehavior::Upsert) => {
+                let stale =
+                    super::self_report::stale_self_reported_rows(&m.ip_addresses, &ip_addresses);
+                if !stale.is_empty()
+                    && self
+                        .daemon_service
+                        .exists(StorableFilter::<Daemon>::new_from_host_ids(&[m.host.id]))
+                        .await?
+                {
+                    stale
+                } else {
+                    HashSet::new()
+                }
+            }
+            _ => HashSet::new(),
+        };
+
         let is_new_host = matching_result.is_none();
         let mut same_device: Vec<SameDevice> = Vec::new();
         let mut host_matched_by: Option<HostMatchedBy> = None;
@@ -580,10 +632,7 @@ impl HostService {
 
         // Check host limit for new hosts (not upserts)
         if is_new_host && let Some(ctx) = limit_ctx {
-            // SCD2: limit applies to live hosts only; closed historical copies
-            // don't count toward plan limits.
-            let filter = StorableFilter::<Host>::new_from_site_ids(&ctx.org_site_ids).live();
-            let current_hosts = self.get_all(filter).await?.len() as u64;
+            let current_hosts = self.live_host_count(ctx).await?;
             if current_hosts >= ctx.limit {
                 return Err(anyhow!(
                     "Host limit reached ({}/{}). Upgrade your plan for unlimited hosts.",
@@ -612,6 +661,25 @@ impl HostService {
             self.detach_addresses(from, &created_host, rows, &authentication)
                 .await?;
         }
+        // Each device shed is a new host, so the plan limit applies as it does to any other.
+        let shed_devices = match limit_ctx {
+            Some(ctx)
+                if !shed_devices.is_empty()
+                    && self.live_host_count(ctx).await? + shed_devices.len() as u64 > ctx.limit =>
+            {
+                tracing::warn!(
+                    host_id = %created_host.id,
+                    devices = shed_devices.len(),
+                    "Host limit reached; leaving addresses its NICs do not carry on this guest"
+                );
+                Vec::new()
+            }
+            _ => shed_devices,
+        };
+        self.shed_guest_addresses(&created_host, &shed_devices, &authentication)
+            .await?;
+        self.retire_self_reported_addresses(&created_host, &retired_self_reported, &authentication)
+            .await?;
 
         // Capture daemon interface ID → IP mapping before ip_addresses are consumed.
         // Used later to remap credential assignment ip_address_ids to server-assigned IDs.
@@ -1760,15 +1828,17 @@ impl HostService {
                 .get_for_host(&created_host.id)
                 .await?;
             for iface in existing {
-                if !kept_ids.contains(&iface.id)
-                    && let Err(e) = self
-                        .interface_service
-                        .delete(
-                            &iface.id,
-                            authentication.clone(),
-                            DeletionReason::EntityNoLongerReported,
-                        )
-                        .await
+                if kept_ids.contains(&iface.id) || self.still_learned_by_a_switch(&iface).await? {
+                    continue;
+                }
+                if let Err(e) = self
+                    .interface_service
+                    .delete(
+                        &iface.id,
+                        authentication.clone(),
+                        DeletionReason::EntityNoLongerReported,
+                    )
+                    .await
                 {
                     tracing::warn!(
                         host_id = %created_host.id,
@@ -1857,7 +1927,14 @@ impl HostService {
         Ok(DiscoveredHost { host, subnet_ids })
     }
 
-    /// Merge `proven` into `destination` with [`Self::consolidate_hosts`], the same merge a person
+    /// The live hosts across the organization's sites, the count a plan's host limit applies to.
+    /// SCD2: closed historical copies don't count.
+    async fn live_host_count(&self, ctx: &HostLimitContext) -> Result<u64> {
+        let filter = StorableFilter::<Host>::new_from_site_ids(&ctx.org_site_ids).live();
+        Ok(self.get_all(filter).await?.len() as u64)
+    }
+
+    /// Merge `proven` into `destination` with [`Self::merge_hosts`], the same merge a person
     /// triggers from the API.
     async fn merge_same_device(
         &self,
@@ -1877,7 +1954,7 @@ impl HostService {
             host_id: destination.id,
             proven_by: proven.addresses.clone(),
         };
-        self.consolidate_hosts(destination, other, authentication.clone(), reason)
+        self.merge_hosts(destination, other, authentication.clone(), reason)
             .await
     }
 }

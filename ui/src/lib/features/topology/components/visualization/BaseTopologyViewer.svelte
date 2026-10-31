@@ -39,7 +39,7 @@
 	} from '../../viewport-fit';
 	import '@xyflow/svelte/dist/style.css';
 	import './topology-viewer.css';
-	import { Minimize2, Map as MapIcon } from 'lucide-svelte';
+	import { Minimize2, Map as MapIcon } from '@lucide/svelte';
 	import TopologySidebarButton from './TopologySidebarButton.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
 	import {
@@ -1327,6 +1327,14 @@
 
 	function handleNodeClick({ node, event }: { node: Node; event: MouseEvent | TouchEvent }) {
 		if (viewportMoved) return;
+		// A container is selected through its title chip. Its body holds the children, so a click
+		// there acts like one on the canvas.
+		const onTitle =
+			event.target instanceof Element && event.target.closest('[data-container-title]');
+		if (node.type === 'Container' && !onTitle) {
+			handlePaneClick();
+			return;
+		}
 		// Multi-select drives dependency creation, so it's an edit action: disable
 		// it when read-only (snapshot / share). Single-select (read-only inspect)
 		// still works.

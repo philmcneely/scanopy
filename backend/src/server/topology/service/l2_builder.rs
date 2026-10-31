@@ -125,7 +125,34 @@ impl ViewBuilder for L2Builder {
             }
         }
 
+        // 1c. Links a switch's forwarding table learned, port to port, between hosts LLDP/CDP joined
+        //     nowhere. Both ends qualify, so a device known only by the MAC a port learned is drawn.
+        let mut joined_host_pairs = linked_host_pairs;
+        for edge in &neighbor_link_edges {
+            if let EdgeType::NeighborLink {
+                source_host_id,
+                target_host_id,
+                ..
+            } = &edge.edge_type
+            {
+                joined_host_pairs
+                    .insert(EdgeBuilder::host_pair_key(*source_host_id, *target_host_id));
+            }
+        }
+        let forwarding_table_edges =
+            EdgeBuilder::create_forwarding_table_edges(ctx, &joined_host_pairs);
+        for edge in &forwarding_table_edges {
+            if let EdgeType::PhysicalLink {
+                source_entity_id, ..
+            } = &edge.edge_type
+                && let Some(entry) = ctx.get_interface_by_id(*source_entity_id)
+            {
+                qualifying_host_ids.insert(entry.base.host_id);
+            }
+        }
+
         edges.extend(neighbor_link_edges);
+        edges.extend(forwarding_table_edges);
 
         // Hosts that are targets (look up target interface → host_id)
         for edge in &edges {
@@ -719,6 +746,8 @@ mod tests {
                 crate::server::topology::service::metadata_filter::interfaces_with_neighbours(
                     neighbours.iter(),
                 ),
+            interfaces_learning_known_hosts: Default::default(),
+            interfaces_learned_by_ports: Default::default(),
         };
         let hide_sets =
             crate::server::topology::service::metadata_filter::server_hide_sets(&options);
@@ -908,6 +937,106 @@ mod tests {
         // The edge lands on those containers, not on ports.
         assert!(nodes.iter().any(|n| n.id == edges[0].source));
         assert!(nodes.iter().any(|n| n.id == edges[0].target));
+    }
+
+    /// A port that learned a known device's MAC draws a link to the device's port, marked as
+    /// forwarding-table evidence: the port carrying the MAC, or the inferred port holding the
+    /// address that does. A device with no port yet draws no link rather than one to an empty box.
+    #[test]
+    fn a_port_draws_a_link_to_the_port_of_each_device_its_forwarding_table_learned() {
+        use crate::server::interfaces::r#impl::base::{FdbMacs, FdbMacsValue};
+
+        const PLC_MAC: &str = "00:80:63:2a:51:07";
+        const NAS_MAC: &str = "f8:bc:12:dc:14:01";
+        const CAMERA_MAC: &str = "f8:bc:12:dc:15:01";
+        let mac = |raw: &str| {
+            MacEvidence::new(
+                MacEvidenceValue(raw.parse().unwrap()),
+                AttributeSource::ArpReply,
+            )
+        };
+        let learning = |host_id: Uuid, if_index: i32, learned: &str| {
+            let mut port = make_if_entry(host_id, if_index, 6);
+            port.base.fdb_macs = Some(FdbMacs::new(
+                FdbMacsValue(vec![learned.to_string()]),
+                AttributeSource::ForwardingTable,
+            ));
+            port
+        };
+        let switch = make_host("switch-01");
+        let plc = make_host("plc-01");
+        let nas = make_host("nas-01");
+        let camera = make_host("camera-01");
+
+        let plc_access = learning(switch.id, 8, PLC_MAC);
+        let nas_access = learning(switch.id, 5, NAS_MAC);
+        let camera_access = learning(switch.id, 6, CAMERA_MAC);
+        let mut plc_port = make_if_entry(plc.id, 1, 6);
+        plc_port.base.mac_address = Some(mac(PLC_MAC));
+        let address = |host_id: Uuid, raw: &str| {
+            IPAddress::new(IPAddressBase {
+                host_id,
+                mac_address: Some(mac(raw)),
+                ..Default::default()
+            })
+        };
+        let nas_address = address(nas.id, NAS_MAC);
+        let camera_address = address(camera.id, CAMERA_MAC);
+        // The port the forwarding-table pass minted on the NAS: no ifIndex, holding the address.
+        let nas_port = Interface::new(InterfaceBase {
+            host_id: nas.id,
+            ip_address_id: Some(nas_address.id),
+            mac_address: Some(mac(NAS_MAC)),
+            ..Default::default()
+        });
+
+        let hosts = vec![switch.clone(), plc.clone(), nas.clone(), camera.clone()];
+        let interfaces = vec![
+            plc_access.clone(),
+            nas_access.clone(),
+            camera_access.clone(),
+            plc_port.clone(),
+            nas_port.clone(),
+        ];
+        let ip_addresses = vec![nas_address, camera_address];
+        let options = TopologyOptions::default();
+        let ctx = TopologyContext::new(
+            &hosts,
+            &ip_addresses,
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &interfaces,
+            &[],
+            &[],
+            &options,
+            crate::server::topology::types::views::TopologyView::L2Physical,
+        );
+
+        let (nodes, edges) = L2Builder.build(&ctx, &l2_grouping());
+
+        let linked: HashSet<(Uuid, Uuid)> = edges
+            .iter()
+            .filter_map(|e| match e.edge_type {
+                EdgeType::PhysicalLink {
+                    source_entity_id,
+                    target_entity_id,
+                    protocol: DiscoveryProtocol::ForwardingTable,
+                } => Some((source_entity_id, target_entity_id)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            linked,
+            HashSet::from([(plc_access.id, plc_port.id), (nas_access.id, nas_port.id)])
+        );
+        assert!(edges.iter().all(|e| e.source != camera_access.id));
+        for edge in &edges {
+            assert!(nodes.iter().any(|n| n.id == edge.source));
+            assert!(nodes.iter().any(|n| n.id == edge.target));
+        }
     }
 
     /// The precise link supersedes the approximate one: a second neighbour entry between the

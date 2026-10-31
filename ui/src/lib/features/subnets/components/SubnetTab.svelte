@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { rowStatusBadges } from '$lib/shared/utils/row-badges';
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { isProvisionalCidr } from '$lib/shared/utils/cidr-source';
 	import { cidrContains } from '$lib/shared/utils/cidr';
@@ -6,6 +7,8 @@
 	import SubnetEditModal from './SubnetEditModal/SubnetEditModal.svelte';
 	import ProvisionalRangeModal from './ProvisionalRangeModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import type { Subnet, SubnetResponse } from '../types/base';
@@ -13,14 +16,15 @@
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { fieldValueOptions, useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import type { TableDefaults } from '$lib/shared/components/data/types';
-	import { hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
+	import { disabledWhen, hiddenWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { subnetColumns } from './SubnetTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
-	import { Trash2, Edit, CloudAlert } from 'lucide-svelte';
+	import { Trash2, Edit, CircleDashedCheck } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import {
 		isUserManagedSubnet,
+		LISTED_SUBNETS,
 		useSubnetsQuery,
 		useSubnetsByIds,
 		useSubnetsListQuery,
@@ -50,7 +54,11 @@
 		common_subnets,
 		daemons_installPromptSubnets,
 		subnets_rangeSettled,
-		subnets_resolveRange
+		subnets_resolveFirst,
+		subnets_resolveFirstBulk,
+		subnets_resolveRange,
+		subnets_sharedRangeReadOnly,
+		subnets_sharedRangeReadOnlyBulk
 	} from '$lib/paraglide/messages';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 
@@ -67,7 +75,7 @@
 	const tagsQuery = useTagsQuery();
 	const SUBNET_FIELD_VALUES = '/api/v1/subnets/field-values/{field}';
 	// The filter options count only the ranges the list shows.
-	const listedOnly = () => ({ user_managed: true });
+	const listedOnly = () => LISTED_SUBNETS;
 
 	// One page of the subnets the user curates, paged, filtered, ordered and nested on the server.
 	const page = listPageState(() => isActive);
@@ -150,6 +158,7 @@
 		return runtimesData.find((s) => s.id === subnet.virtualization_service_id);
 	}
 	let isLoading = $derived(subnetsQuery.isPending && !subnetsQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, subnetsQuery));
 
 	let showSubnetEditor = $state(false);
 	let editingSubnet = $state<Subnet | null>(null);
@@ -204,6 +213,20 @@
 	function subnetActions(subnet: SubnetResponse): CardAction[] {
 		if (isReadOnly) return [];
 
+		// The Internet and Remote rows stand for a copy on every site, and editing one would change
+		// only one site's copy.
+		const shared = disabledWhen(
+			!isUserManagedSubnet(subnet),
+			subnets_sharedRangeReadOnly(),
+			subnets_sharedRangeReadOnlyBulk()
+		);
+		// An assumed range is settled first, through Resolve range.
+		const unresolved = disabledWhen(
+			isProvisionalCidr(subnet),
+			subnets_resolveFirst(),
+			subnets_resolveFirstBulk()
+		);
+
 		return [
 			// Only where there is something to resolve. A badge that says a range was guessed and
 			// offers no way to settle it leaves the operator with the question and no answer.
@@ -212,18 +235,25 @@
 			// which is exactly what an assumed range is not.
 			{
 				label: subnets_resolveRange(),
-				icon: CloudAlert,
+				icon: CircleDashedCheck,
 				onClick: () => handleResolveRange(subnet),
 				unavailable: hiddenWhen(!isProvisionalCidr(subnet), subnets_rangeSettled())
 			},
-			{ label: common_edit(), icon: Edit, isOpen: true, onClick: () => handleEditSubnet(subnet) },
+			{
+				label: common_edit(),
+				icon: Edit,
+				isOpen: true,
+				onClick: () => handleEditSubnet(subnet),
+				unavailable: shared ?? unresolved
+			},
 			{
 				label: common_delete(),
 				icon: Trash2,
 				tone: 'danger',
 				isDelete: true,
 				onBulk: handleBulkDelete,
-				onClick: () => handleDeleteSubnet(subnet)
+				onClick: () => handleDeleteSubnet(subnet),
+				unavailable: shared ?? unresolved
 			}
 		];
 	}
@@ -349,7 +379,7 @@
 		// A one-off copy for the request, never read reactively.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.listQuery);
-		params.set('user_managed', 'true');
+		for (const [key, value] of Object.entries(LISTED_SUBNETS)) params.set(key, String(value));
 		await downloadCsv('Subnet', params);
 	}
 
@@ -393,7 +423,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptSubnets()} {isReadOnly} />
 	{:else if isLoading}
 		<!-- Loading state -->
@@ -422,6 +454,7 @@
 			onQueryChange={page.onQueryChange}
 			onCsvExport={handleCsvExport}
 			getActions={subnetActions}
+			getRowBadges={rowStatusBadges(() => sitesData, 'Subnet')}
 			entityLabel={common_subnets()}
 		></DataControls>
 	{/if}

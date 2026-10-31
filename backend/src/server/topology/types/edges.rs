@@ -36,6 +36,10 @@ pub enum DiscoveryProtocol {
     LLDP,
     /// Cisco Discovery Protocol (Cisco proprietary)
     CDP,
+    /// A switch's forwarding table learned the device's MAC on this port. The device is reached
+    /// through the port but may sit further behind it, past a switch or access point nothing
+    /// reported.
+    ForwardingTable,
 }
 
 impl HasId for DiscoveryProtocol {
@@ -49,6 +53,7 @@ impl EntityMetadataProvider for DiscoveryProtocol {
         match self {
             DiscoveryProtocol::LLDP => Color::Green,
             DiscoveryProtocol::CDP => Color::Blue,
+            DiscoveryProtocol::ForwardingTable => Color::Gray,
         }
     }
     fn icon(&self) -> Icon {
@@ -61,6 +66,7 @@ impl TypeMetadataProvider for DiscoveryProtocol {
         match self {
             DiscoveryProtocol::LLDP => "LLDP",
             DiscoveryProtocol::CDP => "CDP",
+            DiscoveryProtocol::ForwardingTable => "Forwarding table",
         }
     }
 
@@ -70,6 +76,9 @@ impl TypeMetadataProvider for DiscoveryProtocol {
                 "A device's LLDP (Link Layer Discovery Protocol) neighbor table"
             }
             DiscoveryProtocol::CDP => "A device's CDP (Cisco Discovery Protocol) neighbor table",
+            DiscoveryProtocol::ForwardingTable => {
+                "Learned from a switch's forwarding table, which saw the device's MAC behind one of its ports. The device may sit further away than a direct cable"
+            }
         }
     }
 }

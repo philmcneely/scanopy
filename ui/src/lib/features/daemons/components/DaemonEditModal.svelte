@@ -19,7 +19,7 @@
 	import { UserDisplay } from '$lib/shared/components/forms/selection/display/UserDisplay.svelte';
 	import TagPickerInline from '$lib/features/tags/components/TagPickerInline.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { Info, KeyRound } from 'lucide-svelte';
+	import { Info, KeyRound } from '@lucide/svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import type { ApiKey } from '$lib/features/daemon_api_keys/types/base';
 	import {

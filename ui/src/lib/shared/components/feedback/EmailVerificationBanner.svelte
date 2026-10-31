@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AlertTriangle } from 'lucide-svelte';
+	import { AlertTriangle } from '@lucide/svelte';
 	import { useResendVerificationMutation } from '$lib/features/auth/queries';
 	import AppBanner from './AppBanner.svelte';
 	import {

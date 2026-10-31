@@ -18,7 +18,7 @@
 <script lang="ts">
 	import { tick, untrack, type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { ArrowLeft, Loader2, X } from 'lucide-svelte';
+	import { ArrowLeft, Loader2, X } from '@lucide/svelte';
 	import type { AnyFormApi } from '@tanstack/form-core';
 	import {
 		common_closeModal,
@@ -36,6 +36,8 @@
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import { isEditableTarget, keyLabel, shortcutLabel } from '$lib/shared/utils/shortcuts';
 	import ModalStepper from './ModalStepper.svelte';
+	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
+	import { serverUnreachable } from '$lib/api/server-reachability';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import { tooltip } from '$lib/shared/actions/tooltip';
 	import { toolbarButtonClass } from '$lib/shared/components/data/controls/actionShortcuts';
@@ -93,6 +95,7 @@
 		unsavedState = undefined,
 		headerIcon,
 		banners,
+		noBanners = false,
 		children,
 		footer,
 		actions = [],
@@ -151,6 +154,11 @@
 		 * passes this.
 		 */
 		banners?: Snippet;
+		/**
+		 * Shows no banner at all, the server-update banner included, which otherwise shows over
+		 * every modal. The tab still reloads once the modal closes.
+		 */
+		noBanners?: boolean;
 		children?: Snippet<[number]>;
 		/** A hand-built footer, for one the actions below can't describe. */
 		footer?: Snippet;
@@ -593,12 +601,15 @@
 					<X class="h-5 w-5" />
 				</button>
 			{/if}
-			{#if banners}
+			{#if !noBanners && (banners || $serverUnreachable)}
 				<!-- Clipped here rather than by putting overflow-hidden on the panel,
 				     which ~42 modals share: AppBanner is full-bleed with square corners
-				     and the panel is rounded. -->
+				     and the panel is rounded. The unreachable banner shows over every
+				     modal, opted in or not: the page behind, which carries it otherwise,
+				     is covered. -->
 				<div class="shrink-0 overflow-hidden rounded-t-lg">
-					{@render banners()}
+					<ServerUnreachableBanner />
+					{@render banners?.()}
 				</div>
 			{/if}
 			{#if !showTitleRow}

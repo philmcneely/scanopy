@@ -39,7 +39,7 @@
 				itemClickAction="edit"
 				allowReorder={false}
 				allowAddFromOptions={false}
-				allowItemRemove={() => false}
+				allowItemRemove={false}
 				options={[] as Interface[]}
 				itemDisplayComponent={InterfaceDisplay}
 				optionDisplayComponent={InterfaceDisplay}

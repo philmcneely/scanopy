@@ -109,9 +109,10 @@ pub struct NeighborUpdate {
     /// Source interface identifier
     pub source_host_name: String,
     pub source_if_index: i32,
-    /// Target interface identifier (for Interface neighbors)
+    /// Target interface identifier (for Interface neighbors). `None` names an interface with no
+    /// ifIndex: a far end known only from what it advertised, never walked itself.
     pub target_host_name: String,
-    pub target_if_index: i32,
+    pub target_if_index: Option<i32>,
 }
 
 /// Site-to-credential association for junction table seeding
@@ -204,8 +205,15 @@ impl DemoData {
         let api_keys = generate_api_keys(&daemons, now);
         bind_daemon_api_keys(&mut daemons, &api_keys);
         let topologies = generate_topologies(&sites, &tags, use_case, now);
-        let discoveries =
-            generate_discoveries(&sites, &subnets, &daemons, &hosts, &credentials, now);
+        let discoveries = generate_discoveries(
+            &sites,
+            &subnets,
+            &daemons,
+            &hosts,
+            &interfaces,
+            &credentials,
+            now,
+        );
         let shares = generate_shares(&topologies, &sites, user_id, now);
         let user_api_keys = generate_user_api_keys(&sites, organization_id, now);
 
@@ -325,6 +333,7 @@ fn create_host(
         last_seen_at: now,
         last_discovery_id: None,
         first_discovery_id: None,
+        dismissed_at: None,
         id: host_id,
         created_at: now,
         updated_at: now,
@@ -359,6 +368,7 @@ fn create_host(
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         },
     };
@@ -431,6 +441,25 @@ fn with_ssh_inventory(
         source,
     ));
     host.base.os = Some(Attributed::new(HostOsValue(os), source));
+    (host, ip_address)
+}
+
+/// Wraps a `create_host()` result to add what a Recog fingerprint of something the device emitted
+/// names, attributed to that match as a real scan would: the maker and the device class.
+fn with_fingerprint(
+    (mut host, ip_address): (Host, IPAddress),
+    source: AttributeSource,
+    manufacturer: &str,
+    device_type: crate::server::hosts::r#impl::device_type::DeviceType,
+) -> (Host, IPAddress) {
+    host.base.manufacturer = Some(Attributed::new(
+        HostManufacturerValue(manufacturer.into()),
+        source,
+    ));
+    host.base.matched_device_type = Some(Attributed::new(
+        crate::server::hosts::r#impl::attributes::HostMatchedDeviceTypeValue(device_type),
+        source,
+    ));
     (host, ip_address)
 }
 

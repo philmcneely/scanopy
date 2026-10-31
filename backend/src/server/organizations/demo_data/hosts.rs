@@ -999,6 +999,7 @@ pub(super) fn generate_hosts_and_services(
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             id: host_id,
             created_at: now,
             updated_at: now,
@@ -1031,6 +1032,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: docker_engine_host_os(),
+                matched_device_type: None,
                 credential_assignments: docker_proxy_cred
                     .into_iter()
                     .map(|id| CredentialAssignment {
@@ -1712,22 +1714,28 @@ pub(super) fn generate_hosts_and_services(
         &[legacy_printers_cred],
     ));
 
-    // 27. Camera Entrance
+    // 27. Camera Entrance. Its web interface's page title ("AXIS") is a Recog fingerprint, which
+    // names the maker and the device class without credentials.
     result.push(host_with_services!(
-        with_mac(
-            create_host(
-                "cam-entrance",
-                None,
-                Some("Entrance security camera"),
-                hq,
-                hq_iot,
-                Ipv4Addr::new(10, 0, 30, 60),
-                iot_tag.into_iter().collect(),
-                None,
-                None,
-                now
+        with_fingerprint(
+            with_mac(
+                create_host(
+                    "cam-entrance",
+                    None,
+                    Some("Entrance security camera"),
+                    hq,
+                    hq_iot,
+                    Ipv4Addr::new(10, 0, 30, 60),
+                    iot_tag.into_iter().collect(),
+                    None,
+                    None,
+                    now
+                ),
+                [0xc0, 0x56, 0xe3, 0x30, 0x27, 0x01],
             ),
-            [0xc0, 0x56, 0xe3, 0x30, 0x27, 0x01],
+            AttributeSource::HtmlTitleMatch,
+            "AXIS",
+            crate::server::hosts::r#impl::device_type::DeviceType::Camera,
         ),
         now,
         (
@@ -1972,6 +1980,7 @@ pub(super) fn generate_hosts_and_services(
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             id: host_id,
             created_at: now,
             updated_at: now,
@@ -1984,7 +1993,9 @@ pub(super) fn generate_hosts_and_services(
                 description: Some(
                     "Seen via LLDP from the HQ core switch; not yet scanned directly".to_string(),
                 ),
-                source: EntitySource::Inferred,
+                source: EntitySource::Inferred {
+                    via: crate::server::shared::types::entities::InferredVia::Neighbour,
+                },
                 virtualization_metadata: None,
                 virtualization_service_id: None,
                 virtualization_interface_id: None,
@@ -2006,6 +2017,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: None,
+                matched_device_type: None,
                 credential_assignments: vec![],
             },
         };
@@ -2015,6 +2027,72 @@ pub(super) fn generate_hosts_and_services(
             ports: vec![],
             services: vec![],
         });
+    }
+
+    // -- Shop floor — two Hirschmann industrial switches that answer no scan. The HQ switch's
+    // forwarding table learned their MACs on ports 8 and 9. The one on port 8 is still
+    // unconfirmed (EntitySource::Inferred via the forwarding table); someone has confirmed the
+    // one on port 9 and typed in what it is, so its name, manufacturer and device type are
+    // Manual and no scan replaces them.
+    {
+        let manual = AttributeSource::Manual;
+        let unconfirmed = Host {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            dismissed_at: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: HostBase {
+                site_id: hq.id,
+                source: EntitySource::Inferred {
+                    via: crate::server::shared::types::entities::InferredVia::ForwardingTable,
+                },
+                ..Default::default()
+            },
+        };
+        let confirmed = Host {
+            valid_from: now,
+            valid_to: None,
+            lineage_id: None,
+            last_seen_at: now,
+            last_discovery_id: None,
+            first_discovery_id: None,
+            dismissed_at: None,
+            id: Uuid::new_v4(),
+            created_at: now,
+            updated_at: now,
+            base: HostBase {
+                name: HostName::manual("line-2-switch".to_string()),
+                site_id: hq.id,
+                description: Some("Packaging line 2, cabinet B".to_string()),
+                source: EntitySource::Manual,
+                manufacturer: Some(Attributed::new(
+                    HostManufacturerValue("Hirschmann".to_string()),
+                    manual,
+                )),
+                model: Some(Attributed::new(HostModelValue("RS20".to_string()), manual)),
+                matched_device_type: Some(Attributed::new(
+                    crate::server::hosts::r#impl::attributes::HostMatchedDeviceTypeValue(
+                        crate::server::hosts::r#impl::device_type::DeviceType::Switch,
+                    ),
+                    manual,
+                )),
+                ..Default::default()
+            },
+        };
+        for host in [unconfirmed, confirmed] {
+            result.push(HostWithServices {
+                host,
+                ip_addresses: vec![],
+                ports: vec![],
+                services: vec![],
+            });
+        }
     }
 
     // ========================================================================
@@ -2148,6 +2226,37 @@ pub(super) fn generate_hosts_and_services(
     ));
 
     // -- DMZ (172.16.30.x) --
+
+    // 3b. NetScaler in front of the DMZ: the edge the portal's traffic enters through, ahead of
+    // HAProxy. Found by a scan, which matched its login page against Recog's NetScaler fingerprint.
+    result.push(host_with_services!(
+        with_mac(
+            create_host(
+                "netscaler-adc01",
+                Some("adc01.dc.acme.io"),
+                Some("Citrix NetScaler ADC"),
+                dc,
+                dc_dmz,
+                Ipv4Addr::new(172, 16, 30, 4),
+                production_tag
+                    .into_iter()
+                    .chain(critical_tag)
+                    .chain(portal_tag)
+                    .collect(),
+                None,
+                None,
+                now,
+            ),
+            [0xf8, 0xbc, 0x12, 0xdc, 0x0a, 0x01],
+        ),
+        now,
+        (
+            "Citrix NetScaler",
+            "Citrix NetScaler",
+            Some(PortType::Https),
+            portal_tag.into_iter().collect()
+        ),
+    ));
 
     // 4. HAProxy Load Balancer
     {
@@ -2674,6 +2783,7 @@ pub(super) fn generate_hosts_and_services(
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             id: host_id,
             created_at: now,
             updated_at: now,
@@ -2706,6 +2816,7 @@ pub(super) fn generate_hosts_and_services(
                 firmware_revision: None,
                 software_revision: None,
                 os: docker_engine_host_os(),
+                matched_device_type: None,
                 credential_assignments: docker_proxy_cred
                     .into_iter()
                     .map(|id| CredentialAssignment {

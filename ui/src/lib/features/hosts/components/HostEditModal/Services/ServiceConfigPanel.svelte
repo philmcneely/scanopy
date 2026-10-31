@@ -453,8 +453,8 @@
 					placeholder={hosts_services_selectBinding()}
 					createNewLabel={hosts_services_newBinding()}
 					allowDuplicates={false}
-					allowItemEdit={() => true}
-					allowItemRemove={() => true}
+					allowItemEdit={true}
+					allowItemRemove={true}
 					allowSelection={true}
 					allowReorder={false}
 					allowCreateNew={true}
@@ -490,8 +490,8 @@
 					placeholder={hosts_services_selectBinding()}
 					createNewLabel={hosts_services_newBinding()}
 					allowDuplicates={false}
-					allowItemEdit={() => true}
-					allowItemRemove={() => true}
+					allowItemEdit={true}
+					allowItemRemove={true}
 					allowReorder={false}
 					allowCreateNew={true}
 					allowAddFromOptions={false}

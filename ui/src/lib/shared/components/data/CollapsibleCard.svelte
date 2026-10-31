@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { ChevronDown, ChevronRight } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { IconComponent } from '$lib/shared/utils/types';
 

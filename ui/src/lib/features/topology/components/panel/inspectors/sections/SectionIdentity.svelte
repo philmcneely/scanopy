@@ -2,7 +2,7 @@
 	import type { Node } from '@xyflow/svelte';
 	import { useSvelteFlow } from '@xyflow/svelte';
 	import { focusNodes } from '$lib/features/topology/viewport-fit';
-	import { Crosshair } from 'lucide-svelte';
+	import { Crosshair } from '@lucide/svelte';
 	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { IPAddressDisplay } from '$lib/shared/components/forms/selection/display/IPAddressDisplay.svelte';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
@@ -23,6 +23,7 @@
 	import {
 		common_utilization,
 		inspector_thisEntity,
+		subnets_resolveRange,
 		topology_focusNode
 	} from '$lib/paraglide/messages';
 	import { containerTypes, entities, inspectorSections, views } from '$lib/shared/stores/metadata';
@@ -31,10 +32,12 @@
 	import { useUpdateHostDescriptionMutation } from '$lib/features/hosts/queries';
 	import { useSubnetsQuery, useUpdateSubnetMutation } from '$lib/features/subnets/queries';
 	import { nestingItems, subnetNesting } from '$lib/features/subnets/nesting';
-	import InferredHostNotice from '$lib/features/hosts/components/InferredHostNotice.svelte';
+	import HostInspectorActions from '$lib/features/hosts/components/HostInspectorActions.svelte';
 	import InterfaceRelationRows from '$lib/features/hosts/components/InterfaceRelationRows.svelte';
 	import SubnetUtilization from '$lib/features/subnets/components/SubnetUtilization.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import UnconfirmedNotice from '$lib/shared/components/confirmation/UnconfirmedNotice.svelte';
+	import { openModal } from '$lib/shared/stores/modal-registry';
 	import InspectorSection from '../shared/InspectorSection.svelte';
 	import EntityDetailRows from '../shared/EntityDetailRows.svelte';
 	import { getInspectorConfig } from '../view-config';
@@ -256,7 +259,7 @@
 					/>
 				</div>
 			{:else if thisHostElement}
-				<InferredHostNotice source={thisHostElement.source} />
+				<HostInspectorActions host={thisHostElement} editable={editState.isEditable} />
 				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={hostElementContext}
@@ -265,6 +268,20 @@
 					/>
 				</div>
 			{:else if thisSubnet}
+				<UnconfirmedNotice
+					entity={thisSubnet}
+					resolveLabel={subnets_resolveRange()}
+					onResolve={editState.isEditable
+						? () => {
+								if (!thisSubnet) return;
+								window.location.hash = 'subnets';
+								openModal('provisional-range', {
+									id: thisSubnet.id,
+									returnUrl: window.location.href
+								});
+							}
+						: undefined}
+				/>
 				<div class="card-static card">
 					<EntityDisplayWrapper
 						context={subnetContext}

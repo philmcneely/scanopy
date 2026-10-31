@@ -5,9 +5,9 @@ use uuid::Uuid;
 
 use crate::server::{
     shared::{
-        attribution::AttributeSource,
+        attribution::{AttributeMethod, AttributeSource},
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             attributed,
             snapshot::{DiscoveryTracked, Snapshotable},
@@ -274,8 +274,8 @@ impl Entity for Subnet {
     const ENTITY_DESCRIPTION: &'static str =
         "IP subnets within sites. Define address ranges and organize hosts by subnet.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {
@@ -319,8 +319,8 @@ impl Entity for Subnet {
     }
 
     fn preserve_immutable_fields(&mut self, existing: &Self) {
-        // source is set at creation time (Manual or Discovery), cannot be changed
-        self.base.source = existing.base.source.clone();
+        let incoming_source =
+            std::mem::replace(&mut self.base.source, existing.base.source.clone());
         self.created_at = existing.created_at;
         self.updated_at = existing.updated_at;
 
@@ -336,6 +336,20 @@ impl Entity for Subnet {
         let mut merged = existing.base.cidr.clone();
         merged.apply_in_place(self.base.cidr.clone());
         self.base.cidr = merged;
+
+        // Source is set at creation and kept, except on an inferred subnet whose range has just
+        // been settled: read by a daemon, or confirmed or corrected by a person (`update_subnet`
+        // sends `Manual`). The range is the thing that was assumed, so settling it confirms the
+        // subnet, the way a scan reaching an inferred host confirms the host.
+        if matches!(existing.base.source, EntitySource::Inferred { .. })
+            && self.base.cidr.source().method() != AttributeMethod::Inferred
+        {
+            self.base.source = if incoming_source.confirmation().is_unconfirmed() {
+                EntitySource::Discovery
+            } else {
+                incoming_source
+            };
+        }
 
         // The same for the name and the type: `update_subnet` stamps `Manual` on a value a person
         // changed, and the applier keeps everything else at the stored rung.
@@ -375,5 +389,51 @@ mod tests {
 
         assert_eq!(request.base.name.source(), controller);
         assert_eq!(request.base.subnet_type.source(), controller);
+    }
+
+    fn assumed_range() -> Subnet {
+        Subnet::new(SubnetBase {
+            cidr: SubnetCidr::new(
+                SubnetCidrValue("10.0.50.0/24".parse().unwrap()),
+                AttributeSource::LldpNeighbourAddress,
+            ),
+            source: EntitySource::Inferred {
+                via: crate::server::shared::types::entities::InferredVia::ReportedAddress,
+            },
+            ..Default::default()
+        })
+    }
+
+    #[test]
+    fn a_daemon_reading_an_assumed_range_confirms_the_subnet() {
+        let existing = assumed_range();
+        let mut incoming = existing.clone();
+        incoming.base.cidr = SubnetCidr::new(
+            SubnetCidrValue("10.0.50.0/24".parse().unwrap()),
+            AttributeSource::DaemonSelfReport,
+        );
+        incoming.base.source = EntitySource::Discovery;
+        incoming.preserve_immutable_fields(&existing);
+        assert_eq!(incoming.base.source, EntitySource::Discovery);
+    }
+
+    #[test]
+    fn a_person_confirming_an_assumed_range_makes_the_subnet_manual() {
+        let existing = assumed_range();
+        let mut incoming = existing.clone();
+        incoming.base.cidr =
+            SubnetCidr::new(existing.base.cidr.value().clone(), AttributeSource::Manual);
+        incoming.base.source = EntitySource::Manual;
+        incoming.preserve_immutable_fields(&existing);
+        assert_eq!(incoming.base.source, EntitySource::Manual);
+    }
+
+    #[test]
+    fn another_assumption_leaves_the_subnet_unconfirmed() {
+        let existing = assumed_range();
+        let mut incoming = existing.clone();
+        incoming.base.source = EntitySource::Discovery;
+        incoming.preserve_immutable_fields(&existing);
+        assert!(incoming.base.source.confirmation().is_unconfirmed());
     }
 }

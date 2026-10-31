@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { IconComponent } from '$lib/shared/utils/types';
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import { common_dismiss } from '$lib/paraglide/messages';
 

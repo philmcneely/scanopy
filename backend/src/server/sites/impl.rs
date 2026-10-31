@@ -26,7 +26,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::server::shared::entity_metadata::EntityCategory;
+use crate::server::shared::product_area::ProductArea;
 use crate::server::shared::storage::traits::{Entity, SqlValue, Storable};
 
 #[derive(
@@ -352,8 +352,8 @@ impl Entity for Site {
     const ENTITY_NAME_PLURAL: &'static str = "Sites";
     const ENTITY_DESCRIPTION: &'static str = "Site containers. Top-level organizational unit that contains subnets, hosts, and other entities.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

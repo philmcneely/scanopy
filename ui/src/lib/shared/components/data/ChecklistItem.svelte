@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, Circle } from 'lucide-svelte';
+	import { Check, Circle } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {

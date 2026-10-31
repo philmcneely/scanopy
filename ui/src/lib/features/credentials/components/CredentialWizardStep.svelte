@@ -23,16 +23,15 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { useCredentialsQuery } from '$lib/features/credentials/queries';
-	import {
-		daemonOsRefusal,
-		daemonTooOldForCredential
-	} from '$lib/features/credentials/utils/versionGate';
+	import { daemonOsRefusal } from '$lib/features/credentials/utils/versionGate';
+	import { daemonVersionAtOrBelow } from '$lib/features/daemons/utils';
 	import {
 		credentialFieldValues,
 		defaultFieldValue
 	} from '$lib/features/credentials/utils/fieldValues';
 	import { DAEMON_HOST_IP, isLockedOnly } from '$lib/features/credentials/utils/credentialTargets';
 	import { v4 as uuidv4 } from 'uuid';
+	import { disabledWhen } from '$lib/shared/components/data/types';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { pushError } from '$lib/shared/stores/feedback';
 	import {
@@ -50,6 +49,7 @@
 		daemons_credentialWizardSelectExisting,
 		daemons_credentialWizardDaemonHostUnavailable,
 		daemons_credentialWizardExistingFieldsReadOnly,
+		daemons_credentialWizardAssignedElsewhere,
 		credentials_requiresDaemonVersion
 	} from '$lib/paraglide/messages';
 
@@ -125,7 +125,7 @@
 
 	// Where rows are listed for their junction assignments (discovery), a credential assigned
 	// that way is never removable: the assignment lives on the host/credential, so the trash
-	// would either do nothing or imply it had unassigned it. Its targets *here* are removed row
+	// would either do nothing or imply it had unassigned it, so it shows disabled with the reason. Its targets *here* are removed row
 	// by row instead. Where the user added the row (daemon setup), removing it is theirs to do.
 	let assignedElsewhereCredIds = $derived(
 		assignedRowsRemovable
@@ -215,7 +215,7 @@
 	// pending credential (e.g. a daemon-host proxy). Version takes precedence — a
 	// too-old daemon can't run the type at all.
 	function dropdownDisabledReason(type: TypedTypeMetadata<CredentialTypeMetadata>): string | null {
-		if (daemonTooOldForCredential(type.metadata?.last_unsupported_daemon_version, daemonVersion)) {
+		if (daemonVersionAtOrBelow(type.metadata?.last_unsupported_daemon_version, daemonVersion)) {
 			return credentials_requiresDaemonVersion({
 				version: type.metadata?.last_unsupported_daemon_version ?? '',
 				name: daemonName ?? ''
@@ -587,7 +587,11 @@
 				{items}
 				onAdd={handleAddCredential}
 				onRemove={handleRemoveCredential}
-				allowItemRemove={(c) => !assignedElsewhereCredIds.includes(c.id)}
+				itemRemoveUnavailable={(c) =>
+					disabledWhen(
+						assignedElsewhereCredIds.includes(c.id),
+						daemons_credentialWizardAssignedElsewhere()
+					)}
 				onClick={onItemSelect}
 				{onEdit}
 				{highlightedIndex}

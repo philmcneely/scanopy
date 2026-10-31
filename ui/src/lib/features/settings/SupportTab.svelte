@@ -6,16 +6,25 @@
 		BookOpen,
 		Mail,
 		CalendarCheck,
-		MessageCircle
-	} from 'lucide-svelte';
+		MessageCircle,
+		FlaskConical
+	} from '@lucide/svelte';
 	import { logoPath } from '$lib/shared/utils/logos';
 	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
-	import { billingPlans } from '$lib/shared/stores/metadata';
-	import { BOOK_CALL_URL, supportEmailAddress } from '$lib/features/support/support';
+	import { billingPlans, features } from '$lib/shared/stores/metadata';
+	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
+	import {
+		BOOK_CALL_URL,
+		betaProgramUrl,
+		supportEmailAddress
+	} from '$lib/features/support/support';
 	import {
 		common_email,
+		support_betaProgram,
+		support_betaProgramDesc,
+		support_betaProgramFeaturesDesc,
 		support_discordDesc,
 		support_emailDesc,
 		support_incorrectDetection,
@@ -46,6 +55,16 @@
 		organization?.plan ? billingPlans.getMetadata(organization.plan.type).features : undefined
 	);
 	let supportEmail = $derived(supportEmailAddress(planFeatures));
+
+	const configQuery = useConfigQuery();
+	let cloud = $derived(configQuery.data ? isCloud(configQuery.data) : false);
+
+	// The features open to beta program members first, named on the beta program card.
+	let betaFeatureNames = $derived(
+		(features.getItems() ?? [])
+			.filter((f) => f.metadata?.stability === 'Beta')
+			.map((f) => features.getName(f.id))
+	);
 
 	let supportOptions = $derived.by(() => {
 		const options: SupportOption[] = [
@@ -83,6 +102,16 @@
 				url: 'https://discord.gg/b7ffQr8AcZ',
 				color: 'Indigo',
 				icon: logoPath('Discord') ?? MessageCircle
+			},
+			{
+				title: support_betaProgram(),
+				description:
+					betaFeatureNames.length > 0
+						? support_betaProgramFeaturesDesc({ features: betaFeatureNames.join(', ') })
+						: support_betaProgramDesc(),
+				url: betaProgramUrl('app_settings', cloud),
+				color: 'Purple',
+				icon: FlaskConical
 			}
 		];
 

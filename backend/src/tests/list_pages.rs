@@ -1048,9 +1048,204 @@ async fn every_documented_subnet_filter_narrows_the_rows() {
             "order_direction",
             "group_by_tag_group",
             "order_by_tag_group",
+            // Widens `user_managed` by the seeded Internet and Remote ranges, never narrows.
+            "include_shared_ranges",
             // Applied after `narrow`, from each site's cutoff.
             "stale",
         ],
     )
     .await;
+}
+
+/// The list shows one Internet and one Remote row, from the lowest-id site among those listed,
+/// whatever number of sites hold a copy. Loopback rows stay out, and the type filter's options
+/// count the rows the list shows.
+#[tokio::test]
+async fn subnets_list_each_seeded_shared_range_once() {
+    use crate::server::shared::handlers::ordering::OrderField;
+    use crate::server::shared::handlers::traits::field_values_filter;
+    use crate::server::shared::services::traits::CrudService;
+    use crate::server::shared::storage::seed_data::{create_remote_subnet, create_wan_subnet};
+    use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
+    use crate::server::subnets::r#impl::base::{Subnet, SubnetTypeAttributed};
+    use crate::server::subnets::r#impl::types::SubnetType;
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let mut sites = Vec::new();
+    for _ in 0..3 {
+        let s = site(&org.id);
+        storage.sites.create(&s).await.unwrap();
+        storage
+            .subnets
+            .create(&create_wan_subnet(s.id))
+            .await
+            .unwrap();
+        storage
+            .subnets
+            .create(&create_remote_subnet(s.id))
+            .await
+            .unwrap();
+        let mut loopback = subnet(&s.id);
+        loopback.base.subnet_type = SubnetTypeAttributed::unattributed(SubnetType::Loopback);
+        storage.subnets.create(&loopback).await.unwrap();
+        storage.subnets.create(&subnet(&s.id)).await.unwrap();
+        sites.push(s.id);
+    }
+    let site_ids: Vec<Uuid> = sites.clone();
+    let lowest = *site_ids.iter().min().unwrap();
+    let highest = *site_ids.iter().max().unwrap();
+    let scope = list_scope(&site_ids, org.id);
+
+    let listed = |query: SubnetFilterQuery| {
+        let state = &state;
+        let scope = &scope;
+        async move {
+            list_page::<Subnet>(state, scope, &query)
+                .await
+                .unwrap()
+                .data
+                .into_iter()
+                .map(|s| (s.subnet.base.subnet_type(), s.subnet.base.site_id))
+                .collect::<Vec<_>>()
+        }
+    };
+    let shared = |query: SubnetFilterQuery| SubnetFilterQuery {
+        user_managed: Some(true),
+        include_shared_ranges: Some(true),
+        ..query
+    };
+    let of_type = |rows: &[(SubnetType, Uuid)], t: SubnetType| {
+        rows.iter()
+            .filter(|(row_type, _)| *row_type == t)
+            .map(|(_, site_id)| *site_id)
+            .collect::<Vec<_>>()
+    };
+
+    let rows = listed(shared(SubnetFilterQuery::default())).await;
+    assert_eq!(of_type(&rows, SubnetType::Internet), vec![lowest]);
+    assert_eq!(of_type(&rows, SubnetType::Remote), vec![lowest]);
+    assert!(of_type(&rows, SubnetType::Loopback).is_empty());
+    assert_eq!(of_type(&rows, SubnetType::Lan).len(), 3);
+
+    let on_highest = listed(shared(SubnetFilterQuery {
+        site_ids: Some(vec![highest]),
+        ..Default::default()
+    }))
+    .await;
+    assert_eq!(
+        of_type(&on_highest, SubnetType::Internet),
+        vec![highest],
+        "a site filter shows that site's copy"
+    );
+    assert_eq!(of_type(&on_highest, SubnetType::Lan), vec![highest]);
+
+    let user_managed_only = listed(SubnetFilterQuery {
+        user_managed: Some(true),
+        ..Default::default()
+    })
+    .await;
+    assert!(of_type(&user_managed_only, SubnetType::Internet).is_empty());
+    assert!(of_type(&user_managed_only, SubnetType::Remote).is_empty());
+
+    let field = SubnetOrderField::SubnetType;
+    let type_counts = state
+        .services
+        .subnet_service
+        .count_by_group(
+            field_values_filter::<Subnet>(&scope, &shared(SubnetFilterQuery::default()), field),
+            field.to_sql(),
+        )
+        .await
+        .unwrap();
+    let count_of = |t: &str| {
+        type_counts
+            .iter()
+            .find(|g| g.value.as_deref() == Some(t))
+            .map(|g| g.count)
+    };
+    assert_eq!(count_of("Internet"), Some(1));
+    assert_eq!(count_of("Remote"), Some(1));
+    assert_eq!(count_of("Loopback"), None);
+}
+
+/// Sorting by site lists each site's rows together, in site-name order, not site-id order, with the
+/// shared Internet and Remote rows first.
+#[tokio::test]
+async fn subnets_sorted_by_site_follow_the_site_name() {
+    use crate::server::shared::handlers::query::OrderDirection;
+    use crate::server::shared::storage::seed_data::{create_remote_subnet, create_wan_subnet};
+    use crate::server::subnets::handlers::{SubnetFilterQuery, SubnetOrderField};
+    use crate::server::subnets::r#impl::base::{Subnet, SubnetCidr, SubnetCidrValue};
+
+    let (storage, state, _container) = test_state().await;
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    // Ids in the reverse of the name order.
+    let mut alpha = site(&org.id);
+    alpha.id = Uuid::from_u128(u128::MAX - 1);
+    alpha.base.name = "Alpha".to_string();
+    let mut zulu = site(&org.id);
+    zulu.id = Uuid::from_u128(2);
+    zulu.base.name = "Zulu".to_string();
+    for s in [&alpha, &zulu] {
+        storage.sites.create(s).await.unwrap();
+    }
+    for (site_id, cidr) in [
+        (zulu.id, "10.1.0.0/24"),
+        (alpha.id, "10.2.0.0/24"),
+        (zulu.id, "10.3.0.0/24"),
+        (alpha.id, "10.4.0.0/24"),
+    ] {
+        let mut s = subnet(&site_id);
+        s.base.cidr = SubnetCidr::new(
+            SubnetCidrValue(cidr.parse().unwrap()),
+            AttributeSource::Manual,
+        );
+        storage.subnets.create(&s).await.unwrap();
+    }
+    for s in [&alpha, &zulu] {
+        storage
+            .subnets
+            .create(&create_wan_subnet(s.id))
+            .await
+            .unwrap();
+        storage
+            .subnets
+            .create(&create_remote_subnet(s.id))
+            .await
+            .unwrap();
+    }
+    let scope = list_scope(&[alpha.id, zulu.id], org.id);
+
+    // The shared rows stand for every site, so they lead in both directions.
+    let (shared, a, z) = ("all sites", "Alpha", "Zulu");
+    for (direction, expected) in [
+        (OrderDirection::Asc, [shared, shared, a, a, z, z]),
+        (OrderDirection::Desc, [shared, shared, z, z, a, a]),
+    ] {
+        for group_by in [None, Some(SubnetOrderField::Cidr)] {
+            let query = SubnetFilterQuery {
+                user_managed: Some(true),
+                include_shared_ranges: Some(true),
+                group_by,
+                order_by: Some(SubnetOrderField::SiteId),
+                order_direction: Some(direction),
+                ..Default::default()
+            };
+            let rows: Vec<&str> = list_page::<Subnet>(&state, &scope, &query)
+                .await
+                .unwrap()
+                .data
+                .into_iter()
+                .map(|s| match s.subnet.base.site_id {
+                    _ if !s.subnet.is_user_managed() => shared,
+                    id if id == alpha.id => a,
+                    _ => z,
+                })
+                .collect();
+            assert_eq!(rows, expected, "{direction:?}, grouped by {group_by:?}");
+        }
+    }
 }

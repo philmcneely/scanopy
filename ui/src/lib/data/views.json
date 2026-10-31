@@ -263,6 +263,28 @@
                 "label": "Stale"
               }
             ]
+          },
+          {
+            "applies": "Client",
+            "entities": [
+              "Host"
+            ],
+            "filter_type": "Confirmation",
+            "label": "By confirmation",
+            "values": [
+              {
+                "color": "Green",
+                "icon": "circle-check",
+                "id": "confirmed",
+                "label": "Confirmed"
+              },
+              {
+                "color": "Violet",
+                "icon": "circle-dashed-check",
+                "id": "unconfirmed",
+                "label": "Unconfirmed"
+              }
+            ]
           }
         ]
       },
@@ -716,6 +738,28 @@
                 "icon": "clock",
                 "id": "stale",
                 "label": "Stale"
+              }
+            ]
+          },
+          {
+            "applies": "Client",
+            "entities": [
+              "Subnet"
+            ],
+            "filter_type": "Confirmation",
+            "label": "By confirmation",
+            "values": [
+              {
+                "color": "Green",
+                "icon": "circle-check",
+                "id": "confirmed",
+                "label": "Confirmed"
+              },
+              {
+                "color": "Violet",
+                "icon": "circle-dashed-check",
+                "id": "unconfirmed",
+                "label": "Unconfirmed"
               }
             ]
           }
@@ -1260,6 +1304,28 @@
                 "icon": "clock",
                 "id": "stale",
                 "label": "Stale"
+              }
+            ]
+          },
+          {
+            "applies": "Client",
+            "entities": [
+              "Host"
+            ],
+            "filter_type": "Confirmation",
+            "label": "By confirmation",
+            "values": [
+              {
+                "color": "Green",
+                "icon": "circle-check",
+                "id": "confirmed",
+                "label": "Confirmed"
+              },
+              {
+                "color": "Violet",
+                "icon": "circle-dashed-check",
+                "id": "unconfirmed",
+                "label": "Unconfirmed"
               }
             ]
           }

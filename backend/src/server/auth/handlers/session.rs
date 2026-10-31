@@ -1,6 +1,6 @@
 //! Login, logout, and current-user session handlers.
 use super::*;
-use crate::server::auth::terms_gate;
+use crate::server::auth::{terms_gate, verification_gate};
 use crate::server::billing::types::base::BillingPlan;
 use crate::server::openapi::tags as api_tags;
 use crate::server::shared::types::api::ApiJson;
@@ -58,7 +58,7 @@ pub(crate) async fn login(
                 "You can only log in to the demo account on this instance.",
             ));
         }
-        with_terms_gate(&state, user, Some(&plan))
+        with_session_gates(&state, user, Some(&plan))
     };
 
     // Cycle session ID to prevent session fixation attacks
@@ -133,7 +133,7 @@ pub(crate) async fn get_current_user(
     session: Session,
 ) -> ApiResult<Json<ApiResponse<User>>> {
     let user = session_user(&state, &session).await?;
-    let user = with_org_terms_gate(&state, user).await?;
+    let user = with_org_session_gates(&state, user).await?;
     Ok(Json(ApiResponse::success(user)))
 }
 
@@ -153,7 +153,7 @@ pub(crate) async fn accept_terms(
 ) -> ApiResult<Json<ApiResponse<User>>> {
     let user = session_user(&state, &session).await?;
     let user = state.services.user_service.accept_terms(user).await?;
-    let user = with_org_terms_gate(&state, user).await?;
+    let user = with_org_session_gates(&state, user).await?;
     Ok(Json(ApiResponse::success(user)))
 }
 
@@ -191,24 +191,28 @@ async fn session_user(state: &AppState, session: &Session) -> ApiResult<User> {
     Ok(user)
 }
 
-/// `user` as sent to themselves, with `terms_acceptance_required` set for an
-/// org on `plan`.
-fn with_terms_gate(state: &AppState, mut user: User, plan: Option<&BillingPlan>) -> User {
-    user.base.terms_acceptance_required = terms_gate::acceptance_required(
-        get_deployment_type(&state.config),
+/// `user` as sent to themselves, with `terms_acceptance_required` and
+/// `email_verification_required` set for an org on `plan`.
+fn with_session_gates(state: &AppState, mut user: User, plan: Option<&BillingPlan>) -> User {
+    let deployment_type = get_deployment_type(&state.config);
+    user.base.terms_acceptance_required =
+        terms_gate::acceptance_required(deployment_type, plan, user.base.terms_accepted_at);
+    user.base.email_verification_required = verification_gate::verification_required(
+        deployment_type,
         plan,
-        user.base.terms_accepted_at,
+        user.base.email_verified,
+        state.services.email_service.is_some(),
     );
     user
 }
 
-/// [`with_terms_gate`], loading the user's org for its plan.
-async fn with_org_terms_gate(state: &AppState, user: User) -> ApiResult<User> {
+/// [`with_session_gates`], loading the user's org for its plan.
+pub(super) async fn with_org_session_gates(state: &AppState, user: User) -> ApiResult<User> {
     let plan = state
         .services
         .organization_service
         .get_by_id(&user.base.organization_id)
         .await?
         .map(|o| o.base.plan);
-    Ok(with_terms_gate(state, user, plan.as_ref()))
+    Ok(with_session_gates(state, user, plan.as_ref()))
 }

@@ -269,7 +269,8 @@ pub fn csv_text(format: FieldFormat, value: &Value) -> String {
         | FieldFormat::Timestamp
         | FieldFormat::Identifier
         | FieldFormat::BitsPerSecond
-        | FieldFormat::Metadata { .. } => scalar_text(value),
+        | FieldFormat::Metadata { .. }
+        | FieldFormat::AttributeSource => scalar_text(value),
     }
 }
 

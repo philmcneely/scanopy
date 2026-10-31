@@ -346,6 +346,41 @@ fn container_host_follows_its_container_id() {
     assert_eq!(existing.virtualization_service_id, Some(runtime_b));
 }
 
+/// A vCenter or ESXi guest that migrated keeps its guest id, so its link follows it to the new
+/// host's service exactly as a Proxmox guest's does, and a different guest id stays put.
+#[test]
+fn a_vcenter_or_esxi_guest_follows_its_guest_id() {
+    use crate::server::hosts::r#impl::virtualization::{
+        EsxiVirtualization, HostVirtualization, VCenterVirtualization,
+    };
+    let guest = |owner: Uuid, virtualization: HostVirtualization| HostBase {
+        virtualization_service_id: Some(owner),
+        virtualization_metadata: Some(virtualization),
+        ..Default::default()
+    };
+    let vcenter = |vm_id: &str| {
+        HostVirtualization::VCenter(VCenterVirtualization {
+            vm_name: Some("gitlab".to_string()),
+            vm_id: Some(vm_id.to_string()),
+        })
+    };
+    let esxi = |vm_id: &str| {
+        HostVirtualization::ESXi(EsxiVirtualization {
+            vm_name: Some("gitlab".to_string()),
+            vm_id: Some(vm_id.to_string()),
+        })
+    };
+    let (host_a, host_b) = (Uuid::new_v4(), Uuid::new_v4());
+
+    for virtualization in [vcenter, esxi] {
+        let mut existing = guest(host_a, virtualization("vm-42"));
+        assert!(!existing.fill_virtualization_from(&guest(host_b, virtualization("vm-43"))));
+        assert_eq!(existing.virtualization_service_id, Some(host_a));
+        assert!(existing.fill_virtualization_from(&guest(host_b, virtualization("vm-42"))));
+        assert_eq!(existing.virtualization_service_id, Some(host_b));
+    }
+}
+
 /// The stored JSON of a container host reads back as the same host, and a reader that meets a
 /// runtime it does not know reads the host as not virtualized instead of rejecting the row.
 #[test]
@@ -393,4 +428,44 @@ fn a_relabelled_device_reports_its_new_asset_tag_on_the_next_scan() {
         attribution::text_of(&base.asset_tag).as_deref(),
         Some("IT-09001")
     );
+}
+
+/// A person's typed fact outranks every scan, so a payload claiming one is clamped to
+/// `Unspecified`, keeping the value. What a daemon legitimately read is left alone.
+#[test]
+fn a_payload_cannot_claim_a_person_typed_a_host_fact() {
+    let mut base = nameless_host().base;
+    base.model = Some(Attributed::new(
+        HostModelValue("RS20".into()),
+        AttributeSource::Manual,
+    ));
+    base.asset_tag = Some(probed(HostAssetTagValue("A-1".into())));
+    assert!(base.reject_manual_attribute_claims());
+    assert_eq!(
+        base.model.as_ref().map(|v| v.source()),
+        Some(AttributeSource::Unspecified)
+    );
+    assert_eq!(
+        base.model.as_ref().map(|v| v.value().0.clone()),
+        Some("RS20".to_string())
+    );
+    assert_eq!(
+        base.asset_tag.as_ref().map(|v| v.source()),
+        Some(AttributeSource::Probe(ClientProbe::Snmp))
+    );
+    assert!(!base.reject_manual_attribute_claims());
+}
+
+/// An unconfirmed host is settled through Resolve before anything else touches it; a confirmed
+/// one is not held back.
+#[test]
+fn only_a_confirmed_host_may_be_edited_deleted_rescanned_or_merged_into() {
+    use crate::server::shared::types::entities::{EntitySource, InferredVia};
+    let mut host = nameless_host();
+    host.base.source = EntitySource::Inferred {
+        via: InferredVia::ForwardingTable,
+    };
+    assert!(host.require_confirmed().is_err());
+    host.base.source = EntitySource::Discovery;
+    assert!(host.require_confirmed().is_ok());
 }

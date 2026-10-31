@@ -155,12 +155,12 @@ impl FeatureCheck for ApiKeyFeature {
 }
 
 #[derive(Default)]
-pub struct ShareViewsFeature;
+pub struct SharingFeature;
 
 #[async_trait]
-impl FeatureCheck for ShareViewsFeature {
+impl FeatureCheck for SharingFeature {
     async fn check(&self, ctx: &FeatureCheckContext<'_>) -> FeatureCheckResult {
-        if !ctx.plan.features().share_views {
+        if !ctx.plan.features().sharing {
             return FeatureCheckResult::payment_required(
                 "Your plan does not include sharing. Upgrade to share live network diagrams.",
             );
@@ -176,7 +176,7 @@ pub struct TopologyViewFeature;
 #[async_trait]
 impl FeatureCheck for TopologyViewFeature {
     async fn check(&self, ctx: &FeatureCheckContext<'_>) -> FeatureCheckResult {
-        if !ctx.plan.features().topology_view {
+        if !ctx.plan.features().includes_topology() {
             return FeatureCheckResult::payment_required(
                 "Your plan does not include the topology view. Choose a plan to explore your network as a diagram.",
             );

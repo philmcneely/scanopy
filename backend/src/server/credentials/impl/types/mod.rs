@@ -33,8 +33,7 @@ pub use defaults::SeededDefault;
 pub use fields::{CredentialOsFields, DAEMON_OS_FIELD, TARGET_OS_FIELD};
 pub use integration::{CredentialIntegration, InterfaceViewScope};
 pub use metadata::{
-    CredentialAssignment, CredentialCategory, CredentialHostAssignment, CredentialStability,
-    UpstreamSupport,
+    CredentialAssignment, CredentialCategory, CredentialHostAssignment, UpstreamSupport,
 };
 pub use paths::{CredentialPath, DaemonPath, DaemonSocket, HostPath, OsFamily};
 // `Target` is the strum-discriminant of `IntegrationTarget` (single source of truth for the
@@ -1104,6 +1103,7 @@ fn container_proxy_query(
 mod tests {
     use super::*;
     use crate::server::credentials::r#impl::mapping::CredentialQueryPayload;
+    use crate::server::shared::types::Stability;
     use crate::server::shared::types::field_definition::FieldType;
     use secrecy::SecretString;
     use std::collections::HashMap;
@@ -1851,7 +1851,7 @@ mod tests {
 
         assert_eq!(
             CredentialTypeDiscriminants::UnifiApiKey.stability(),
-            CredentialStability::Stable
+            Stability::Stable
         );
         assert_eq!(
             CredentialTypeDiscriminants::UnifiApiKey.upstream_support(),
@@ -1859,7 +1859,7 @@ mod tests {
         );
         assert_eq!(
             CredentialTypeDiscriminants::InstantOnAccount.stability(),
-            CredentialStability::Beta
+            Stability::Beta
         );
         assert_eq!(
             CredentialTypeDiscriminants::InstantOnAccount.upstream_support(),

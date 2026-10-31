@@ -6,7 +6,7 @@
 //! has: the far ends it collected, the evidence it can attach to a warning, and the hosts it mints
 //! for them.
 
-use crate::daemon::discovery::types::warnings::ProvisionalSubnet;
+use crate::daemon::discovery::types::warnings::{ProvisionalSubnet, UnconfirmedHost};
 use crate::server::daemons::r#impl::api::ScannedEntityIds;
 use crate::server::interfaces::r#impl::base::InterfaceBase;
 use crate::server::ip_addresses::r#impl::base::{IPAddressBase, MacEvidence, MacEvidenceValue};
@@ -70,7 +70,9 @@ impl HostService {
                 // subnet would be a second guess stacked on the first.
                 subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Unknown),
                 virtualization_service_id: None,
-                source: EntitySource::Discovery,
+                source: EntitySource::Inferred {
+                    via: InferredVia::ReportedAddress,
+                },
                 tags: Vec::new(),
             });
             subnet.last_seen_at = Utc::now();
@@ -174,7 +176,7 @@ impl HostService {
 
         Ok(live
             .into_iter()
-            .filter(|s| s.base.cidr.source() == AttributeSource::LldpNeighbourAddress)
+            .filter(|s| s.base.source.confirmation().is_unconfirmed())
             .map(|s| {
                 let detail = evidence.remove(&s.id).unwrap_or(ProvisionalSubnet {
                     cidr: s.base.cidr.to_string(),
@@ -185,6 +187,211 @@ impl HostService {
                     widened_by_vlan: false,
                 });
                 DiscoveryWarning::ProvisionalSubnetInferred(detail)
+            })
+            .collect())
+    }
+}
+
+impl HostService {
+    /// Fill what the resolve modal shows on the unconfirmed hosts among `responses`: the hosts
+    /// whose report each one is known from (`reported_by_host_ids`), and the scan that first
+    /// reported it (`found_by_discovery_id`). A forwarding-table host is reported by the switches
+    /// whose ports learned one of its MACs; a neighbour-advertised host by the hosts whose resolved
+    /// neighbour rows name it or one of its interfaces.
+    pub(crate) async fn fill_unconfirmed_evidence(
+        &self,
+        responses: &mut [HostResponse],
+    ) -> Result<()> {
+        let unconfirmed: Vec<(Uuid, Uuid, InferredVia)> = responses
+            .iter()
+            .filter_map(|r| match r.source {
+                EntitySource::Inferred { via } => Some((r.id, r.site_id, via)),
+                _ => None,
+            })
+            .collect();
+        if unconfirmed.is_empty() {
+            return Ok(());
+        }
+        let found_by = self
+            .warning_service
+            .unconfirmed_host_discoveries(
+                &unconfirmed
+                    .iter()
+                    .map(|(id, site, _)| (*id, *site))
+                    .collect::<Vec<_>>(),
+            )
+            .await?;
+        for response in responses.iter_mut() {
+            response.found_by_discovery_id = found_by.get(&response.id).copied();
+        }
+        let host_ids: Vec<Uuid> = unconfirmed.iter().map(|(id, _, _)| *id).collect();
+        let own_interfaces = self
+            .interface_service
+            .get_all(StorableFilter::<Interface>::new_from_host_ids(&host_ids).live())
+            .await?;
+        let site_ids: Vec<Uuid> = unconfirmed
+            .iter()
+            .map(|(_, site, _)| *site)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let mut reporters: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
+        let mut add = |host: Uuid, reporter: Uuid| {
+            let list = reporters.entry(host).or_default();
+            if host != reporter && !list.contains(&reporter) {
+                list.push(reporter);
+            }
+        };
+
+        // Forwarding table: the ports that learned one of the host's MACs.
+        let mut host_of_mac: HashMap<String, Uuid> = HashMap::new();
+        for interface in &own_interfaces {
+            let via = unconfirmed
+                .iter()
+                .find(|(id, _, _)| *id == interface.base.host_id)
+                .map(|(_, _, via)| *via);
+            if via == Some(InferredVia::ForwardingTable)
+                && let Some(mac) = &interface.base.mac_address
+            {
+                host_of_mac.insert(
+                    mac.value().0.to_string().to_lowercase(),
+                    interface.base.host_id,
+                );
+            }
+        }
+        // A MAC can sit on an address rather than an interface (where `fdb::learned_hosts` looks
+        // first), so a host reached that way is reported by the same ports.
+        for response in responses.iter().filter(|r| {
+            r.source
+                == EntitySource::Inferred {
+                    via: InferredVia::ForwardingTable,
+                }
+        }) {
+            for ip in &response.ip_addresses {
+                if let Some(mac) = &ip.base.mac_address {
+                    host_of_mac.insert(mac.value().0.to_string().to_lowercase(), response.id);
+                }
+            }
+        }
+        if !host_of_mac.is_empty() {
+            let macs: Vec<String> = host_of_mac.keys().cloned().collect();
+            let ports = self
+                .interface_service
+                .get_all(
+                    StorableFilter::<Interface>::new_from_site_ids(&site_ids)
+                        .live()
+                        .fdb_macs_contain(&macs),
+                )
+                .await?;
+            for port in ports {
+                for learned in port.base.fdb_macs().unwrap_or_default() {
+                    if let Some(host) = host_of_mac.get(&learned.to_lowercase()) {
+                        add(*host, port.base.host_id);
+                    }
+                }
+            }
+        }
+
+        // Neighbours: the resolved rows that name the host, or one of its interfaces.
+        if unconfirmed
+            .iter()
+            .any(|(_, _, via)| *via == InferredVia::Neighbour)
+        {
+            let host_of_interface: HashMap<Uuid, Uuid> = own_interfaces
+                .iter()
+                .map(|i| (i.id, i.base.host_id))
+                .collect();
+            let mut rows = Vec::new();
+            for site_id in &site_ids {
+                rows.extend(
+                    self.interface_neighbor_service
+                        .resolved_for_site(*site_id, None)
+                        .await?,
+                );
+            }
+            let named: Vec<(Uuid, Uuid)> = rows
+                .iter()
+                .filter_map(|row| {
+                    let host = match row.neighbor {
+                        Neighbor::Host(id) => host_ids.contains(&id).then_some(id),
+                        Neighbor::Interface(id) => host_of_interface.get(&id).copied(),
+                    }?;
+                    Some((host, row.interface_id))
+                })
+                .collect();
+            if !named.is_empty() {
+                let reporting_ids: Vec<Uuid> = named.iter().map(|(_, i)| *i).collect();
+                let reporting: HashMap<Uuid, Uuid> = self
+                    .interface_service
+                    .get_all(StorableFilter::<Interface>::new_from_entity_ids(
+                        &reporting_ids,
+                    ))
+                    .await?
+                    .into_iter()
+                    .map(|i| (i.id, i.base.host_id))
+                    .collect();
+                for (host, interface_id) in named {
+                    if let Some(reporter) = reporting.get(&interface_id) {
+                        add(host, *reporter);
+                    }
+                }
+            }
+        }
+
+        for response in responses.iter_mut() {
+            if let Some(list) = reporters.remove(&response.id) {
+                response.reported_by_host_ids = list;
+            }
+        }
+        Ok(())
+    }
+
+    /// One warning per host on this site still waiting to be confirmed, for the reason
+    /// `provisional_subnet_warnings` reports every assumed range: an unconfirmed host is a
+    /// standing state, and an operator who did not act on one scan's report hears about it again.
+    /// Dismissed hosts are left out.
+    pub async fn unconfirmed_host_warnings(&self, site_id: Uuid) -> Result<Vec<DiscoveryWarning>> {
+        let hosts = self
+            .get_all(
+                StorableFilter::<Host>::new_from_site_ids(&[site_id])
+                    .live()
+                    .not_dismissed()
+                    .unconfirmed(true),
+            )
+            .await?;
+        if hosts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let host_ids: Vec<Uuid> = hosts.iter().map(|h| h.id).collect();
+        let mut mac_of_host: HashMap<Uuid, String> = HashMap::new();
+        for interface in self
+            .interface_service
+            .get_all(StorableFilter::<Interface>::new_from_host_ids(&host_ids).live())
+            .await?
+        {
+            if let Some(mac) = &interface.base.mac_address {
+                mac_of_host
+                    .entry(interface.base.host_id)
+                    .or_insert_with(|| mac.value().0.to_string());
+            }
+        }
+
+        Ok(hosts
+            .into_iter()
+            .filter_map(|host| {
+                let EntitySource::Inferred { via } = host.base.source else {
+                    return None;
+                };
+                let identifier = attribution::text_of(&host.base.chassis_id)
+                    .or_else(|| mac_of_host.get(&host.id).cloned())
+                    .unwrap_or_default();
+                Some(DiscoveryWarning::UnconfirmedHostInferred(UnconfirmedHost {
+                    host_id: Some(host.id),
+                    via,
+                    identifier,
+                    sys_name: attribution::text_of(&host.base.sys_name),
+                }))
             })
             .collect())
     }
@@ -281,7 +488,9 @@ impl HostService {
                 // Reported by something else and never contacted. Distinct from `Discovery` so a
                 // host with no ports and no services is not read as a device that is merely down,
                 // and promoted the moment a scan reaches it.
-                source: EntitySource::Inferred,
+                source: EntitySource::Inferred {
+                    via: InferredVia::Neighbour,
+                },
                 // The neighbour's advertised sysName is matched against this column by the
                 // resolution ladder, so recording it is what lets the *next* pass place this far
                 // end without re-deriving anything.

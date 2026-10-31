@@ -11,10 +11,12 @@ use anyhow::Error;
 use async_trait::async_trait;
 
 use crate::daemon::utils::app_probe::{
-    AppProbe, AppProbeOutcome, ProbeContext, presence, read_greeting,
+    AppProbe, AppProbeOutcome, DeviceIdentity, ProbeContext, read_greeting,
 };
+use crate::server::hosts::r#impl::os::recog::RecogDatabase;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::r#impl::patterns::ClientProbe;
+use crate::server::shared::attribution::AttributeSource;
 
 /// Interpret As Command.
 const IAC: u8 = 255;
@@ -39,16 +41,57 @@ impl AppProbe for TelnetProbe {
     }
 }
 
-/// Whether the opening bytes are Telnet option negotiation.
+/// Whether the opening bytes are Telnet option negotiation, and what any banner text among them
+/// names.
 ///
 /// `IAC` followed by one of the four negotiation commands, rather than `IAC` alone: a lone 255 is a
 /// plausible first byte of binary junk, and the command that must follow it is what makes this a
 /// protocol match instead of a coincidence.
 fn parse_negotiation(bytes: &[u8]) -> AppProbeOutcome {
     let bytes = skip_ansi_sequences(bytes);
-    presence(
-        bytes.first() == Some(&IAC) && matches!(bytes.get(1), Some(&WILL | &WONT | &DO | &DONT)),
-    )
+    if !(bytes.first() == Some(&IAC) && matches!(bytes.get(1), Some(&WILL | &WONT | &DO | &DONT))) {
+        return AppProbeOutcome::NoAnswer;
+    }
+    let banner = banner_text(bytes);
+    AppProbeOutcome::Answered {
+        identity: DeviceIdentity::matched(
+            RecogDatabase::TelnetBanner,
+            &banner,
+            AttributeSource::TelnetBannerMatch,
+        ),
+    }
+}
+
+/// The text a server sent alongside its negotiation, with every Telnet command removed: `IAC`
+/// plus a command and option byte, or a subnegotiation from `IAC SB` to `IAC SE`. A server that
+/// prints its banner before waiting for our replies sends it here; one that waits sends none.
+fn banner_text(bytes: &[u8]) -> String {
+    const SB: u8 = 250;
+    const SE: u8 = 240;
+    let mut text = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match &bytes[i..] {
+            [IAC, SB, ..] => {
+                i = bytes[i..]
+                    .windows(2)
+                    .position(|w| w == [IAC, SE])
+                    .map_or(bytes.len(), |end| i + end + 2);
+            }
+            [IAC, IAC, ..] => {
+                text.push(IAC);
+                i += 2;
+            }
+            [IAC, WILL | WONT | DO | DONT, ..] => i += 3,
+            [IAC, ..] => i += 2,
+            [b, ..] => {
+                text.push(*b);
+                i += 1;
+            }
+            [] => break,
+        }
+    }
+    String::from_utf8_lossy(&text).trim().to_string()
 }
 
 /// `bytes` past any leading ANSI CSI sequences (`ESC [`, parameter bytes, one final byte in
@@ -85,6 +128,23 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn a_banner_sent_with_the_negotiation_names_the_device() {
+        let mut greeting = vec![IAC, WILL, 1, IAC, SB_FOR_TEST, 24, 1, IAC, 240];
+        greeting
+            .extend_from_slice(b"Grandstream HT812 Command Shell Copyright 2006-2017\r\nPassword:");
+        let AppProbeOutcome::Answered { identity } = parse_negotiation(&greeting) else {
+            panic!("option negotiation answers");
+        };
+        let (matched, source) = *identity
+            .and_then(|i| i.matched)
+            .expect("the Grandstream banner is fingerprinted");
+        assert_eq!(matched.model.as_deref(), Some("HT812"));
+        assert_eq!(source, AttributeSource::TelnetBannerMatch);
+    }
+
+    const SB_FOR_TEST: u8 = 250;
 
     #[test]
     fn silence_a_text_banner_or_a_lone_iac_is_not_telnet() {

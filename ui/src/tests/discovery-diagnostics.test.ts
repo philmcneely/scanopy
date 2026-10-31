@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatDiagnostics } from '$lib/features/discovery/utils/diagnostics';
+import { runDiagnostics } from '$lib/features/discovery/utils/diagnostics';
 import type { DiscoveryUpdatePayload } from '$lib/features/discovery/types/api';
-
-function parse(block: string): Map<string, string> {
-	return new Map(
-		block.split('\n').map((line) => {
-			const at = line.indexOf(': ');
-			return [line.slice(0, at), line.slice(at + 2)];
-		})
-	);
-}
 
 const stalled = {
 	session_id: '11111111-1111-4111-8111-111111111111',
@@ -26,23 +17,23 @@ const stalled = {
 	last_update_at: '2026-09-20T10:12:00Z'
 } as DiscoveryUpdatePayload;
 
-describe('formatDiagnostics', () => {
-	it('carries every id, the reason and the versions, one field per line', () => {
-		const fields = parse(formatDiagnostics(stalled));
-		expect(fields.get('session_id')).toBe(stalled.session_id);
-		expect(fields.get('discovery_id')).toBe(stalled.discovery_id);
-		expect(fields.get('daemon_id')).toBe(stalled.daemon_id);
-		expect(fields.get('site_id')).toBe(stalled.site_id);
-		expect(fields.get('reason')).toBe(stalled.reason);
-		expect(fields.get('daemon_version')).toBe(stalled.daemon_version);
-		expect(fields.get('last_update_at')).toBe(stalled.last_update_at);
+describe('runDiagnostics', () => {
+	it('carries every id, the reason and the versions', () => {
+		const run = runDiagnostics(stalled);
+		expect(run.session_id).toBe(stalled.session_id);
+		expect(run.discovery_id).toBe(stalled.discovery_id);
+		expect(run.daemon_id).toBe(stalled.daemon_id);
+		expect(run.site_id).toBe(stalled.site_id);
+		expect(run.reason).toBe(stalled.reason);
+		expect(run.daemon_version).toBe(stalled.daemon_version);
+		expect(run.last_update_at).toBe(stalled.last_update_at);
 	});
 
 	it('keeps a field an older run never recorded, so the block always has the same shape', () => {
 		const legacy = { ...stalled, reason: undefined, daemon_version: undefined };
-		const fields = parse(formatDiagnostics(legacy));
-		expect(fields.has('reason')).toBe(true);
-		expect(fields.has('daemon_version')).toBe(true);
-		expect([...fields.keys()]).toEqual([...parse(formatDiagnostics(stalled)).keys()]);
+		const run = runDiagnostics(legacy);
+		expect(run.reason).toBeNull();
+		expect(run.daemon_version).toBeNull();
+		expect(Object.keys(run)).toEqual(Object.keys(runDiagnostics(stalled)));
 	});
 });

@@ -157,14 +157,20 @@
 
 	let colorHelper = entities.getColorHelper('Subnet');
 
-	// Prepare subnet type options
+	// Prepare subnet type options. Every site already has its Internet and Remote ranges, so those
+	// are offered only to a subnet that already holds one.
 	let subnetTypeOptions: SimpleOption[] = $derived(
-		subnetTypes.getItems().map((st) => ({
-			value: st.id,
-			label: st.name ?? st.id,
-			icon: subnetTypes.getIconComponent(st.id),
-			iconColor: subnetTypes.getColorHelper(st.id).icon
-		}))
+		subnetTypes
+			.getItems()
+			.filter(
+				(st) => !subnetTypes.getMetadata(st.id).is_seeded_per_site || st.id === subnet?.subnet_type
+			)
+			.map((st) => ({
+				value: st.id,
+				label: st.name ?? st.id,
+				icon: subnetTypes.getIconComponent(st.id),
+				iconColor: subnetTypes.getColorHelper(st.id).icon
+			}))
 	);
 
 	let actions = $derived<ModalAction[]>([

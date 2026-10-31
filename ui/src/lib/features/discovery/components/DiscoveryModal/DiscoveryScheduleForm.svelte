@@ -27,7 +27,6 @@
 		discovery_scheduleEditAsCron,
 		discovery_scheduleFreeDiscoveryPaused,
 		discovery_scheduleFreePlanWarning,
-		discovery_scheduleHelp,
 		discovery_scheduleLapsedWarning,
 		discovery_scheduleResetToDayPicker,
 		discovery_scheduleTimezoneHelp
@@ -168,10 +167,6 @@
 		{#if rawCronMode}
 			<InlineInfo title={discovery_scheduleCronExpression()} body={discovery_scheduleCronInfo()} />
 		{/if}
-		<p class="text-sm text-tertiary">
-			{discovery_scheduleHelp()}
-		</p>
-
 		{#if rawCronMode}
 			<!-- Raw Cron Mode -->
 			<form.Field
@@ -181,13 +176,15 @@
 				}}
 			>
 				{#snippet children(field: AnyFieldApi)}
-					<TextInput
-						label={discovery_scheduleCronExpression()}
-						id="schedule_cron"
-						{field}
-						disabled={readOnly}
-						placeholder="0 0 0 * * *"
-					/>
+					<div class="sm:w-1/2">
+						<TextInput
+							label={discovery_scheduleCronExpression()}
+							id="schedule_cron"
+							{field}
+							disabled={readOnly}
+							placeholder="0 0 0 * * *"
+						/>
+					</div>
 				{/snippet}
 			</form.Field>
 
@@ -232,7 +229,9 @@
 				}}
 			>
 				{#snippet children(field: AnyFieldApi)}
-					<TimeInput label={common_time()} id="schedule_time" {field} disabled={readOnly} />
+					<div class="sm:w-1/2">
+						<TimeInput label={common_time()} id="schedule_time" {field} disabled={readOnly} />
+					</div>
 				{/snippet}
 			</form.Field>
 
@@ -254,14 +253,16 @@
 			}}
 		>
 			{#snippet children(field: AnyFieldApi)}
-				<SelectInput
-					label={common_timezone()}
-					id="schedule_timezone"
-					options={timezoneOptions}
-					{field}
-					disabled={readOnly}
-					helpText={discovery_scheduleTimezoneHelp()}
-				/>
+				<div class="sm:w-1/2">
+					<SelectInput
+						label={common_timezone()}
+						id="schedule_timezone"
+						options={timezoneOptions}
+						{field}
+						disabled={readOnly}
+						helpText={discovery_scheduleTimezoneHelp()}
+					/>
+				</div>
 			{/snippet}
 		</form.Field>
 	</div>

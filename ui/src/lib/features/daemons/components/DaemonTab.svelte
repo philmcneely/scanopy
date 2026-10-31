@@ -2,6 +2,8 @@
 	import CreateButton from '$lib/shared/components/data/controls/CreateButton.svelte';
 	import { formatLongDate } from '$lib/shared/utils/formatting';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
@@ -21,7 +23,7 @@
 	import type { TableDefaults } from '$lib/shared/components/data/types';
 	import { isUserManagedSubnet, useSubnetsQuery } from '$lib/features/subnets/queries';
 	import type { Subnet } from '$lib/features/subnets/types/base';
-	import { Trash2, Edit, ArrowBigUp, RefreshCw } from 'lucide-svelte';
+	import { Trash2, Edit, ArrowBigUp, RefreshCw } from '@lucide/svelte';
 	import { useTagsQuery } from '$lib/features/tags/queries';
 	import {
 		useDaemonsQuery,
@@ -160,6 +162,7 @@
 			daemonsQuery.isPending ||
 			sitesQuery.isPending
 	);
+	let pageLoad = $derived(loadFailure(daemonsPageQuery, daemonsQuery, sitesQuery));
 
 	let showCreateDaemonModal = $state(false);
 	let showDaemonEditor = $state(false);
@@ -386,8 +389,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	<!-- Loading state -->
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if daemonsData.length === 0}
 		<!-- Empty state -->

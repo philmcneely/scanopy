@@ -96,6 +96,11 @@ impl DiscoveryService {
             return;
         }
 
+        // Why each went quiet, read before anything below contacts the daemons.
+        let stalled_with_reasons = self
+            .classify_stalls(&stalled_sessions, now, stall_threshold)
+            .await;
+
         // Second pass (no locks held): tell each daemon to stop, in case it is still running the
         // session. A ServerPoll daemon is told directly. A DaemonPoll daemon reads a flag when it
         // next polls for work. Nothing is published here: the one event a stall produces is the
@@ -118,7 +123,6 @@ impl DiscoveryService {
             let mut daemon_pull_cancellations = self.daemon_pull_cancellations.write().await;
             let mut discovery_sessions = self.discovery_sessions.write().await;
 
-            let stalled_ids: Vec<Uuid> = stalled_sessions.iter().map(|s| s.session_id).collect();
             let reaped = state::reap(
                 &mut SessionMaps {
                     sessions: &mut sessions,
@@ -127,7 +131,7 @@ impl DiscoveryService {
                     discovery_sessions: &mut discovery_sessions,
                     pull_cancellations: &mut daemon_pull_cancellations,
                 },
-                &stalled_ids,
+                &stalled_with_reasons,
                 now,
             );
             for reaped_session in &reaped {
@@ -154,6 +158,49 @@ impl DiscoveryService {
             }
             None => self.finish_reaped(reaped, now).await,
         }
+    }
+
+    /// Pair each stalled session with the reason it is recorded with, from when its daemon last
+    /// checked in (see [`state::stall_reason`]). A daemon that cannot be read, or no daemon service
+    /// to read it from (never the case outside tests), leaves the cause untold.
+    async fn classify_stalls(
+        &self,
+        stalled_sessions: &[DiscoveryUpdatePayload],
+        now: chrono::DateTime<Utc>,
+        threshold: chrono::Duration,
+    ) -> Vec<(Uuid, DiscoveryTerminalReason)> {
+        let mut last_seen: HashMap<Uuid, Option<chrono::DateTime<Utc>>> = HashMap::new();
+        for session in stalled_sessions {
+            if last_seen.contains_key(&session.daemon_id) {
+                continue;
+            }
+            let seen = match self.daemon_service.get() {
+                Some(daemon_service) => match daemon_service.get_by_id(&session.daemon_id).await {
+                    Ok(daemon) => daemon.and_then(|d| d.base.last_seen),
+                    Err(e) => {
+                        tracing::warn!(
+                            daemon_id = %session.daemon_id,
+                            error = ?e,
+                            "Could not read a stalled session's daemon to name the stall"
+                        );
+                        None
+                    }
+                },
+                None => None,
+            };
+            last_seen.insert(session.daemon_id, seen);
+        }
+
+        stalled_sessions
+            .iter()
+            .map(|session| {
+                let seen = last_seen.get(&session.daemon_id).copied().flatten();
+                (
+                    session.session_id,
+                    state::stall_reason(seen, now, threshold),
+                )
+            })
+            .collect()
     }
 
     /// Ask each stalled session's daemon to stop, concurrently. Returns the sessions whose daemon
@@ -206,12 +253,12 @@ impl DiscoveryService {
 
             // The one event a stall produces: `Failed`, carrying why, the phase it stalled in and
             // when the daemon was last heard from. Metrics and analytics used to see a stall as a
-            // user's cancel.
+            // user's cancel. Published after the historical row is written, as a finished session's
+            // is, so a subscriber reading the discovery's run history finds this run in it.
             let mut event = session.into_discovery_event();
             event.scope.previous_phase = Some(previous_phase);
-            self.event_bus().publish(event).await;
-
             self.record_stalled_session(session, now).await;
+            self.event_bus().publish(event).await;
             if let Some(promoted) = promoted {
                 self.publish_promoted(daemon_id, site_id, promoted).await;
             }
@@ -243,10 +290,9 @@ impl DiscoveryService {
         };
         session.daemon_version = daemon.base.version.map(|v| v.to_string());
 
-        let site_name = match self.site_service.get_by_id(&session.site_id).await {
-            Ok(Some(site)) => site.base.name,
-            _ => "Unknown Site".to_string(),
-        };
+        let name = self
+            .historical_run_name(&session, session.discovery_id)
+            .await;
 
         let historical_discovery = Discovery {
             id: Uuid::new_v4(),
@@ -256,11 +302,7 @@ impl DiscoveryService {
                 daemon_id: session.daemon_id,
                 site_id: session.site_id,
                 tags: Vec::new(),
-                name: if matches!(session.discovery_type, DiscoveryType::Unified { .. }) {
-                    "Discovery".to_string()
-                } else {
-                    format!("{} \u{2014} {}", session.discovery_type, site_name)
-                },
+                name,
                 discovery_type: session.discovery_type.clone(),
                 run_type: RunType::Historical {
                     results: Box::new(session),

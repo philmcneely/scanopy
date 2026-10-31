@@ -199,9 +199,12 @@ pub enum DiscoveryTerminalReason {
     UserCancelled,
     /// The daemon reported `Failed` without a more specific reason.
     DaemonReportedFailure,
-    /// The server received nothing for the session within the stall threshold.
+    /// The server received nothing for the session within the stall threshold, and had no record
+    /// of its daemon checking in to say why. Sessions stalled before the cause was recorded carry
+    /// it too.
     StalledNoUpdates,
-    /// The daemon came back ready for work while the server still had the session running.
+    /// The daemon restarted while the server had the session running: it announced its startup,
+    /// or a ServerPoll daemon came back ready for work.
     DaemonRestarted,
     /// The server could not reach the daemon: to deliver a session, or a cancellation.
     DaemonUnreachable,
@@ -209,6 +212,13 @@ pub enum DiscoveryTerminalReason {
     DaemonBusy,
     /// The daemon's watchdog ended a session that outlived its maximum duration.
     WatchdogTimeout,
+    /// The session went quiet and so did its daemon: it stopped checking in with the server.
+    DaemonOffline,
+    /// The session went quiet while its daemon kept checking in with the server.
+    SessionSilent,
+    /// A DaemonPoll daemon came back idle while the server still had the session running, without
+    /// a restart and without the session's final report.
+    DaemonDroppedSession,
 }
 
 impl DiscoveryTerminalReason {
@@ -225,7 +235,26 @@ impl DiscoveryTerminalReason {
     pub fn is_stall(self) -> bool {
         matches!(
             self,
-            DiscoveryTerminalReason::StalledNoUpdates | DiscoveryTerminalReason::WatchdogTimeout
+            DiscoveryTerminalReason::StalledNoUpdates
+                | DiscoveryTerminalReason::WatchdogTimeout
+                | DiscoveryTerminalReason::DaemonOffline
+                | DiscoveryTerminalReason::SessionSilent
+        )
+    }
+
+    /// The daemon's own log lines for the run say what happened. Not for a run the server could
+    /// not reach the daemon about, one the daemon refused, or one that ended normally: the daemon
+    /// logged nothing for those that explains them.
+    pub fn explained_by_daemon_logs(self) -> bool {
+        matches!(
+            self,
+            DiscoveryTerminalReason::DaemonReportedFailure
+                | DiscoveryTerminalReason::DaemonRestarted
+                | DiscoveryTerminalReason::WatchdogTimeout
+                | DiscoveryTerminalReason::DaemonOffline
+                | DiscoveryTerminalReason::SessionSilent
+                | DiscoveryTerminalReason::DaemonDroppedSession
+                | DiscoveryTerminalReason::StalledNoUpdates
         )
     }
 }
@@ -241,6 +270,9 @@ impl HasId for DiscoveryTerminalReason {
             DiscoveryTerminalReason::DaemonUnreachable => "DaemonUnreachable",
             DiscoveryTerminalReason::DaemonBusy => "DaemonBusy",
             DiscoveryTerminalReason::WatchdogTimeout => "WatchdogTimeout",
+            DiscoveryTerminalReason::DaemonOffline => "DaemonOffline",
+            DiscoveryTerminalReason::SessionSilent => "SessionSilent",
+            DiscoveryTerminalReason::DaemonDroppedSession => "DaemonDroppedSession",
         }
     }
 }
@@ -256,6 +288,9 @@ impl EntityMetadataProvider for DiscoveryTerminalReason {
             DiscoveryTerminalReason::DaemonUnreachable => Color::Red,
             DiscoveryTerminalReason::DaemonBusy => Color::Amber,
             DiscoveryTerminalReason::WatchdogTimeout => Color::Amber,
+            DiscoveryTerminalReason::DaemonOffline => Color::Red,
+            DiscoveryTerminalReason::SessionSilent => Color::Amber,
+            DiscoveryTerminalReason::DaemonDroppedSession => Color::Orange,
         }
     }
 
@@ -269,6 +304,9 @@ impl EntityMetadataProvider for DiscoveryTerminalReason {
             DiscoveryTerminalReason::DaemonUnreachable => Icon::Unplug,
             DiscoveryTerminalReason::DaemonBusy => Icon::Hourglass,
             DiscoveryTerminalReason::WatchdogTimeout => Icon::TimerOff,
+            DiscoveryTerminalReason::DaemonOffline => Icon::WifiOff,
+            DiscoveryTerminalReason::SessionSilent => Icon::MessageCircleOff,
+            DiscoveryTerminalReason::DaemonDroppedSession => Icon::CircleQuestionMark,
         }
     }
 }
@@ -284,6 +322,9 @@ impl TypeMetadataProvider for DiscoveryTerminalReason {
             DiscoveryTerminalReason::DaemonUnreachable => "Daemon unreachable",
             DiscoveryTerminalReason::DaemonBusy => "Daemon busy",
             DiscoveryTerminalReason::WatchdogTimeout => "Timed out",
+            DiscoveryTerminalReason::DaemonOffline => "Daemon offline",
+            DiscoveryTerminalReason::SessionSilent => "Scan went silent",
+            DiscoveryTerminalReason::DaemonDroppedSession => "Daemon dropped scan",
         }
     }
 
@@ -311,11 +352,23 @@ impl TypeMetadataProvider for DiscoveryTerminalReason {
             DiscoveryTerminalReason::WatchdogTimeout => {
                 "The scan ran past its maximum duration without finishing, so the daemon stopped it. Part of the scan stopped responding; the daemon's logs name the phase."
             }
+            DiscoveryTerminalReason::DaemonOffline => {
+                "The daemon stopped checking in with the server during the scan, so no progress or cancellation could get through. Check that the daemon is running and can reach the server."
+            }
+            DiscoveryTerminalReason::SessionSilent => {
+                "The daemon kept checking in with the server but sent nothing about this scan for 5 minutes. The daemon's logs show where the scan stopped."
+            }
+            DiscoveryTerminalReason::DaemonDroppedSession => {
+                "The daemon is running and idle but no longer had this scan, and its final report never reached the server. The daemon's logs show how the scan ended."
+            }
         }
     }
 
     fn metadata(&self) -> serde_json::Value {
-        serde_json::json!({ "is_stall": self.is_stall() })
+        serde_json::json!({
+            "is_stall": self.is_stall(),
+            "explained_by_daemon_logs": self.explained_by_daemon_logs(),
+        })
     }
 }
 

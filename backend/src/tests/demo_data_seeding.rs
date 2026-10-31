@@ -19,6 +19,7 @@ use crate::server::organizations::demo_data::DemoData;
 use crate::server::organizations::demo_seed::insert_demo_data;
 use crate::server::organizations::handlers::DEMO_USER_ID;
 use crate::server::services::r#impl::base::Service;
+use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::storage::filter::StorableFilter;
 use crate::server::shared::storage::traits::Storage;
 use crate::server::subnets::r#impl::base::Subnet;
@@ -293,4 +294,81 @@ async fn demo_seed_writes_daemon_subnets_and_the_demo_logins_api_keys() {
             .iter()
             .all(|key| !key.base.site_ids.is_empty())
     );
+}
+
+/// Everything the resolve modal shows for an unconfirmed host, for every unconfirmed demo host, as
+/// the list endpoint returns it: who reported it, the scan that found it, and an identifier to know
+/// it by (a chassis ID, or the MAC on its interface).
+///
+/// Each of these has gone missing once without anything failing: the reporter while
+/// `host_responses` skipped the fill, and the scan for the untitled forwarding-table host while the
+/// demo's warning builder skipped a host with no title.
+#[tokio::test]
+async fn demo_unconfirmed_hosts_carry_their_reporter_scan_and_identifier() {
+    let (storage, services, _container) = test_services().await;
+
+    let org = organization();
+    storage.organizations.create(&org).await.unwrap();
+    let owner = user(&org.id);
+    storage.users.create(&owner).await.unwrap();
+
+    let demo_data = DemoData::generate(org.id, owner.id, org.base.use_case);
+    insert_demo_data(
+        &services,
+        demo_data,
+        org.id,
+        owner.id,
+        AuthenticatedEntity::System,
+    )
+    .await
+    .unwrap();
+
+    let hosts: Vec<Host> = services
+        .host_service
+        .get_all(
+            StorableFilter::<Host>::new_unfiltered()
+                .live()
+                .unconfirmed(true),
+        )
+        .await
+        .unwrap();
+    assert_eq!(hosts.len(), 2, "the demo seeds two unconfirmed hosts");
+    let switch = services
+        .host_service
+        .get_all(StorableFilter::<Host>::new_unfiltered().live())
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|h| h.base.name.value().as_str() == "unifi-usw-48")
+        .expect("the HQ switch is seeded");
+
+    // With children, as the Hosts list asks for them: the MAC rides on an interface.
+    let responses = services
+        .host_service
+        .host_responses(hosts, None, true)
+        .await
+        .unwrap();
+    for response in responses {
+        assert_eq!(
+            response.reported_by_host_ids,
+            vec![switch.id],
+            "unconfirmed host {} should be reported by the HQ switch",
+            response.id
+        );
+        assert!(
+            response.found_by_discovery_id.is_some(),
+            "unconfirmed host {} should link to the scan that found it",
+            response.id
+        );
+        let identified = response.chassis_id.is_some()
+            || response
+                .interfaces
+                .iter()
+                .any(|i| i.base.mac_address.is_some());
+        assert!(
+            identified,
+            "unconfirmed host {} should carry a chassis ID or an interface MAC",
+            response.id
+        );
+    }
 }

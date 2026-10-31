@@ -12,7 +12,7 @@ use crate::server::{
         definitions::{ServiceDefinitionExt, VirtualizationRole},
     },
     topology::{
-        service::context::TopologyContext,
+        service::{context::TopologyContext, fdb::LearnedHost},
         types::{
             edges::{DiscoveryProtocol, Edge, EdgeHandle, EdgeType, EdgeViewConfig},
             grouping::GroupingConfig,
@@ -629,7 +629,7 @@ impl EdgeBuilder {
 
     /// Order-independent key for a pair of hosts, so an adjacency reported from either end
     /// collapses to one entry.
-    fn host_pair_key(a: Uuid, b: Uuid) -> (Uuid, Uuid) {
+    pub(crate) fn host_pair_key(a: Uuid, b: Uuid) -> (Uuid, Uuid) {
         if a < b { (a, b) } else { (b, a) }
     }
 
@@ -731,6 +731,63 @@ impl EdgeBuilder {
                 })
             })
             .collect()
+    }
+
+    /// Links a switch's forwarding table learned: a port that learned a known device's MAC, to the
+    /// device's port. Drawn as the same `PhysicalLink` LLDP/CDP links use, carrying
+    /// `ForwardingTable` as the evidence, since the device may sit further behind the port than a
+    /// cable away.
+    ///
+    /// The device's port is the interface carrying the MAC or holding the address that does. A
+    /// device with neither gets one minted by the forwarding-table pass, so until that pass runs it
+    /// has no link here. `joined_host_pairs` are pairs already linked by LLDP/CDP: that evidence is
+    /// stronger, so those are skipped.
+    pub fn create_forwarding_table_edges(
+        ctx: &TopologyContext,
+        joined_host_pairs: &HashSet<(Uuid, Uuid)>,
+    ) -> Vec<Edge> {
+        let mut processed_pairs: HashSet<(Uuid, Uuid)> = HashSet::new();
+        let mut ports: Vec<(&Uuid, &Vec<LearnedHost>)> = ctx.learned_by_port.iter().collect();
+        ports.sort_by_key(|(port_id, _)| **port_id);
+
+        let mut edges = Vec::new();
+        for (port_id, learned) in ports {
+            let Some(port) = ctx.get_interface_by_id(*port_id) else {
+                continue;
+            };
+            for device in learned {
+                let Some(target_port) = device
+                    .interface_ids
+                    .iter()
+                    .find_map(|id| ctx.get_interface_by_id(*id))
+                else {
+                    continue;
+                };
+                let pair_key = Self::host_pair_key(port.base.host_id, device.host_id);
+                if joined_host_pairs.contains(&pair_key) || !processed_pairs.insert(pair_key) {
+                    continue;
+                }
+                let endpoint_labels = [port.display_name(), target_port.display_name()];
+                edges.push(Edge {
+                    id: Uuid::new_v4(),
+                    source: port.id,
+                    target: target_port.id,
+                    edge_type: EdgeType::PhysicalLink {
+                        source_entity_id: port.id,
+                        target_entity_id: target_port.id,
+                        protocol: DiscoveryProtocol::ForwardingTable,
+                    },
+                    label: Some(endpoint_labels.join(" ↔ ")),
+                    endpoint_labels: Some(endpoint_labels),
+                    source_handle: EdgeHandle::Bottom,
+                    target_handle: EdgeHandle::Top,
+                    is_multi_hop: false,
+                    view_config: EdgeViewConfig::default(),
+                    relation_key: None,
+                });
+            }
+        }
+        edges
     }
 
     /// Add edges to a petgraph Graph

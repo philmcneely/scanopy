@@ -60,6 +60,10 @@ impl OrderField for VlanOrderField {
             Self::LastSeenAt => "vlans.last_seen_at",
         }
     }
+
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
+    }
 }
 
 // ============================================================================

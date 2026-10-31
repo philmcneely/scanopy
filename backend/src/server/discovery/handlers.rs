@@ -137,6 +137,10 @@ impl OrderField for DiscoveryOrderField {
         }
     }
 
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
+    }
+
     fn nulls_last(&self) -> bool {
         matches!(
             self,
@@ -330,7 +334,8 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .merge(super::bulk::create_router())
         // Internal daemon endpoints
         .routes(routes!(receive_discovery_update))
-        // SSE endpoint (internal - not well-supported by OpenAPI)
+        // SSE endpoint (internal - not well-supported by OpenAPI). Superseded by
+        // `/api/v1/live-updates/stream`; kept one release for API-key clients that read it.
         .route("/stream", get(discovery_stream))
 }
 
@@ -709,6 +714,8 @@ pub(super) async fn wake_daemon(state: &Arc<AppState>, daemon_id: Uuid) -> Resul
     Ok(())
 }
 
+/// Discovery progress only. Deprecated: the app reads `/api/v1/live-updates/stream`, which carries
+/// the same updates as `LiveUpdate::Discovery`. Remove in the next release.
 async fn discovery_stream(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Viewer>,

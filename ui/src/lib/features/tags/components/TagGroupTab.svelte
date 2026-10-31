@@ -13,11 +13,13 @@
 	} from '../queries';
 	import TagGroupEditModal from './TagGroupEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import type { TagGroup } from '../types/base';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
 	import { disabledWhen, type CardAction } from '$lib/shared/components/data/types';
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { permissions, billingPlans } from '$lib/shared/stores/metadata';
@@ -82,6 +84,7 @@
 	let pageGroups = $derived(groupsPageQuery.data?.items ?? []);
 	let groupsPagination = $derived(groupsPageQuery.data?.pagination ?? null);
 	let isLoading = $derived(groupsPageQuery.isPending && !groupsPageQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, groupsPageQuery));
 
 	let canManage = $derived(
 		!isReadOnly &&
@@ -168,7 +171,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else}
 		<DataControls

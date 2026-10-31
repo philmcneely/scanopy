@@ -236,7 +236,9 @@ pub(super) fn generate_subnets(
                 ),
                 subnet_type: SubnetTypeAttributed::unattributed(SubnetType::Lan),
                 virtualization_service_id: None,
-                source: EntitySource::Inferred,
+                source: EntitySource::Inferred {
+                    via: crate::server::shared::types::entities::InferredVia::ReportedAddress,
+                },
                 tags: vec![],
             },
         },

@@ -13,7 +13,7 @@
 		Network,
 		Sun,
 		Moon
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { pushError, pushSuccess } from '$lib/shared/stores/feedback';
 	import { activeView, hiddenEdgeTypes } from '../queries';
 	import type { RenderableTopology } from '../types/base';

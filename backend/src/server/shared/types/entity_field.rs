@@ -190,6 +190,10 @@ pub enum FieldFormat {
     /// An enum value, named through a metadata fixture.
     #[schema(title = "Metadata")]
     Metadata { fixture: MetadataFixture },
+    /// Where a value came from (an `AttributeSource`), named as the UI names sources elsewhere:
+    /// "SNMP", "Forwarding table".
+    #[schema(title = "AttributeSource")]
+    AttributeSource,
     /// A related entity. The UI links it; CSV writes its id; text-only outputs write its display
     /// field.
     #[schema(title = "Entity")]
@@ -234,6 +238,9 @@ pub struct EntityField {
     /// Whether one entity can hold several values: set by any `Children` or `Embedded` hop, and
     /// declared with [`EntityField::many`] for a key holding an array of ids or values.
     pub many: bool,
+    /// Matched by the topology search: a value that names or identifies the entity on the map
+    /// (a name, an address, a MAC, a port name, a vendor). The search reads only these.
+    pub searchable: bool,
 }
 
 /// Whether a path can reach several objects from one.
@@ -261,6 +268,15 @@ impl EntityField {
             source_field: None,
             summary: false,
             many: false,
+            searchable: false,
+        }
+    }
+
+    /// Matched by the topology search.
+    pub const fn searchable(self) -> Self {
+        EntityField {
+            searchable: true,
+            ..self
         }
     }
 

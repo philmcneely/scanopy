@@ -552,6 +552,43 @@ pub enum DiscoveryWarning {
         integration: CredentialIntegration,
     },
 
+    // ---- Proxmox VE guests -----------------------------------------------
+    /// A running guest at addresses no subnet this scan covers, on a shared network or one the
+    /// node's config doesn't list, so it was recorded without ports or services.
+    #[schema(title = "ProxmoxGuestOutsideScan")]
+    ProxmoxGuestOutsideScan {
+        /// The guest's first address.
+        #[schema(value_type = String)]
+        address: IpAddr,
+        /// Its Proxmox VE name, else its VMID.
+        guest: String,
+    },
+    /// A running guest on a bridge with no uplink that only its node holds an address on (a NAT'd
+    /// `vmbr1`), so only a daemon on that node reaches it.
+    #[schema(title = "ProxmoxGuestBehindNode")]
+    ProxmoxGuestBehindNode {
+        /// The guest's first address.
+        #[schema(value_type = String)]
+        address: IpAddr,
+        /// Its Proxmox VE name, else its VMID.
+        guest: String,
+        /// The node it runs on.
+        node: String,
+        /// The bridge its NIC is on.
+        bridge: String,
+    },
+    /// A running guest on a bridge with no uplink and no node address, so only a daemon on a guest
+    /// attached to that bridge reaches it.
+    #[schema(title = "ProxmoxGuestIsolated")]
+    ProxmoxGuestIsolated {
+        /// The guest's first address.
+        #[schema(value_type = String)]
+        address: IpAddr,
+        /// Its Proxmox VE name, else its VMID.
+        guest: String,
+        /// The bridge its NIC is on.
+        bridge: String,
+    },
     // ---- Scan-level ------------------------------------------------------
     /// Addresses on a routed subnet completed a TCP handshake and then answered nothing, so no
     /// host was recorded at any of them.
@@ -621,6 +658,8 @@ pub enum DiscoveryWarning {
     LldpPortAmbiguous(UnresolvedPort),
     /// A range was created from the addresses unplaceable far ends publish for themselves.
     ProvisionalSubnetInferred(ProvisionalSubnet),
+    /// A host is known only from another device's report and awaits confirmation.
+    UnconfirmedHostInferred(UnconfirmedHost),
     /// Link resolution ran out of its time budget, so this scan's links are incomplete.
     ///
     /// The pass runs on the completion request, which the daemon will abandon at its own timeout —
@@ -796,6 +835,25 @@ pub struct ProvisionalSubnet {
     pub widened_by_vlan: bool,
 }
 
+/// A host known only because another device reported it: an LLDP/CDP neighbour advertised it, or a
+/// switch learned its MAC. Reported on every scan until a person confirms, merges or dismisses it,
+/// or a scan reaches the device.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
+pub struct UnconfirmedHost {
+    /// The host, so the UI can open it. `None` once it has been deleted.
+    #[serde(default)]
+    #[schema(required)]
+    pub host_id: Option<Uuid>,
+    /// What reported it.
+    pub via: crate::server::shared::types::entities::InferredVia,
+    /// The identifier it is known by: a chassis id for a neighbour, a MAC for a learned device.
+    pub identifier: String,
+    /// The `sysName` a neighbour advertised for it, where it sent one.
+    #[serde(default)]
+    #[schema(required)]
+    pub sys_name: Option<String>,
+}
+
 /// A neighbour whose far-end host resolved but whose far-end *port* did not.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
 pub struct UnresolvedPort {
@@ -896,6 +954,9 @@ pub enum DiscoveryWarningCode {
     CredentialUnreachable,
     CredentialTimedOut,
     IntegrationWithoutCredential,
+    ProxmoxGuestOutsideScan,
+    ProxmoxGuestBehindNode,
+    ProxmoxGuestIsolated,
     ConnectionsWithoutProtocolResponse,
     ScanTimeLimitWithEstimate,
     ScanTimeLimit,
@@ -908,6 +969,7 @@ pub enum DiscoveryWarningCode {
     LldpPortNotFound,
     LldpPortAmbiguous,
     ProvisionalSubnetInferred,
+    UnconfirmedHostInferred,
     NeighbourResolutionIncomplete,
     FdbResolutionIncomplete,
     OutdatedDaemonFormat,
@@ -991,6 +1053,9 @@ impl DiscoveryWarning {
             Self::IntegrationWithoutCredential { .. } => {
                 DiscoveryWarningCode::IntegrationWithoutCredential
             }
+            Self::ProxmoxGuestOutsideScan { .. } => DiscoveryWarningCode::ProxmoxGuestOutsideScan,
+            Self::ProxmoxGuestBehindNode { .. } => DiscoveryWarningCode::ProxmoxGuestBehindNode,
+            Self::ProxmoxGuestIsolated { .. } => DiscoveryWarningCode::ProxmoxGuestIsolated,
             Self::ConnectionsWithoutProtocolResponse { .. } => {
                 DiscoveryWarningCode::ConnectionsWithoutProtocolResponse
             }
@@ -1007,6 +1072,7 @@ impl DiscoveryWarning {
             Self::LldpPortNotFound(_) => DiscoveryWarningCode::LldpPortNotFound,
             Self::LldpPortAmbiguous(_) => DiscoveryWarningCode::LldpPortAmbiguous,
             Self::ProvisionalSubnetInferred(_) => DiscoveryWarningCode::ProvisionalSubnetInferred,
+            Self::UnconfirmedHostInferred(_) => DiscoveryWarningCode::UnconfirmedHostInferred,
             Self::NeighbourResolutionIncomplete { .. } => {
                 DiscoveryWarningCode::NeighbourResolutionIncomplete
             }
@@ -1065,6 +1131,10 @@ impl DiscoveryWarning {
             | Self::CredentialUnreachable(a)
             | Self::CredentialTimedOut(a) => Some(a.integration),
 
+            Self::ProxmoxGuestOutsideScan { .. }
+            | Self::ProxmoxGuestBehindNode { .. }
+            | Self::ProxmoxGuestIsolated { .. } => Some(CredentialQueryPayloadDiscriminants::Proxmox),
+
             // Two integrations, and neither one produced it: the merge in the daemon pipeline did.
             // Naming either would count it against an integration that did nothing wrong.
             Self::EqualReachIntegrationsMerged { .. }
@@ -1085,6 +1155,7 @@ impl DiscoveryWarning {
             | Self::LldpPortNotFound(_)
             | Self::LldpPortAmbiguous(_)
             | Self::ProvisionalSubnetInferred(_)
+            | Self::UnconfirmedHostInferred(_)
             | Self::NeighbourResolutionIncomplete { .. }
             | Self::FdbResolutionIncomplete { .. }
             | Self::OutdatedDaemonFormat { .. }
@@ -1141,6 +1212,9 @@ impl DiscoveryWarning {
             Self::VlanRecordingFailed { .. }
             | Self::EqualReachIntegrationsMerged { .. }
             | Self::IntegrationWithoutCredential { .. }
+            | Self::ProxmoxGuestOutsideScan { .. }
+            | Self::ProxmoxGuestBehindNode { .. }
+            | Self::ProxmoxGuestIsolated { .. }
             | Self::ConnectionsWithoutProtocolResponse { .. }
             | Self::ScanTimeLimitWithEstimate { .. }
             | Self::ScanTimeLimit { .. }
@@ -1153,6 +1227,7 @@ impl DiscoveryWarning {
             | Self::LldpPortNotFound(_)
             | Self::LldpPortAmbiguous(_)
             | Self::ProvisionalSubnetInferred(_)
+            | Self::UnconfirmedHostInferred(_)
             | Self::NeighbourResolutionIncomplete { .. }
             | Self::FdbResolutionIncomplete { .. }
             | Self::OutdatedDaemonFormat { .. }

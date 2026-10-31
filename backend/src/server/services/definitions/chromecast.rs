@@ -2,6 +2,7 @@ use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{DnsSdServiceType, Pattern, Vendor};
 use crate::server::shared::logos::Logo;
@@ -21,8 +22,8 @@ impl ServiceDefinition for ChromecastDevice {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::IoT
     }
-    fn device_type(&self) -> Option<DeviceType> {
-        Some(DeviceType::MediaPlayer)
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Is(DeviceType::MediaPlayer)
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
@@ -46,8 +47,8 @@ impl ServiceDefinition for ChromecastDevice {
                     Pattern::Port(PortType::new_tcp(8009)),
                 ]),
                 Pattern::CertificateIssuer(CAST_DEVICE_CA, CAST_DEVICE_PORTS),
-            ])
-            .also_binding(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS)),
+            ]),
+            Pattern::Optional(Box::new(Pattern::CertificateIssuer(CAST_CA, CAST_PORTS))),
         ])
     }
 

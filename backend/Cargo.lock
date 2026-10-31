@@ -4352,9 +4352,9 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
 name = "lucide-icons"
-version = "0.562.0"
+version = "1.65.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db8acecc97d96f9f8e70ae6fed025b6d962d8c88d85bdbcf16916e9f7ad23e0f"
+checksum = "328eb553849e3a9d25e7efc2e04c4abcb85080d4996a2a90ebb565d6f50e5c51"
 dependencies = [
  "serde",
 ]
@@ -7279,7 +7279,7 @@ checksum = "ece8e78b2f38ec51c51f5d475df0a7187ba5111b2a28bdc761ee05b075d40a71"
 
 [[package]]
 name = "scanopy-server"
-version = "0.19.3"
+version = "0.19.5"
 dependencies = [
  "anstyle-query",
  "anyhow",
@@ -7353,6 +7353,7 @@ dependencies = [
  "lucide-icons",
  "mac_address",
  "mailchecker",
+ "md-5 0.10.6",
  "metrics",
  "metrics-exporter-prometheus",
  "mime_guess",

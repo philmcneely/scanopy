@@ -236,6 +236,7 @@ fn parse_identity(pdu: &[u8]) -> Option<DeviceIdentity> {
     // protocol — the strongest reading there is for these fields.
     let source = AttributeSource::Probe(ClientProbe::ModbusTcp);
     Some(DeviceIdentity {
+        matched: None,
         manufacturer: identity_field(vendor_name, source),
         model: identity_field(product_code, source),
         serial_number: None,
@@ -300,6 +301,7 @@ mod tests {
         assert_eq!(
             reply,
             ModbusReply::Identity(DeviceIdentity {
+                matched: None,
                 manufacturer: identity_field(Some("Schneider Electric".to_string()), MODBUS),
                 model: identity_field(Some("BMXP342020".to_string()), MODBUS),
                 serial_number: None,
@@ -359,6 +361,7 @@ mod tests {
         assert_eq!(
             reply,
             ModbusReply::Identity(DeviceIdentity {
+                matched: None,
                 manufacturer: identity_field(Some("Schneider Electric".to_string()), MODBUS),
                 model: None,
                 serial_number: None,

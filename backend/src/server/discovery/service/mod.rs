@@ -279,6 +279,7 @@ mod bulk;
 mod cleanup;
 mod discovery_crud;
 mod dispatch;
+mod history;
 mod lifecycle;
 mod scheduling;
 mod sessions;

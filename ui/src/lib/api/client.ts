@@ -13,10 +13,15 @@ import type { ErrorCode } from '$lib/generated/error-codes';
 import {
 	common_httpError,
 	common_requestTimedOut,
-	common_requestUnreachable,
 	common_requestUnconfirmed
 } from '$lib/paraglide/messages';
 import { env } from '$env/dynamic/public';
+import {
+	isUnreachableResponse,
+	reportAnswered,
+	reportUnreachable,
+	setProbeOrigin
+} from './server-reachability';
 
 // Re-export schema types for convenience
 export type { paths, components };
@@ -416,9 +421,17 @@ const SETTINGS_LOCK_CODES = new Set<string>([
 	'billing_plan_required'
 ] satisfies ErrorCode[]);
 const AUTH_TERMS_ACCEPTANCE_REQUIRED: ErrorCode = 'auth_terms_acceptance_required';
+export const AUTH_EMAIL_VERIFICATION_REQUIRED: ErrorCode = 'auth_email_verification_required';
 
 const errorMiddleware: Middleware = {
-	async onResponse({ response }) {
+	async onResponse({ request, response }) {
+		// Something answered for a server that is down or restarting. A banner shows until the
+		// server answers again, and the app then refetches by itself (server-reachability.ts).
+		if (isUnreachableResponse(response)) {
+			reportUnreachable();
+			return response;
+		}
+		reportAnswered();
 		if (!response.ok) {
 			// Don't show error toasts for 401 (expected when not logged in)
 			if (response.status === 401) {
@@ -447,6 +460,15 @@ const errorMiddleware: Middleware = {
 					queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
 					return response;
 				}
+				// Unverified: refetching the current user brings up the verification step
+				// when the session gate is what refused (an org on a license plan). A refused
+				// read is always that gate, a background request behind the step, so it stays
+				// quiet; a refused action (an invite, an API key) still says why.
+				if (errorData.code === AUTH_EMAIL_VERIFICATION_REQUIRED) {
+					const { queryClient, queryKeys } = await import('./query-client');
+					queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
+					if (request.method === 'GET') return response;
+				}
 				pushError(translateError(errorData));
 			} catch {
 				pushError(common_httpError({ status: response.status, statusText: response.statusText }));
@@ -466,10 +488,12 @@ const errorMiddleware: Middleware = {
 	onError({ error }) {
 		// Already reported where the timeout was detected, with wording that depends on the method.
 		if (error instanceof RequestTimeoutError) return;
+		// The caller gave up on the request (a query whose key changed); nothing failed.
+		if (error instanceof DOMException && error.name === 'AbortError') return;
 		// Everything still here is a rejected fetch — no connection, DNS, CORS — where the browser's
 		// own message ("Failed to fetch") is neither translated nor useful. The cause is the same
-		// whichever it is: the request never reached the server.
-		pushError(common_requestUnreachable());
+		// whichever it is: the request never reached the server, which the unreachable banner reports.
+		reportUnreachable();
 	}
 };
 
@@ -487,6 +511,8 @@ export const apiClient = createClient<paths>({
 	},
 	fetch: rateLimitedFetch
 });
+
+setProbeOrigin(getServerUrl());
 
 // Add middleware (rate limiting and timeouts handled by custom fetch wrapper above)
 apiClient.use(timeoutMiddleware);

@@ -44,6 +44,7 @@ use crate::server::shared::events::traits::{Event, OrgScope, Subscriber};
 use crate::server::shared::events::types::BillingOperation;
 use crate::server::shared::services::traits::CrudService;
 use crate::server::shared::types::api::ApiJson;
+use crate::server::shared::types::error_codes::ErrorCode;
 use crate::server::users::r#impl::permissions::UserOrgPermissions;
 
 /// App state on a fresh database, billing enforced, signing with the test key.
@@ -422,6 +423,52 @@ async fn entitlement_endpoint_accepts_current_keys_and_rejects_the_rest() {
     );
 }
 
+/// A server still running the key of an org that moved to a cloud plan is
+/// refused with a code, and the refused check-in leaves no record: no check-in
+/// time, no instance row.
+#[tokio::test]
+async fn a_cloud_plan_check_in_is_refused_and_not_recorded() {
+    let (state, _container) = test_state().await;
+    let issuer = state.license_issuer.clone().unwrap();
+    let org = create_org(
+        &state,
+        get_self_hosted_standard_plan(),
+        Some(whole_seconds_from_now(30)),
+    )
+    .await;
+    let key = issuer.mint_online_key(&org, Utc::now()).unwrap();
+    set_plan(&state, org.id, get_free_plan()).await;
+
+    let error = get_entitlement(
+        State(state.clone()),
+        ClientIp("203.0.113.7".parse().unwrap()),
+        HeaderMap::new(),
+        ApiJson(EntitlementRequest {
+            key,
+            instance_id: Some(Uuid::new_v4()),
+            non_production: None,
+        }),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.status, StatusCode::FORBIDDEN);
+    assert!(matches!(
+        error.error_code,
+        Some(ErrorCode::LicensePlanHasNoKey)
+    ));
+
+    assert_eq!(reload(&state, org.id).await.base.license_checkin_at, None);
+    assert!(
+        state
+            .services
+            .license_instance_service
+            .list(org.id)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+
 async fn get_status(addr: SocketAddr, path: &str) -> (u16, String) {
     let response = reqwest::get(format!("http://{addr}{path}")).await.unwrap();
     (response.status().as_u16(), response.text().await.unwrap())
@@ -592,7 +639,6 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
             get(|| async { "ok" }).post(|| async { "ok" }),
         )
         .route("/api/v1/topologies/data", get(|| async { "ok" }))
-        .route("/api/v1/topologies/stream", get(|| async { "ok" }))
         .route("/api/v1/topologies/export/csv", get(|| async { "ok" }))
         .route("/api/v1/snapshots", get(|| async { "ok" }))
         .layer(middleware::from_fn_with_state(
@@ -622,11 +668,7 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     );
     // The diagram the app draws behind its plan prompt.
     assert_eq!(get_status(addr, "/api/v1/topologies/data").await.0, 200);
-    for path in [
-        "/api/v1/topologies/stream",
-        "/api/v1/topologies/export/csv",
-        "/api/v1/snapshots",
-    ] {
+    for path in ["/api/v1/topologies/export/csv", "/api/v1/snapshots"] {
         let (status, body) = get_status(addr, path).await;
         assert_eq!(status, 402, "{path}");
         assert!(body.contains("billing_feature_not_available"), "{body}");
@@ -635,7 +677,10 @@ async fn billing_middleware_keeps_free_out_of_the_topology_view() {
     // A plan with the topology view opens the rest.
     set_plan(&state, org.id, pro_plan()).await;
     set_plan_status(&state, org.id, Some(PlanStatus::Trialing)).await;
-    assert_eq!(get_status(addr, "/api/v1/topologies/stream").await.0, 200);
+    assert_eq!(
+        get_status(addr, "/api/v1/topologies/export/csv").await.0,
+        200
+    );
 }
 
 #[tokio::test]

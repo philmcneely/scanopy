@@ -843,6 +843,38 @@ pub struct UpdateHostRequest {
     #[serde(default)]
     pub expected_updated_at: Option<DateTime<Utc>>,
 
+    // Device facts a person can type for a device no scan identified. For each: omitted leaves
+    // the stored value, blank clears it, and a changed value is recorded as typed by a person,
+    // which no later scan replaces.
+    /// Hardware manufacturer, such as "Hirschmann".
+    #[serde(default)]
+    pub manufacturer: Option<String>,
+    /// Hardware model.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Hardware serial number.
+    #[serde(default)]
+    pub serial_number: Option<String>,
+    /// Asset tag.
+    #[serde(default)]
+    pub asset_tag: Option<String>,
+    /// Physical location.
+    #[serde(default)]
+    pub sys_location: Option<String>,
+    /// Administrative contact.
+    #[serde(default)]
+    pub sys_contact: Option<String>,
+    /// Link to the host's own management interface.
+    #[serde(default)]
+    pub management_url: Option<String>,
+    /// Operating system. Omitted leaves the stored one.
+    #[serde(default)]
+    pub os: Option<crate::server::hosts::r#impl::os::HostOs>,
+    /// What the device is. Omitted leaves the stored one; `Unidentified` hands the device type
+    /// back to discovery.
+    #[serde(default)]
+    pub device_type: Option<crate::server::hosts::r#impl::device_type::DeviceType>,
+
     /// Interfaces to sync with this host.
     /// If Some, server will create/update/delete to match this list.
     /// If None, existing ip_addresses are preserved.
@@ -928,11 +960,17 @@ pub struct HostResponse {
     #[schema(read_only)]
     pub name_ladder: Vec<crate::server::hosts::r#impl::name_ladder::HostNameLadderEntry>,
     /// What this host is, as a device: the role its icon shows everywhere it appears. Computed
-    /// by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+    /// by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+    /// vendor, as the topology computes it.
     /// Read-only.
     #[serde(default)]
     #[schema(read_only)]
     pub device_type: crate::server::hosts::r#impl::device_type::DeviceType,
+    /// Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+    /// fingerprint match with its source, or a field the type is derived from. Read-only.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub device_type_source: crate::server::hosts::r#impl::device_type::HostDeviceTypeSource,
     /// What produced `name`. Read-only: it is decided by whoever supplied the name, not by the
     /// caller.
     #[serde(default)]
@@ -951,6 +989,21 @@ pub struct HostResponse {
     pub description: Option<String>,
     /// How this host came to be known — discovered, imported, or created by hand.
     pub source: EntitySource,
+    /// When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub dismissed_at: Option<DateTime<Utc>>,
+    /// For an unconfirmed host, the hosts whose report it is known from: the switch whose
+    /// forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+    /// host. Read-only.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub reported_by_host_ids: Vec<Uuid>,
+    /// For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+    /// one no scan reported. Read-only.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub found_by_discovery_id: Option<Uuid>,
     /// How the host is virtualized, when it is a VM or container guest.
     #[serde(
         default,

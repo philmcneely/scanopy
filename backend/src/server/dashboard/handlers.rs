@@ -72,7 +72,7 @@ async fn get_dashboard_summary(
             host_count: state
                 .services
                 .host_service
-                .count_for_sites(&ids)
+                .confirmed_count_for_sites(&ids)
                 .await
                 .map_err(map_err)?,
             service_count: state
@@ -149,7 +149,7 @@ async fn get_dashboard_summary(
     let host_count = state
         .services
         .host_service
-        .count_for_sites(&site_ids)
+        .confirmed_count_for_sites(&site_ids)
         .await
         .map_err(|e| ApiError::internal_error(&e.to_string()))?;
     let seat_count = state
@@ -207,6 +207,19 @@ async fn get_dashboard_summary(
         })
         .collect();
 
+    let unconfirmed_host_count = state
+        .services
+        .host_service
+        .unconfirmed_count_for_sites(&site_ids)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+    let unconfirmed_subnet_count = state
+        .services
+        .subnet_service
+        .unconfirmed_count_for_sites(&site_ids)
+        .await
+        .map_err(|e| ApiError::internal_error(&e.to_string()))?;
+
     let plan_usage = PlanUsage {
         host_limit,
         host_count,
@@ -223,6 +236,8 @@ async fn get_dashboard_summary(
         plan_usage,
         uncovered_integrations,
         targetless_credentials,
+        unconfirmed_host_count,
+        unconfirmed_subnet_count,
     })))
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { components } from '$lib/api/schema';
-	import { Check, ChevronDown, Circle, Info, Loader2 } from 'lucide-svelte';
+	import { Check, ChevronDown, Circle, Info, Loader2 } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import {
 		CHECKLIST_STEPS,

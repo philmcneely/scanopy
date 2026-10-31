@@ -6,7 +6,7 @@ use crate::server::{
     bindings::r#impl::base::{Binding, BindingBase, BindingType},
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             snapshot::{DiscoveryTracked, FkMaps, Snapshotable},
             traits::{Entity, SqlValue, Storable},
@@ -240,8 +240,8 @@ impl Entity for Binding {
     const ENTITY_NAME_PLURAL: &'static str = "Bindings";
     const ENTITY_DESCRIPTION: &'static str = "Service bindings linking services to IP addresses and/or ports. Defines where a service is accessible.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {

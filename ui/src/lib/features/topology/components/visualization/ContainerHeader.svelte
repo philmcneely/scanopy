@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Search } from 'lucide-svelte';
+	import { Search } from '@lucide/svelte';
 	// ChevronDown / ChevronRight replaced by the CSS `.caret` below — see the note on that rule.
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import HiddenTagsChip from '$lib/shared/components/forms/selection/HiddenTagsChip.svelte';
@@ -17,6 +17,8 @@
 	import DeviceGlyph from '$lib/features/hosts/components/DeviceGlyph.svelte';
 	import SoftwareGlyph from './SoftwareGlyph.svelte';
 	import {
+		common_collapse,
+		common_expand,
 		topology_elementCount,
 		topology_ungroupedCount,
 		topology_searchContainerMatches
@@ -60,7 +62,9 @@
 		searchMatchCount = 0,
 		searchHighlightRingStyle = '',
 		staleTag = null,
-		tooltip = null
+		tooltip = null,
+		entityColor = null,
+		chipIcon = null
 	}: {
 		isCollapsed: boolean;
 		isCollapsible: boolean;
@@ -93,6 +97,10 @@
 		staleTag?: TagProps | null;
 		/** Hover text for the container's name: the entity it stands for, or what the group holds. */
 		tooltip?: TooltipContent | null;
+		/** The colour of the entity a subcontainer stands for, which draws its title as that entity's pill. Null for a grouping. */
+		entityColor?: Color | null;
+		/** The chip icon of the entity the container stands for, as `EntityTag` draws it. */
+		chipIcon?: IconComponent | null;
 	} = $props();
 
 	let subgroupTotal = $derived(subgroupSummaries.reduce((sum, s) => sum + s.childCount, 0));
@@ -200,22 +208,120 @@
 	</div>
 {/if}
 
-{#if variant === 'external'}
-	<!-- External title pill: card above container -->
-	<div
-		class="nopan nodrag card absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 px-2 py-1 text-secondary shadow-lg backdrop-blur-xs"
-		style:top="-{EXTERNAL_TITLE_OFFSET}px"
-		role="button"
-		tabindex={-1}
+<!-- The chevron collapses; the rest of the title chip selects the container (through the flow's node
+     click, which only selects a container when the click lands in `data-container-title`). -->
+{#snippet collapseToggle(hitArea: string)}
+	<button
+		type="button"
+		class="flex shrink-0 items-center self-stretch transition-colors hover:bg-black/5 dark:hover:bg-white/10 {hitArea}"
+		aria-expanded={!isCollapsed}
+		aria-label={isCollapsed ? common_expand() : common_collapse()}
 		onclick={onToggleCollapse}
-		onkeydown={(e) => {
-			if (e.key === 'Enter' || e.key === ' ') onToggleCollapse(e);
-		}}
+		onpointerdown={(e) => e.stopPropagation()}
+	>
+		<span class="caret" class:caret-collapsed={isCollapsed}></span>
+	</button>
+{/snippet}
+
+<!-- The status of the entity the container stands for (Unconfirmed, Stale) as an icon badge after
+     its title, outside the title's pill. The tooltip says which and why. -->
+{#snippet statusBadge()}
+	{#if staleTag}
+		<span data-fixed class="flex shrink-0"><Tag {...staleTag} label={undefined} pill /></span>
+	{/if}
+{/snippet}
+
+{#snippet pillToggle()}
+	{@render collapseToggle('-my-0.5 rounded-l-full py-0.5 pr-0.5 pl-2')}
+{/snippet}
+
+<!-- The title of a container standing for an entity (a subnet, a host, a VLAN, a hypervisor): the
+     same chip as any other reference to that entity (`Tag`, its chip icon and colour), with the
+     two things a container adds: the chevron filling its rounded left end, and a click that opens
+     the inspector. -->
+{#snippet entityPill(suffix: string)}
+	<!-- The tooltip goes to the Tag itself: a hover finds the nearest tooltip source, which is the
+	     Tag's own, so one set on this wrapper would never show. -->
+	<span data-fixed data-container-title class="flex min-w-0 shrink cursor-pointer">
+		<Tag
+			pill
+			color={entityColor}
+			icon={chipIcon}
+			label={`${headerText}${suffix}`}
+			title={tooltip}
+			leading={isCollapsible ? pillToggle : undefined}
+		/>
+	</span>
+{/snippet}
+
+<!-- A subcontainer's title, which selects the subcontainer: an entity's chip, or for a grouping (a
+     stack, a tag) a plain title. `withIcon` draws a grouping's type icon, which a collapsed box
+     shows in place of its children. -->
+{#snippet subcontainerTitle(hasLabels: boolean, withIcon = false)}
+	{#if entityColor}
+		{@render entityPill(hasLabels ? ':' : '')}
+	{:else}
+		<span
+			data-fixed
+			data-container-title
+			class="flex min-w-0 shrink cursor-pointer items-center gap-1 text-xs font-medium text-tertiary"
+			use:tooltipAction={{ content: tooltip }}
+		>
+			{#if isCollapsible}
+				{@render collapseToggle('rounded-sm px-0.5 text-secondary')}
+			{/if}
+			{#if deviceType}
+				<DeviceGlyph {deviceType} />
+			{:else if withIcon && iconComponent}
+				{@const IconComp = iconComponent}
+				<IconComp
+					class={`h-3.5 w-3.5 shrink-0 ${colorHelper.icon}`}
+					fill={fillIcon ? 'currentColor' : 'none'}
+				/>
+			{/if}
+			{#if logoDefinition}
+				<SoftwareGlyph definition={logoDefinition} framed={false} />
+			{/if}
+			{#if headerText}
+				<span data-entity-header class="min-w-0 truncate whitespace-nowrap">
+					{headerText}{hasLabels ? ':' : ''}
+				</span>
+			{/if}
+		</span>
+	{/if}
+	{@render statusBadge()}
+{/snippet}
+
+{#if variant === 'external' && entityColor}
+	<!-- External title above a container standing for an entity: its chip, then its status badge,
+	     sitting just above the box's top edge whatever the chip's height. The pointer handlers only
+	     keep a press on the title from panning the canvas. -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="nopan nodrag absolute bottom-full left-0 z-100 mb-2 flex max-w-full items-center gap-1"
+		onmousedown={(e) => e.stopPropagation()}
+		onpointerdown={(e) => e.stopPropagation()}
+	>
+		{@render entityPill('')}
+		{@render statusBadge()}
+	</div>
+{:else if variant === 'external'}
+	<!-- External title pill above a grouping container. Its pointer handlers only keep a press on
+	     the pill from panning the canvas. -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		data-container-title
+		class="nopan nodrag card absolute left-0 z-100 flex max-w-full cursor-pointer items-center gap-1 py-1 pr-2 text-secondary shadow-lg backdrop-blur-xs {isCollapsible
+			? 'pl-0'
+			: 'pl-2'}"
+		style:top="-{EXTERNAL_TITLE_OFFSET}px"
+		use:tooltipAction={{ content: tooltip }}
 		onmousedown={(e) => e.stopPropagation()}
 		onpointerdown={(e) => e.stopPropagation()}
 	>
 		{#if isCollapsible}
-			<span class="caret text-secondary" class:caret-collapsed={isCollapsed}></span>
+			<!-- Fills the pill's left end, so the whole rounded end collapses it. -->
+			{@render collapseToggle('-my-1 rounded-l-[inherit] py-1 pr-1 pl-2 text-secondary')}
 		{/if}
 
 		{#if deviceType}
@@ -228,46 +334,20 @@
 		{/if}
 
 		{#if headerText}
-			<span
-				data-entity-header
-				class="text-s min-w-0 truncate font-medium text-secondary"
-				use:tooltipAction={{ content: tooltip }}
-			>
+			<span data-entity-header class="text-s min-w-0 truncate font-medium text-secondary">
 				{headerText}
 			</span>
 		{/if}
-
-		{#if staleTag}
-			<Tag {...staleTag} pill />
-		{/if}
 	</div>
 {:else if variant === 'inline'}
-	<!-- Inline header: inside container top padding -->
+	<!-- Inline header: the title inside the container's top padding, then the group's labels. Above
+	     the container's body, which is drawn after it and would otherwise take its clicks. -->
 	<div
 		bind:this={inlineContainerEl}
-		class="nopan nodrag absolute top-2 right-2 left-2 flex items-center gap-1 overflow-hidden rounded-t px-2 py-0.5 text-secondary"
+		class="nopan nodrag absolute top-2 right-2 left-2 z-10 flex items-center gap-1 overflow-hidden py-0.5 text-secondary"
 	>
-		{#if isCollapsible}
-			<span data-fixed class="flex items-center"><span class="caret text-secondary"></span></span>
-		{/if}
-		{#if deviceType}
-			<span data-fixed><DeviceGlyph {deviceType} /></span>
-		{/if}
-		{#if logoDefinition}
-			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
-		{/if}
-		{#if headerText}
-			<span
-				data-fixed
-				data-entity-header
-				class="min-w-0 truncate text-xs font-medium text-tertiary"
-				use:tooltipAction={{ content: tooltip }}
-			>
-				{headerText}{groupLabels.length > 0 ? ':' : ''}
-			</span>
-		{/if}
-		{#if staleTag}
-			<span data-fixed class="shrink-0"><Tag {...staleTag} pill /></span>
+		{#if isCollapsible || deviceType || logoDefinition || headerText}
+			{@render subcontainerTitle(groupLabels.length > 0)}
 		{/if}
 		{#each visibleLabels as pill (pill.label)}
 			<Tag label={pill.label} color={pill.color} title={pill.title ?? ''} />
@@ -277,47 +357,13 @@
 		{/if}
 	</div>
 {:else if variant === 'collapsed-sub'}
-	<!-- Collapsed subcontainer: compact inline with dashed border -->
+	<!-- Collapsed subcontainer: compact inline with dashed border, its title chip leading -->
 	<div
 		bind:this={inlineContainerEl}
-		class="nopan nodrag flex cursor-pointer items-center gap-1 overflow-hidden rounded-lg border border-dashed border-gray-300 px-3 py-2 dark:border-gray-600"
+		class="nopan nodrag flex items-center gap-1 overflow-hidden rounded-lg border border-dashed border-gray-300 px-3 py-2 dark:border-gray-600"
 		style="background: var(--color-topology-subgroup-bg); transition: box-shadow 0.15s ease-in-out; {searchHighlightRingStyle}"
-		role="button"
-		tabindex={-1}
-		onclick={onToggleCollapse}
-		onkeydown={(e) => {
-			if (e.key === 'Enter' || e.key === ' ') onToggleCollapse(e);
-		}}
 	>
-		{#if isCollapsible}
-			<span data-fixed class="flex items-center"
-				><span class="caret caret-collapsed text-secondary"></span></span
-			>
-		{/if}
-		{#if deviceType}
-			<span data-fixed><DeviceGlyph {deviceType} /></span>
-		{:else if iconComponent}
-			{@const IconComp = iconComponent}
-			<span data-fixed
-				><IconComp
-					class={`h-3.5 w-3.5 shrink-0 ${colorHelper.icon}`}
-					fill={fillIcon ? 'currentColor' : 'none'}
-				/></span
-			>
-		{/if}
-		{#if logoDefinition}
-			<span data-fixed><SoftwareGlyph definition={logoDefinition} framed={false} /></span>
-		{/if}
-		{#if headerText}
-			<span
-				data-fixed
-				data-entity-header
-				class="text-xs font-medium whitespace-nowrap text-tertiary"
-				use:tooltipAction={{ content: tooltip }}
-			>
-				{headerText}{groupLabels.length > 0 ? ':' : ''}
-			</span>
-		{/if}
+		{@render subcontainerTitle(groupLabels.length > 0, true)}
 		{#each visibleLabels.slice(0, 2) as pill (pill.label)}
 			<Tag label={pill.label} color={pill.color} title={pill.title ?? ''} />
 		{/each}

@@ -261,6 +261,24 @@ impl ViewElementConfig {
         }
     }
 
+    /// Add a Confirmation filter for each entity in `CONFIRMATION_FILTERED_ENTITIES` the view draws,
+    /// in whatever role, the way `add_staleness_filters` does for staleness.
+    fn add_confirmation_filters(&mut self) {
+        let drawn = self.drawn_entities();
+        for entity in CONFIRMATION_FILTERED_ENTITIES {
+            if !drawn.contains(&entity) {
+                continue;
+            }
+            self.metadata_filters.push(MetadataFilter {
+                filter_type: MetadataFilterType::Confirmation,
+                entities: vec![entity],
+                label: "By confirmation".to_string(),
+                values: filter_values_from_enum::<ConfirmationFilterValue>(),
+                applies: FilterApplication::Client,
+            });
+        }
+    }
+
     /// The filters that read and hide `entity`.
     pub fn filters_for(
         &self,
@@ -338,6 +356,10 @@ pub enum MetadataFilterType {
     /// Declared on Host and Service in Workloads, and on Service in Application, where it is the
     /// status dot on an icon card.
     GuestState,
+    /// Whether the entity is confirmed or known only from another device's report. Declared on
+    /// Host and Subnet in every view that draws them; computed in the browser from the source's
+    /// `unconfirmed` flag, as Staleness is computed there, since subnets carry no filter values.
+    Confirmation,
 }
 
 impl HasId for MetadataFilterType {
@@ -345,6 +367,53 @@ impl HasId for MetadataFilterType {
         self.into()
     }
 }
+
+/// The two values of the Confirmation filter. The verdict itself is
+/// [`EntitySource::confirmation`](crate::server::shared::types::entities::EntitySource::confirmation);
+/// this only names its two outcomes for the filter chips.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum ConfirmationFilterValue {
+    Confirmed,
+    Unconfirmed,
+}
+
+impl HasId for ConfirmationFilterValue {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
+impl EntityMetadataProvider for ConfirmationFilterValue {
+    fn color(&self) -> Color {
+        match self {
+            Self::Confirmed => Color::Green,
+            // The Inferred source's colour: an unconfirmed entity is exactly an inferred one.
+            Self::Unconfirmed => Color::Violet,
+        }
+    }
+
+    fn icon(&self) -> Icon {
+        match self {
+            Self::Confirmed => Icon::CircleCheck,
+            Self::Unconfirmed => Icon::CircleDashedCheck,
+        }
+    }
+}
+
+impl TypeMetadataProvider for ConfirmationFilterValue {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Confirmed => "Confirmed",
+            Self::Unconfirmed => "Unconfirmed",
+        }
+    }
+}
+
+/// Entities that can be unconfirmed, and so carry the Confirmation filter wherever a view draws
+/// them.
+const CONFIRMATION_FILTERED_ENTITIES: [EntityDiscriminants; 2] =
+    [EntityDiscriminants::Host, EntityDiscriminants::Subnet];
 
 /// Where a filter is applied — and therefore what toggling it costs.
 ///
@@ -464,6 +533,13 @@ pub struct FilterValueContext {
     /// The successor to reading `Interface.neighbor.is_some()` directly, now that a port's
     /// resolved adjacencies live in a separate `Vec` rather than a scalar field on the interface.
     pub interfaces_with_neighbours: HashSet<Uuid>,
+    /// Interfaces whose forwarding table learned a known host's MAC (`fdb::learned_hosts`). A
+    /// device is reached through the port even where no LLDP/CDP or single-MAC link was resolved,
+    /// so the port counts as linked.
+    pub interfaces_learning_known_hosts: HashSet<Uuid>,
+    /// Interfaces a port's forwarding table reached (`fdb::learned_interfaces`): the far end of a
+    /// learned link, linked the way a port a neighbour row names is.
+    pub interfaces_learned_by_ports: HashSet<Uuid>,
 }
 
 /// Entities that can surface metadata filter values. Returns the stable
@@ -804,6 +880,7 @@ impl TopologyView {
     pub fn element_config(&self) -> ViewElementConfig {
         let mut config = self.base_element_config();
         config.add_staleness_filters();
+        config.add_confirmation_filters();
         config.default_hidden_values = self.default_hidden_values();
         config.element_marks = self.element_marks(&config);
         config

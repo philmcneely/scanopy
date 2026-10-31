@@ -19,7 +19,7 @@ use crate::server::{
     auth::{
         middleware::{
             auth::AuthenticatedEntity,
-            features::{RequireFeature, ShareViewsFeature},
+            features::{RequireFeature, SharingFeature},
             permissions::{Authorized, Member, RequireVerified},
         },
         service::hash_password,
@@ -137,7 +137,7 @@ pub fn create_public_router() -> OpenApiRouter<Arc<AppState>> {
 )]
 async fn create_share(
     State(state): State<Arc<AppState>>,
-    _feature: RequireFeature<ShareViewsFeature>,
+    _feature: RequireFeature<SharingFeature>,
     auth: Authorized<RequireVerified<Member>>,
     ApiJson(CreateUpdateShareRequest { mut share }): ApiJson<CreateUpdateShareRequest>,
 ) -> ApiResult<Json<ApiResponse<Share>>> {
@@ -415,12 +415,12 @@ async fn get_share_topology(
     // Get org's plan to check embed feature and export permissions
     let plan = get_share_org_plan(&state, &share).await?;
     let plan_features = plan.features();
-    let has_embeds_feature = plan_features.embeds;
+    let has_sharing_feature = plan_features.sharing;
 
-    // If requesting embed mode, check if org has embeds feature
-    if query.embed && !has_embeds_feature {
+    // Embed mode needs a plan with sharing
+    if query.embed && !has_sharing_feature {
         return Err(ApiError::payment_required(
-            "Embed access requires a plan with embeds feature",
+            "Embed access requires a plan with sharing",
         ));
     }
 
@@ -583,11 +583,11 @@ pub async fn share_html_handler(
 
     let frame_ancestors = match state.services.share_service.get_by_id(&id).await {
         Ok(Some(share)) => {
-            let has_embeds_feature = get_share_org_plan(&state, &share)
+            let has_sharing_feature = get_share_org_plan(&state, &share)
                 .await
-                .map(|p| p.features().embeds)
+                .map(|p| p.features().sharing)
                 .unwrap_or(false);
-            build_frame_ancestors(&share, has_embeds_feature)
+            build_frame_ancestors(&share, has_sharing_feature)
         }
         _ => "frame-ancestors 'none'".to_string(),
     };

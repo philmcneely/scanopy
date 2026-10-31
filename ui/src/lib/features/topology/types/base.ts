@@ -51,6 +51,8 @@ export type FilteredOutCounts = Record<string, Record<string, number>>;
 export interface RenderableTopology extends Topology {
 	nodes: TopologyNode[];
 	edges: TopologyEdge[];
+	/** For this view, node id → the entity ids the node also stands for (the search reads it). */
+	node_entities: Record<string, string[]>;
 	hosts: TopologyHost[];
 	services: TopologyService[];
 	subnets: Subnet[];
@@ -66,6 +68,8 @@ export interface RenderableTopology extends Topology {
 	 * only record that they exist at all.
 	 */
 	filtered_out: FilteredOutCounts;
+	/** For this view, how many entities of each type a Visibility tag left out that it would draw. */
+	hidden_by_tag: Partial<Record<string, number>>;
 	dependencies: Dependency[];
 	vlans: Vlan[];
 	entity_tags: Tag[];

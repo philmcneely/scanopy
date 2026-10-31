@@ -229,6 +229,60 @@ mod tests {
         }
     }
 
+    // The SQL predicate and `EntitySource::confirmation` are two copies of one rule. Every source
+    // the verdict calls unconfirmed must be the tag the predicate names, and no other.
+    #[test]
+    fn unconfirmed_filter_agrees_with_the_confirmation_verdict() {
+        use crate::server::services::r#impl::patterns::MatchDetails;
+        use crate::server::shared::types::entities::{EntitySource, InferredVia};
+        let clause = StorableFilter::<Host>::new_unfiltered()
+            .unconfirmed(true)
+            .to_where_clause();
+        for discriminant in EntitySourceDiscriminants::iter() {
+            let source = match discriminant {
+                EntitySourceDiscriminants::Manual => EntitySource::Manual,
+                EntitySourceDiscriminants::System => EntitySource::System,
+                EntitySourceDiscriminants::Discovery => EntitySource::Discovery,
+                EntitySourceDiscriminants::DiscoveryWithMatch => EntitySource::DiscoveryWithMatch {
+                    details: MatchDetails::new_certain("test"),
+                },
+                EntitySourceDiscriminants::Inferred => EntitySource::Inferred {
+                    via: InferredVia::ForwardingTable,
+                },
+                EntitySourceDiscriminants::Unknown => EntitySource::Unknown,
+            };
+            assert_eq!(
+                clause.contains(&format!("'{}'", discriminant.id())),
+                source.confirmation().is_unconfirmed(),
+                "{discriminant:?}: {clause}"
+            );
+            // The flag the UI reads is the third copy.
+            use crate::server::shared::types::metadata::TypeMetadataProvider;
+            assert_eq!(
+                discriminant.metadata()["unconfirmed"],
+                source.confirmation().is_unconfirmed(),
+                "{discriminant:?} metadata"
+            );
+        }
+    }
+
+    // A port is found by a learned MAC whatever case the device reported it in, and an empty set
+    // of MACs finds no port rather than every port.
+    #[test]
+    fn fdb_macs_contain_matches_case_insensitively_and_an_empty_set_matches_nothing() {
+        use crate::server::interfaces::r#impl::base::Interface;
+        let none = StorableFilter::<Interface>::new_unfiltered().fdb_macs_contain(&[]);
+        assert_eq!(none.to_where_clause().trim(), "WHERE FALSE");
+        let some = StorableFilter::<Interface>::new_unfiltered()
+            .fdb_macs_contain(&["00:80:63:2A:51:07".to_string()]);
+        assert!(some.to_where_clause().contains("lower(learned)"));
+        assert!(matches!(
+            some.values().first(),
+            Some(crate::server::shared::storage::traits::SqlValue::StringArray(v))
+                if v == &vec!["00:80:63:2a:51:07".to_string()]
+        ));
+    }
+
     #[test]
     fn live_filter_emits_valid_to_is_null() {
         let filter = StorableFilter::<Tag>::new_unfiltered().live();

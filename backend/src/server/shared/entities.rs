@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, Display, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use utoipa::ToSchema;
 
-use crate::server::shared::entity_metadata::EntityCategory;
+use crate::server::shared::product_area::ProductArea;
 use crate::server::{
     daemon_api_keys::r#impl::base::DaemonApiKey,
     daemons::r#impl::base::Daemon,
@@ -64,11 +64,17 @@ pub trait ChangeTriggersTopologyStaleness<T> {
 // even out a size difference nothing pays for. The gap became visible when `Interface` shrank; it
 // was always here.
 //
-// Variant order is display order: grouped by `EntityCategory` in that enum's order, and within a
-// category in the order the sidebar and the global search list them. A test holds the grouping.
+// Variant order is display order: grouped by `ProductArea` in that enum's order, and within an
+// area in the order the sidebar and the global search list them. A test holds the grouping.
 #[allow(clippy::large_enum_variant)]
 pub enum Entity {
-    // EntityCategory::Assets
+    // ProductArea::Topology
+    Topology(Topology),
+    Snapshot(Snapshot),
+    Share(Share),
+    Dependency(Dependency),
+
+    // ProductArea::Inventory
     Site(Site),
     Vlan(Vlan),
     Subnet(Subnet),
@@ -80,25 +86,19 @@ pub enum Entity {
     Port(Port),
     Binding(Binding),
 
-    // EntityCategory::Discover
+    // ProductArea::Discovery
     Discovery(Discovery),
     Daemon(Daemon),
     DaemonApiKey(DaemonApiKey),
+    Credential(Credential),
 
-    // EntityCategory::Platform
+    // ProductArea::Platform
     Tag(Tag),
     TagGroup(TagGroup),
     User(User),
     UserApiKey(UserApiKey),
-    Credential(Credential),
     Organization(Organization),
     Invite(Invite),
-
-    // EntityCategory::Visualization
-    Topology(Topology),
-    Snapshot(Snapshot),
-    Share(Share),
-    Dependency(Dependency),
 }
 
 impl HasId for EntityDiscriminants {
@@ -212,39 +212,39 @@ impl Entity {
 
 impl Entity {
     /// The part of the product this entity belongs to, as its storage declares it.
-    fn category(&self) -> EntityCategory {
+    fn area(&self) -> ProductArea {
         match self {
-            Entity::Site(_) => <Site as EntityTrait>::entity_category(),
-            Entity::Vlan(_) => <Vlan as EntityTrait>::entity_category(),
-            Entity::Subnet(_) => <Subnet as EntityTrait>::entity_category(),
-            Entity::Host(_) => <Host as EntityTrait>::entity_category(),
-            Entity::Service(_) => <Service as EntityTrait>::entity_category(),
-            Entity::IPAddress(_) => <IPAddress as EntityTrait>::entity_category(),
-            Entity::Interface(_) => <Interface as EntityTrait>::entity_category(),
-            Entity::Port(_) => <Port as EntityTrait>::entity_category(),
-            Entity::Binding(_) => <Binding as EntityTrait>::entity_category(),
-            Entity::Discovery(_) => <Discovery as EntityTrait>::entity_category(),
-            Entity::Daemon(_) => <Daemon as EntityTrait>::entity_category(),
-            Entity::DaemonApiKey(_) => <DaemonApiKey as EntityTrait>::entity_category(),
-            Entity::Tag(_) => <Tag as EntityTrait>::entity_category(),
-            Entity::TagGroup(_) => <TagGroup as EntityTrait>::entity_category(),
-            Entity::User(_) => <User as EntityTrait>::entity_category(),
-            Entity::UserApiKey(_) => <UserApiKey as EntityTrait>::entity_category(),
-            Entity::Credential(_) => <Credential as EntityTrait>::entity_category(),
-            Entity::Organization(_) => <Organization as EntityTrait>::entity_category(),
-            Entity::Invite(_) => <Invite as EntityTrait>::entity_category(),
-            Entity::Topology(_) => <Topology as EntityTrait>::entity_category(),
-            Entity::Snapshot(_) => <Snapshot as EntityTrait>::entity_category(),
-            Entity::Share(_) => <Share as EntityTrait>::entity_category(),
-            Entity::Dependency(_) => <Dependency as EntityTrait>::entity_category(),
+            Entity::Site(_) => <Site as EntityTrait>::product_area(),
+            Entity::Vlan(_) => <Vlan as EntityTrait>::product_area(),
+            Entity::Subnet(_) => <Subnet as EntityTrait>::product_area(),
+            Entity::Host(_) => <Host as EntityTrait>::product_area(),
+            Entity::Service(_) => <Service as EntityTrait>::product_area(),
+            Entity::IPAddress(_) => <IPAddress as EntityTrait>::product_area(),
+            Entity::Interface(_) => <Interface as EntityTrait>::product_area(),
+            Entity::Port(_) => <Port as EntityTrait>::product_area(),
+            Entity::Binding(_) => <Binding as EntityTrait>::product_area(),
+            Entity::Discovery(_) => <Discovery as EntityTrait>::product_area(),
+            Entity::Daemon(_) => <Daemon as EntityTrait>::product_area(),
+            Entity::DaemonApiKey(_) => <DaemonApiKey as EntityTrait>::product_area(),
+            Entity::Tag(_) => <Tag as EntityTrait>::product_area(),
+            Entity::TagGroup(_) => <TagGroup as EntityTrait>::product_area(),
+            Entity::User(_) => <User as EntityTrait>::product_area(),
+            Entity::UserApiKey(_) => <UserApiKey as EntityTrait>::product_area(),
+            Entity::Credential(_) => <Credential as EntityTrait>::product_area(),
+            Entity::Organization(_) => <Organization as EntityTrait>::product_area(),
+            Entity::Invite(_) => <Invite as EntityTrait>::product_area(),
+            Entity::Topology(_) => <Topology as EntityTrait>::product_area(),
+            Entity::Snapshot(_) => <Snapshot as EntityTrait>::product_area(),
+            Entity::Share(_) => <Share as EntityTrait>::product_area(),
+            Entity::Dependency(_) => <Dependency as EntityTrait>::product_area(),
         }
     }
 }
 
 impl EntityDiscriminants {
     /// The part of the product this entity type belongs to.
-    pub fn category(&self) -> EntityCategory {
-        Entity::from(*self).category()
+    pub fn area(&self) -> ProductArea {
+        Entity::from(*self).area()
     }
 
     /// Title-case singular name, e.g. "Host", "IP Address". Delegates to
@@ -479,7 +479,7 @@ impl TypeMetadataProvider for EntityDiscriminants {
     }
 
     fn category(&self) -> &'static str {
-        EntityDiscriminants::category(self).into()
+        self.area().into()
     }
 
     fn metadata(&self) -> serde_json::Value {
@@ -731,16 +731,16 @@ mod tests {
     use strum::IntoEnumIterator;
 
     /// The sidebar's sections and the search's group order both read `EntityDiscriminants` in
-    /// declaration order, so an entity declared outside its category's run would show out of
+    /// declaration order, so an entity declared outside its area's run would show out of
     /// place in both.
     #[test]
-    fn entity_types_are_declared_grouped_by_category_in_category_order() {
-        let categories: Vec<(EntityDiscriminants, EntityCategory)> = EntityDiscriminants::iter()
-            .map(|entity| (entity, entity.category()))
+    fn entity_types_are_declared_grouped_by_area_in_area_order() {
+        let areas: Vec<(EntityDiscriminants, ProductArea)> = EntityDiscriminants::iter()
+            .map(|entity| (entity, entity.area()))
             .collect();
         assert!(
-            categories.is_sorted_by_key(|(_, category)| *category),
-            "declare each entity among its category, categories in EntityCategory order: {categories:?}"
+            areas.is_sorted_by_key(|(_, area)| *area),
+            "declare each entity among its area, areas in ProductArea order: {areas:?}"
         );
     }
 }

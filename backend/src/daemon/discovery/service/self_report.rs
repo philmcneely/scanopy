@@ -231,6 +231,7 @@ impl DiscoveryRunner {
                 HostOsValue(crate::daemon::utils::host_os::own_host_os()),
                 AttributeSource::DaemonSelfReport,
             )),
+            matched_device_type: None,
             credential_assignments: vec![],
         }
     }

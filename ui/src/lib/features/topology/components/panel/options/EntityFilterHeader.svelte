@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { components } from '$lib/api/schema';
-	import { Eye, EyeOff, FunnelX } from 'lucide-svelte';
+	import { Eye, EyeOff, FunnelX } from '@lucide/svelte';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { hoveredTag } from '../../../interactions';
 	import {

@@ -56,12 +56,34 @@ use crate::server::{
             base::{Topology, TopologyOptions, TopologyRequestOptions},
             edges::Edge,
             grouping::{ContainerRule, ElementRule, GroupingConfig},
-            nodes::Node,
+            nodes::{Node, NodeType},
             views::{TopologyView, TopologyViewSupport},
         },
     },
     vlans::{r#impl::base::Vlan, service::VlanService},
 };
+
+/// The rows a Visibility tag left out of a bundle. Set aside rather than dropped, so each view can
+/// count the ones it would have drawn: a hidden host with no services is nothing Workloads would
+/// show, and the Workloads filter panel shouldn't offer to bring it back.
+#[derive(Debug, Default)]
+pub struct TagHidden {
+    pub hosts: Vec<Host>,
+    pub subnets: Vec<Subnet>,
+    pub services: Vec<Service>,
+}
+
+impl TagHidden {
+    fn is_empty(&self) -> bool {
+        self.hosts.is_empty() && self.subnets.is_empty() && self.services.is_empty()
+    }
+}
+
+/// A bundle with its Visibility-hidden rows put back, for building the views they would be in.
+struct TagHiddenBundle {
+    data: TopologyData,
+    hidden_types: HashMap<Uuid, EntityDiscriminants>,
+}
 
 pub struct TopologyService {
     storage: Arc<GenericPostgresStorage<Topology>>,
@@ -298,7 +320,7 @@ impl TopologyService {
         &self,
         site_id: Uuid,
         snapshot_id: Option<Uuid>,
-    ) -> Result<TopologyData, Error> {
+    ) -> Result<(TopologyData, TagHidden), Error> {
         // Hosts/services/subnets carry the tags that drive topology grouping +
         // display, so hydrate their tag associations as-of the snapshot (from
         // the closed `entity_tags`), not from live `entity_tags` (which key on
@@ -325,7 +347,14 @@ impl TopologyService {
                 snapshot_id,
             )
             .await?;
-        hosts.retain(|host| !is_hidden(&host.base.tags));
+        // A dismissed host is one a person said is not worth showing; it leaves the map the way a
+        // hidden one does.
+        // What a Visibility tag left out is set aside, so each view can count the rows it would
+        // have drawn and the filter panel offers that filter only where it removed something.
+        hosts.retain(|host| host.dismissed_at.is_none());
+        let (hidden_hosts, hosts): (Vec<Host>, Vec<Host>) = hosts
+            .into_iter()
+            .partition(|host| is_hidden(&host.base.tags));
         let ip_addresses = self
             .ip_address_service
             .get_all(apply_snapshot(
@@ -333,7 +362,7 @@ impl TopologyService {
                 snapshot_id,
             ))
             .await?;
-        let mut subnets = self
+        let subnets = self
             .subnet_service
             .get_all_as_of_snapshot(
                 apply_snapshot(
@@ -343,7 +372,9 @@ impl TopologyService {
                 snapshot_id,
             )
             .await?;
-        subnets.retain(|subnet| !is_hidden(&subnet.base.tags));
+        let (hidden_subnets, subnets): (Vec<Subnet>, Vec<Subnet>) = subnets
+            .into_iter()
+            .partition(|subnet| is_hidden(&subnet.base.tags));
         let dependencies = self
             .dependency_service
             .get_all(apply_snapshot(
@@ -384,7 +415,7 @@ impl TopologyService {
             .interface_neighbor_service
             .candidates_for_site(site_id)
             .await?;
-        let mut services = self
+        let services = self
             .service_service
             .get_all_as_of_snapshot(
                 apply_snapshot(
@@ -394,7 +425,14 @@ impl TopologyService {
                 snapshot_id,
             )
             .await?;
-        services.retain(|service| !is_hidden(&service.base.tags));
+        let (hidden_services, services): (Vec<Service>, Vec<Service>) = services
+            .into_iter()
+            .partition(|service| is_hidden(&service.base.tags));
+        let tag_hidden = TagHidden {
+            hosts: hidden_hosts,
+            subnets: hidden_subnets,
+            services: hidden_services,
+        };
         let vlans = self
             .vlan_service
             .get_all(apply_snapshot(
@@ -446,7 +484,7 @@ impl TopologyService {
             .collect();
         let services: Vec<TopologyServiceRow> = services.into_iter().map(Into::into).collect();
 
-        Ok(TopologyData {
+        let data = TopologyData {
             hosts,
             ip_addresses,
             subnets,
@@ -465,10 +503,14 @@ impl TopologyService {
             // loader leaves them empty.
             nodes: HashMap::new(),
             edges: HashMap::new(),
+            node_entities: HashMap::new(),
+            // Counted per view by `get_topology_render_data`, from `TagHidden`.
+            hidden_by_tag: HashMap::new(),
             // Filled by `apply_server_metadata_filters`, which runs on the way to the render
             // path; nothing has been dropped yet at this point.
             filtered_out: HashMap::new(),
-        })
+        };
+        Ok((data, tag_hidden))
     }
 
     /// Fetch tag *definitions* for all tags referenced by hosts, services, and
@@ -586,20 +628,108 @@ impl TopologyService {
         views: &[TopologyView],
     ) -> Result<TopologyData, Error> {
         let options = self.site_topology_options(site_id).await?;
-        let mut data = self.get_topology_data(site_id, snapshot_id).await?;
+        let (mut data, tag_hidden) = self.get_topology_data(site_id, snapshot_id).await?;
         // `data.tags` only carries tags applied to entities. A grouping rule can
         // reference a tag applied to nothing (e.g. ByTag on an unused tag); the
         // frontend needs its name/color to label the group, so ship it too.
         self.augment_grouping_rule_tags(&mut data, &options).await?;
+        let tag_hidden_bundle = (!tag_hidden.is_empty()).then(|| {
+            let mut bundle = Self::with_tag_hidden(&data, tag_hidden);
+            let ctx = FilterValueContext::for_bundle(
+                &bundle.data.neighbours,
+                bundle.data.interfaces.iter().map(|i| &i.interface),
+                &bundle.data.ip_addresses,
+            );
+            Self::apply_server_metadata_filters(&mut bundle.data, &options, &ctx);
+            bundle
+        });
         // One context for both the server-side drop and the values the frontend reads, so a
         // value offered as a chip is the value the server filters by.
-        let filter_ctx = FilterValueContext::from_neighbours(&data.neighbours);
+        let filter_ctx = FilterValueContext::for_bundle(
+            &data.neighbours,
+            data.interfaces.iter().map(|i| &i.interface),
+            &data.ip_addresses,
+        );
         Self::apply_server_metadata_filters(&mut data, &options, &filter_ctx);
         data.stamp_filter_values(&filter_ctx);
+        if let Some(bundle) = tag_hidden_bundle {
+            data.hidden_by_tag = self.hidden_by_tag_per_view(&bundle, &options, views);
+        }
         let (nodes, edges) = self.build_view_graphs(&data, &options, views);
+        data.node_entities = nodes
+            .iter()
+            .map(|(view, view_nodes)| {
+                (
+                    *view,
+                    super::node_entities::node_entities(view_nodes, &data),
+                )
+            })
+            .collect();
         data.nodes = nodes;
         data.edges = edges;
         Ok(data)
+    }
+
+    /// `data` with the Visibility-hidden rows put back, and which type each of those rows is.
+    fn with_tag_hidden(data: &TopologyData, hidden: TagHidden) -> TagHiddenBundle {
+        let mut hidden_types: HashMap<Uuid, EntityDiscriminants> = HashMap::new();
+        hidden_types.extend(
+            hidden
+                .hosts
+                .iter()
+                .map(|h| (h.id, EntityDiscriminants::Host)),
+        );
+        hidden_types.extend(
+            hidden
+                .subnets
+                .iter()
+                .map(|s| (s.id, EntityDiscriminants::Subnet)),
+        );
+        hidden_types.extend(
+            hidden
+                .services
+                .iter()
+                .map(|s| (s.id, EntityDiscriminants::Service)),
+        );
+
+        let mut with_hidden = data.clone();
+        let services: Vec<Service> = data
+            .services
+            .iter()
+            .map(|s| s.service.clone())
+            .chain(hidden.services.iter().cloned())
+            .collect();
+        with_hidden.hosts.extend(TopologyHost::wrap_all(
+            hidden.hosts,
+            &data.ip_addresses,
+            &services,
+        ));
+        with_hidden.subnets.extend(hidden.subnets);
+        with_hidden
+            .services
+            .extend(hidden.services.into_iter().map(Into::into));
+        TagHiddenBundle {
+            data: with_hidden,
+            hidden_types,
+        }
+    }
+
+    /// Per view, how many Visibility-hidden rows of each type it would have drawn. A view that
+    /// would draw none of them has no entry.
+    fn hidden_by_tag_per_view(
+        &self,
+        bundle: &TagHiddenBundle,
+        options: &TopologyOptions,
+        views: &[TopologyView],
+    ) -> HashMap<TopologyView, HashMap<EntityDiscriminants, usize>> {
+        let (nodes, _) = self.build_view_graphs(&bundle.data, options, views);
+        nodes
+            .into_iter()
+            .filter_map(|(view, view_nodes)| {
+                let counts = drawn_hidden_counts(&view_nodes, &bundle.hidden_types);
+                (!counts.is_empty()).then_some((view, counts))
+            })
+            .collect()
     }
 
     /// Drop entities the user has hidden through a `Server`-side metadata filter.
@@ -1019,5 +1149,72 @@ mod tests {
             &ip_addresses,
             true
         ));
+    }
+}
+
+/// How many of `hidden` (id → type) a view's `nodes` draw: as a node's own entity, inline on a
+/// card, or as the host of a drawn element (a hidden host's addresses in L3).
+fn drawn_hidden_counts(
+    nodes: &[Node],
+    hidden: &HashMap<Uuid, EntityDiscriminants>,
+) -> HashMap<EntityDiscriminants, usize> {
+    let mut drawn: HashSet<Uuid> = HashSet::new();
+    for node in nodes {
+        match &node.node_type {
+            NodeType::Element {
+                host_id,
+                entity_id,
+                inline_groups,
+                ..
+            } => {
+                drawn.insert(*host_id);
+                drawn.extend(*entity_id);
+                drawn.extend(inline_groups.iter().map(|g| g.entity_id));
+            }
+            NodeType::Container { entity_id, .. } => drawn.extend(*entity_id),
+        }
+    }
+    let mut counts: HashMap<EntityDiscriminants, usize> = HashMap::new();
+    for id in drawn {
+        if let Some(entity_type) = hidden.get(&id) {
+            *counts.entry(*entity_type).or_default() += 1;
+        }
+    }
+    counts
+}
+
+#[cfg(test)]
+mod hidden_by_tag_tests {
+    use super::*;
+    use crate::server::topology::types::nodes::ElementEntityType;
+
+    /// A hidden host whose address L3 draws counts there; a view that draws nothing of it, as
+    /// Workloads draws nothing of a host with no services, has no count.
+    #[test]
+    fn a_hidden_host_counts_only_where_its_elements_are_drawn() {
+        let host = Uuid::new_v4();
+        let address = Uuid::new_v4();
+        let hidden = HashMap::from([(host, EntityDiscriminants::Host)]);
+        let l3 = [Node::element(
+            Uuid::new_v4(),
+            Uuid::nil(),
+            host,
+            ElementEntityType::IPAddress {
+                subnet_id: Uuid::new_v4(),
+                ip_address_id: Some(address),
+            },
+        )];
+        let other_host_service = [Node::element(
+            Uuid::new_v4(),
+            Uuid::nil(),
+            Uuid::new_v4(),
+            ElementEntityType::Service {},
+        )];
+
+        assert_eq!(
+            drawn_hidden_counts(&l3, &hidden),
+            HashMap::from([(EntityDiscriminants::Host, 1)])
+        );
+        assert!(drawn_hidden_counts(&other_host_service, &hidden).is_empty());
     }
 }

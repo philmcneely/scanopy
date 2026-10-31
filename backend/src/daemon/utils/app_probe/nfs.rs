@@ -32,12 +32,12 @@ const PROGRAM_NFS: u32 = 100_003;
 /// Procedure 0 of any program.
 const PROCEDURE_NULL: u32 = 0;
 /// Echoed by the server, which is what correlates the reply to our call.
-const XID: u32 = 0x5CA1_0F5Au32;
+pub(crate) const XID: u32 = 0x5CA1_0F5Au32;
 
-/// A NULL call to the NFS program, wrapped in RPC's record-marking framing for TCP.
-fn null_call(version: u32) -> Vec<u8> {
+/// A NULL call to `program`, wrapped in RPC's record-marking framing for TCP.
+pub(crate) fn null_call(program: u32, version: u32) -> Vec<u8> {
     let body: CallBody<&[u8], &[u8]> = CallBody::new(
-        PROGRAM_NFS,
+        program,
         version,
         PROCEDURE_NULL,
         // No credential and no verifier. NULL is reachable without either, and offering one would
@@ -64,7 +64,7 @@ impl AppProbe for NfsProbe {
         // reply, which is itself proof, but asking for the version it speaks avoids relying on
         // that.
         for version in [3u32, 4] {
-            let reply = request_response(ctx, port, &null_call(version), 256).await;
+            let reply = request_response(ctx, port, &null_call(PROGRAM_NFS, version), 256).await;
             if parse_reply(&reply, XID) == (AppProbeOutcome::Answered { identity: None }) {
                 return Ok(AppProbeOutcome::Answered { identity: None });
             }
@@ -74,7 +74,7 @@ impl AppProbe for NfsProbe {
 }
 
 /// Whether the reply is an RPC reply carrying our transaction id.
-fn parse_reply(bytes: &[u8], xid: u32) -> AppProbeOutcome {
+pub(crate) fn parse_reply(bytes: &[u8], xid: u32) -> AppProbeOutcome {
     let Ok(message) = RpcMessage::try_from(bytes) else {
         return AppProbeOutcome::NoAnswer;
     };
@@ -129,7 +129,10 @@ mod tests {
             AppProbeOutcome::NoAnswer
         );
         // Our own call reflected back carries the right xid but is a call, not a reply.
-        assert_eq!(parse_reply(&null_call(3), XID), AppProbeOutcome::NoAnswer);
+        assert_eq!(
+            parse_reply(&null_call(PROGRAM_NFS, 3), XID),
+            AppProbeOutcome::NoAnswer
+        );
     }
 
     #[test]
@@ -152,7 +155,7 @@ mod tests {
 
     #[test]
     fn the_call_is_record_marked_and_addresses_the_nfs_program() {
-        let call = null_call(3);
+        let call = null_call(PROGRAM_NFS, 3);
         let mark = u32::from_be_bytes(call[0..4].try_into().unwrap());
         assert_eq!(mark & 0x8000_0000, 0x8000_0000, "last fragment");
         assert_eq!((mark & 0x7FFF_FFFF) as usize, call.len() - 4);

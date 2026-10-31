@@ -56,7 +56,7 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
 /// subnets they have an interface on, and the request is refused when the host
 /// has none.
 ///
-/// Returns the session, which streams progress over `/api/v1/discoveries/stream`
+/// Returns the session, which streams progress over `/api/v1/live-updates/stream`
 /// like any other scan. A `Queued` phase means the daemon is busy; it will start
 /// when the running scan finishes.
 #[utoipa::path(
@@ -148,6 +148,8 @@ async fn rescan(
     let mut targets = Vec::with_capacity(hosts.len());
     for host in hosts {
         validate_read_access(Some(host.base.site_id), None, &site_ids, organization_id)?;
+        host.require_confirmed()
+            .map_err(|e| ApiError::bad_request(&e.to_string()))?;
         let (name, target) = rescan_target(state, &host).await?;
         match target {
             Ok((daemon, ips)) => targets.push((

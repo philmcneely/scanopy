@@ -11,19 +11,15 @@
 	a deployment, and the docs for pointing an existing daemon at a segment it can route to.
 -->
 <script lang="ts">
-	import { Check, Edit, Merge } from 'lucide-svelte';
+	import { Check, Edit, Merge } from '@lucide/svelte';
 
-	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
-	import { createColorHelper, type Color } from '$lib/shared/utils/styling';
+	import ConfirmEntityModal, {
+		type ConfirmAction
+	} from '$lib/shared/components/confirmation/ConfirmEntityModal.svelte';
 	import { openModal } from '$lib/shared/stores/modal-registry';
 	import { entities } from '$lib/shared/stores/metadata';
-	import type { IconComponent } from '$lib/shared/utils/types';
 	import type { Subnet, SubnetResponse } from '../types/base';
-	import EntityTag from '$lib/shared/components/data/EntityTag.svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
-	import { entityRef } from '$lib/shared/components/data/types';
-	import { useHostsByIds } from '$lib/features/hosts/queries';
-	import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 	import {
 		subnets_confirmRange,
 		subnets_confirmRangeDetail,
@@ -34,8 +30,6 @@
 		subnets_mergeInto,
 		subnets_mergeIntoDetail,
 		subnets_rangeEvidenceAddresses,
-		subnets_rangeEvidenceOpenScan,
-		subnets_rangeEvidenceSeenBy,
 		subnets_resolveRange,
 		subnets_resolveRangeIntro
 	} from '$lib/paraglide/messages';
@@ -75,38 +69,24 @@
 
 	/**
 	 * Where the range came from, carried on the subnet itself: the devices that saw the far ends and
-	 * what those far ends published. Absent for a range no scan created. A device deleted since then
-	 * resolves to nothing and is left out.
+	 * what those far ends published. Absent for a range no scan created.
 	 */
-	let evidence = $derived(subnet?.range_evidence ?? null);
-	const seenByQuery = useHostsByIds(() => evidence?.seen_by_host_ids ?? []);
-	let seenBy = $derived(seenByQuery.data ?? []);
-	let published = $derived(evidence ? [...evidence.addresses, ...evidence.sys_names] : []);
+	let rangeEvidence = $derived(subnet?.range_evidence ?? null);
+	let published = $derived(
+		rangeEvidence ? [...rangeEvidence.addresses, ...rangeEvidence.sys_names] : []
+	);
 
-	function openSourceScan(discoveryId: string) {
-		onClose();
-		window.location.hash = 'discovery-history';
-		openModal('discovery-history-detail', { id: discoveryId });
-	}
-
-	type Option = {
-		id: string;
-		title: string;
-		description: string;
-		icon: IconComponent;
-		color: Color;
-		run: (subnet: Subnet) => void;
-	};
-
-	let options = $derived.by<Option[]>(() => {
-		const options: Option[] = [
+	let actions = $derived.by<ConfirmAction[]>(() => {
+		if (!subnet) return [];
+		const current = subnet;
+		const options: ConfirmAction[] = [
 			{
 				id: 'confirm',
 				title: subnets_confirmRange(),
 				description: subnets_confirmRangeDetail(),
 				icon: Check,
 				color: 'Green',
-				run: (subnet) => void onConfirm(subnet)
+				run: () => void onConfirm(current)
 			},
 			{
 				id: 'correct',
@@ -114,7 +94,7 @@
 				description: subnets_correctRangeDetail(),
 				icon: Edit,
 				color: 'Blue',
-				run: (subnet) => onCorrect(subnet)
+				run: () => onCorrect(current)
 			}
 		];
 
@@ -128,7 +108,7 @@
 				description: subnets_mergeIntoDetail(),
 				icon: Merge,
 				color: 'Violet',
-				run: (subnet) => void onMerge(subnet, into)
+				run: () => void onMerge(current, into)
 			});
 		}
 
@@ -150,76 +130,25 @@
 	});
 </script>
 
-<GenericModal
+<ConfirmEntityModal
 	name="provisional-range"
 	entityId={subnet?.id}
 	title={subnets_resolveRange()}
+	intro={subnet ? subnets_resolveRangeIntro({ cidr: subnet.cidr }) : ''}
+	{actions}
 	{isOpen}
 	{onClose}
-	size="md"
+	reportedByHostIds={rangeEvidence?.seen_by_host_ids ?? []}
+	sourceDiscoveryId={rangeEvidence?.discovery_id ?? null}
 >
-	{#if subnet}
-		<!-- `modal-content` supplies no padding of its own, so a body has to bring the same
-		     scrollable, padded container every other modal wraps its content in. -->
-		<div class="flex min-h-0 flex-1 flex-col">
-			<div class="flex-1 overflow-auto p-6">
-				<div class="space-y-4">
-					<p class="text-sm text-secondary">
-						{subnets_resolveRangeIntro({ cidr: subnet.cidr })}
-					</p>
-
-					{#if evidence}
-						<div class="space-y-2 text-sm">
-							{#if seenBy.length > 0}
-								<div class="flex flex-wrap items-center gap-2">
-									<span class="text-secondary">{subnets_rangeEvidenceSeenBy()}</span>
-									{#each seenBy as host (host.id)}
-										<EntityTag
-											entityRef={entityRef('Host', host.id, host)}
-											label={hostDisplayName(host)}
-											color={entities.getColorHelper('Host').color}
-										/>
-									{/each}
-								</div>
-							{/if}
-							{#if published.length > 0}
-								<div class="flex flex-wrap items-center gap-2">
-									<span class="text-secondary">{subnets_rangeEvidenceAddresses()}</span>
-									{#each published as label (label)}
-										<Tag {label} color={null} />
-									{/each}
-								</div>
-							{/if}
-							<button
-								type="button"
-								class="text-sm text-link hover:underline"
-								onclick={() => evidence && openSourceScan(evidence.discovery_id)}
-							>
-								{subnets_rangeEvidenceOpenScan()}
-							</button>
-						</div>
-					{/if}
-
-					<div class="flex flex-col gap-3">
-						{#each options as option (option.id)}
-							{@const colors = createColorHelper(option.color)}
-							<button onclick={() => option.run(subnet)} class="card w-full text-left">
-								<div class="flex items-center gap-3">
-									<div
-										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg {colors.bg}"
-									>
-										<option.icon class="h-5 w-5 {colors.icon}" />
-									</div>
-									<div class="min-w-0 flex-1">
-										<p class="text-sm font-medium text-primary">{option.title}</p>
-										<p class="text-xs text-secondary">{option.description}</p>
-									</div>
-								</div>
-							</button>
-						{/each}
-					</div>
-				</div>
+	{#snippet evidence()}
+		{#if published.length > 0}
+			<div class="flex flex-wrap items-center gap-2">
+				<span class="text-secondary">{subnets_rangeEvidenceAddresses()}</span>
+				{#each published as label (label)}
+					<Tag {label} color={null} />
+				{/each}
 			</div>
-		</div>
-	{/if}
-</GenericModal>
+		{/if}
+	{/snippet}
+</ConfirmEntityModal>

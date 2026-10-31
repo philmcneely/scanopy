@@ -156,6 +156,8 @@ pub enum DaemonCommand {
     Restart(RestartArgs),
     /// List the Scanopy daemons installed on this host, with the selector to use for each.
     List,
+    /// Print the licences of the third-party software and data compiled into this daemon.
+    Licenses,
 }
 
 /// Flags for `scanopy-daemon restart`.

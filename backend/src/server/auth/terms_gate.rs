@@ -2,7 +2,7 @@
 //!
 //! A user whose `terms_accepted_at` is before [`TERMS_ACCEPTANCE_EFFECTIVE`],
 //! or who has none on record, must accept the terms again before the API
-//! serves their session (`middleware::terms::terms_gate_middleware`). To gate
+//! serves their session (`middleware::session_gate::session_gate_middleware`). To gate
 //! everyone again after the terms change, move it to the new terms'
 //! publication time.
 //!

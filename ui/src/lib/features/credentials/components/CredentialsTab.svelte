@@ -10,6 +10,8 @@
 	} from '../queries';
 	import CredentialEditModal from './CredentialEditModal.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import type { Credential } from '../types/base';
 	import type { CredentialOrderField } from '../types/base';
@@ -23,13 +25,14 @@
 	import { credentialColumns } from './CredentialsTab.columns';
 	import { collectionLookup } from '$lib/shared/entity-fields';
 	import type { Site } from '$lib/features/sites/types';
-	import { Trash2, Edit } from 'lucide-svelte';
+	import { Trash2, Edit } from '@lucide/svelte';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { permissions, credentialTypes, billingPlans } from '$lib/shared/stores/metadata';
 	import { getCredentialTypeId } from '$lib/features/credentials/types/base';
 	import {
 		modalState,
+		openModal,
 		resolveModalDeepLink,
 		type ModalState
 	} from '$lib/shared/stores/modal-registry';
@@ -47,14 +50,20 @@
 		credentials_bulkDeleteConfirm,
 		credentials_bulkDeleteImpact,
 		credentials_deleteImpact,
+		credentials_emptyNoDaemonHint,
 		credentials_emptySubtitle,
 		credentials_subtitle,
 		common_credentials,
 		common_notApplicable,
 		common_noEntityYet,
-		credentials_defaultCantDelete
+		credentials_defaultCantDelete,
+		gettingStarted_stepDaemonLabel
 	} from '$lib/paraglide/messages';
 	import { useTagsQuery } from '$lib/features/tags/queries';
+	import { hasDaemon } from '$lib/shared/onboarding/checklist';
+	import type { components } from '$lib/api/schema';
+
+	type OnboardingOperation = components['schemas']['OnboardingOperationDiscriminants'];
 
 	let { isReadOnly = false, isActive = false }: TabProps = $props();
 
@@ -85,6 +94,14 @@
 
 	const organizationQuery = useOrganizationQuery();
 	let organization = $derived(organizationQuery.data);
+	let onboarding = $derived((organization?.onboarding ?? []) as OnboardingOperation[]);
+
+	// With no daemon there are no hosts to assign to yet. The daemon setup's credentials step
+	// targets devices by IP address instead, so the empty page points there too.
+	function handleInstallDaemon() {
+		window.location.hash = 'daemons';
+		openModal('create-daemon');
+	}
 
 	// Every credential, for the deep link: it can name one on another page.
 	const credentialsQuery = useCredentialsQuery();
@@ -158,6 +175,7 @@
 		return [{ id: 'not-applicable', label: common_notApplicable(), color: 'Gray' }];
 	}
 	let isLoading = $derived(credentialsPageQuery.isPending && !credentialsPageQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, credentialsPageQuery));
 
 	// Demo mode check
 	let isDemoOrg = $derived(
@@ -303,7 +321,9 @@
 {/snippet}
 
 <div class="space-y-6">
-	{#if isLoading}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if isLoading}
 		<Loading />
 	{:else if page.isEmpty(credentialsPageQuery)}
 		<EmptyState
@@ -312,6 +332,14 @@
 			onClick={canManage ? handleCreateCredential : undefined}
 			cta={canManage ? common_create() : ''}
 		/>
+		{#if canManage && !hasDaemon(onboarding)}
+			<p class="-mt-6 text-center text-sm text-tertiary">
+				{credentials_emptyNoDaemonHint()}
+				<button type="button" class="text-link hover:underline" onclick={handleInstallDaemon}>
+					{gettingStarted_stepDaemonLabel()}
+				</button>
+			</p>
+		{/if}
 	{:else}
 		<DataControls
 			title={common_credentials()}

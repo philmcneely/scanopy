@@ -127,6 +127,10 @@ impl OrderField for HostOrderField {
         }
     }
 
+    fn sorts_by_site_name(&self) -> bool {
+        matches!(self, Self::SiteId)
+    }
+
     fn nulls_last(&self) -> bool {
         matches!(
             self,
@@ -251,7 +255,7 @@ impl HostFilterQuery {
         // SCD2 read path: live by default, or as-of the snapshot timestamp when set.
         // Without this, close-and-clone's closed historical copies leak into the
         // host list as empty-shell duplicates.
-        let filter = filter.live_or_as_of(self.at);
+        let filter = filter.live_or_as_of(self.at).not_dismissed();
 
         let filter = narrow_by_tags_and_search(
             filter,
@@ -370,9 +374,90 @@ pub fn create_router() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(generated::export_csv))
         .routes(routes!(generated::get_field_values))
         .routes(routes!(export_hosts_zip))
-        .routes(routes!(consolidate_hosts))
+        .routes(routes!(merge_hosts))
+        .routes(routes!(confirm_host))
+        .routes(routes!(dismiss_host))
         .routes(routes!(create_host_discovery))
         .merge(super::rescan::create_router())
+}
+
+/// Confirm unconfirmed host
+///
+/// Records that a person vouches for a host Scanopy knows only from another device's report (an
+/// LLDP/CDP neighbour, or a switch's forwarding table). The host's source becomes `Manual`.
+#[utoipa::path(
+    post,
+    path = "/{id}/confirm",
+    tag = Host::ENTITY_NAME_PLURAL,
+    params(("id" = Uuid, Path, description = "Host ID")),
+    responses(
+        (status = 200, description = "Host confirmed", body = ApiResponse<HostResponse>),
+        (status = 400, description = "The host is already confirmed", body = ApiErrorResponse),
+        (status = 404, description = "Host not found", body = ApiErrorResponse),
+    ),
+     security(("user_api_key" = []), ("session" = []))
+)]
+async fn confirm_host(
+    State(state): State<Arc<AppState>>,
+    auth: Authorized<Member>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<ApiResponse<HostResponse>>> {
+    settle_host(&state, auth, id, true).await
+}
+
+/// Dismiss unconfirmed host
+///
+/// Sets aside a host Scanopy knows only from another device's report. It leaves lists, topology
+/// and scan warnings, and is not created again by later scans. A scan that reaches the device
+/// restores it.
+#[utoipa::path(
+    post,
+    path = "/{id}/dismiss",
+    tag = Host::ENTITY_NAME_PLURAL,
+    params(("id" = Uuid, Path, description = "Host ID")),
+    responses(
+        (status = 200, description = "Host dismissed", body = ApiResponse<HostResponse>),
+        (status = 400, description = "The host is already confirmed", body = ApiErrorResponse),
+        (status = 404, description = "Host not found", body = ApiErrorResponse),
+    ),
+     security(("user_api_key" = []), ("session" = []))
+)]
+async fn dismiss_host(
+    State(state): State<Arc<AppState>>,
+    auth: Authorized<Member>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<ApiResponse<HostResponse>>> {
+    settle_host(&state, auth, id, false).await
+}
+
+async fn settle_host(
+    state: &AppState,
+    auth: Authorized<Member>,
+    id: Uuid,
+    confirm: bool,
+) -> ApiResult<Json<ApiResponse<HostResponse>>> {
+    let organization_id = auth
+        .organization_id()
+        .ok_or_else(ApiError::organization_required)?;
+    let host = state
+        .services
+        .host_service
+        .get_by_id(&id)
+        .await?
+        .ok_or_else(|| ApiError::entity_not_found::<Host>(id))?;
+    validate_read_access(
+        Some(host.base.site_id),
+        None,
+        &auth.site_ids(),
+        organization_id,
+    )?;
+    let host_service = &state.services.host_service;
+    let response = if confirm {
+        host_service.confirm_host(id, auth.into_entity()).await?
+    } else {
+        host_service.dismiss_host(id, auth.into_entity()).await?
+    };
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// List hosts
@@ -900,7 +985,7 @@ async fn create_host_discovery(
     ))
 }
 
-/// Consolidate hosts
+/// Merge hosts
 ///
 /// Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
 /// then deletes `other_id`. Both hosts must be on the same site.
@@ -916,24 +1001,24 @@ async fn create_host_discovery(
 ///
 /// ### Restrictions
 ///
-/// - Cannot consolidate a host with itself.
-/// - Cannot consolidate a host that has a daemon - consolidate into it instead.
+/// - Cannot merge a host with itself.
+/// - Cannot merge away a host that has a daemon - merge into it instead.
 #[utoipa::path(
     post,
-    path = "/{id}/consolidate/{other_id}",
+    path = "/{id}/merge/{other_id}",
     tag = Host::ENTITY_NAME_PLURAL,
     params(
         ("id" = Uuid, Path, description = "Host that receives all children"),
         ("other_id" = Uuid, Path, description = "Host merged into `id`, then deleted")
     ),
     responses(
-        (status = 200, description = "Hosts consolidated successfully", body = ApiResponse<HostResponse>),
+        (status = 200, description = "Hosts merged successfully", body = ApiResponse<HostResponse>),
         (status = 404, description = "One or both hosts not found", body = ApiErrorResponse),
         (status = 400, description = "Validation error: same host, has daemon, or different sites", body = ApiErrorResponse),
     ),
      security(("user_api_key" = []), ("session" = []))
 )]
-async fn consolidate_hosts(
+async fn merge_hosts(
     State(state): State<Arc<AppState>>,
     auth: Authorized<Member>,
     Path((destination_host_id, other_host_id)): Path<(Uuid, Uuid)>,
@@ -953,6 +1038,10 @@ async fn consolidate_hosts(
         .get_by_id(&other_host_id)
         .await?
         .ok_or_else(|| ApiError::entity_not_found::<Host>(other_host_id))?;
+    // An unconfirmed host can be merged away (that settles it), never merged into.
+    destination_host
+        .require_confirmed()
+        .map_err(|e| ApiError::bad_request(&e.to_string()))?;
 
     // Validate user has access to both hosts
     validate_read_access(
@@ -981,7 +1070,7 @@ async fn consolidate_hosts(
         proven_by: Vec::new(),
     };
     let mut host_response = host_service
-        .consolidate_hosts(destination_host, other_host, auth.into_entity(), reason)
+        .merge_hosts(destination_host, other_host, auth.into_entity(), reason)
         .await?;
 
     // Hydrate tags from junction table
@@ -1027,6 +1116,11 @@ pub async fn delete_host(
     auth: Authorized<Member>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
+    // An unconfirmed host is dismissed, not deleted: a deleted one comes back on the next scan.
+    if let Some(host) = state.services.host_service.get_by_id(&id).await? {
+        host.require_confirmed()
+            .map_err(|e| ApiError::bad_request(&e.to_string()))?;
+    }
     // Pre-validation: Can't delete a host with an associated daemon
     let daemon_filter = StorableFilter::<Daemon>::new_from_host_ids(&[id]);
     if state.services.daemon_service.exists(daemon_filter).await? {
@@ -1063,6 +1157,16 @@ pub async fn bulk_delete_hosts(
     auth: Authorized<Member>,
     ApiJson(ids): ApiJson<Vec<Uuid>>,
 ) -> ApiResult<Json<ApiResponse<BulkDeleteResponse>>> {
+    for host in state
+        .services
+        .host_service
+        .get_all(StorableFilter::<Host>::new_from_entity_ids(&ids))
+        .await?
+    {
+        host.require_confirmed()
+            .map_err(|e| ApiError::bad_request(&e.to_string()))?;
+    }
+
     let daemon_service = &state.services.daemon_service;
 
     let daemon_filter = StorableFilter::<Daemon>::new_from_host_ids(&ids);

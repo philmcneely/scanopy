@@ -143,6 +143,7 @@ fn identity(
         return None;
     }
     Some(DeviceIdentity {
+        matched: None,
         manufacturer: identity_field(Some("Apple".to_string()), source),
         model,
         serial_number: None,

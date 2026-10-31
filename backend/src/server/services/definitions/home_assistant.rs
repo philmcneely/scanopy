@@ -1,6 +1,8 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::Pattern;
 use crate::server::shared::logos::Logo;
@@ -18,9 +20,32 @@ impl ServiceDefinition for HomeAssistant {
     fn category(&self) -> ServiceCategory {
         ServiceCategory::HomeAutomation
     }
+    // Often a dedicated HA Green or Pi, and also Docker on a server.
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Suggests(DeviceType::DeviceHub)
+    }
 
+    /// Also binds the ports Home Assistant opens beside its UI:
+    /// - 1400, where the Sonos integration listens for the speakers' event callbacks: "the Sonos
+    ///   devices must be able to connect back to the Home Assistant host on TCP port 1400" (Sonos
+    ///   integration docs, Network requirements).
+    /// - 4357, the Supervisor's Observer, a status page titled "Home Assistant observer".
+    /// - 18555, the built-in go2rtc's WebRTC port: go2rtc's default 8555, prefixed by 1 (go2rtc
+    ///   integration docs).
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortType::new_tcp(8123), "/", "home assistant", None)
+        Pattern::AllOf(vec![
+            Pattern::Endpoint(PortType::new_tcp(8123), "/", "home assistant", None),
+            Pattern::Optional(Box::new(Pattern::AnyOf(vec![
+                Pattern::Port(PortType::new_tcp(1400)),
+                Pattern::Endpoint(
+                    PortType::new_tcp(4357),
+                    "/",
+                    "home assistant observer",
+                    None,
+                ),
+                Pattern::Port(PortType::new_tcp(18555)),
+            ]))),
+        ])
     }
 
     fn logo(&self) -> Option<Logo> {

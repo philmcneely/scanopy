@@ -14,6 +14,7 @@ impl HostService {
             .get_by_id(&request.id)
             .await?
             .ok_or_else(|| anyhow!("Host '{}' not found", request.id))?;
+        existing.require_confirmed()?;
 
         let site_id = existing.base.site_id;
         let UpdateHostRequest {
@@ -26,6 +27,15 @@ impl HostService {
             virtualization_interface_id,
             tags,
             expected_updated_at: _,
+            manufacturer,
+            model,
+            serial_number,
+            asset_tag,
+            sys_location,
+            sys_contact,
+            management_url,
+            os,
+            device_type,
             ip_addresses,
             ports,
             services,
@@ -73,6 +83,7 @@ impl HostService {
             last_seen_at: existing.last_seen_at,
             last_discovery_id: existing.last_discovery_id,
             first_discovery_id: existing.first_discovery_id,
+            dismissed_at: existing.dismissed_at,
             base: HostBase {
                 // Carried over, then reconciled below — the request alone cannot say whether a
                 // person renamed the host or merely saved some other field.
@@ -101,6 +112,7 @@ impl HostService {
                 firmware_revision: existing.base.firmware_revision.clone(),
                 software_revision: existing.base.software_revision.clone(),
                 os: existing.base.os.clone(),
+                matched_device_type: existing.base.matched_device_type.clone(),
                 credential_assignments: credential_assignments
                     .unwrap_or_else(|| existing.base.credential_assignments.clone()),
             },
@@ -127,6 +139,33 @@ impl HostService {
         if requested_hostname != attribution::text_of(&updated_host.base.hostname) {
             updated_host.base.hostname = requested_hostname
                 .map(|h| Attributed::new(HostHostnameValue(h), AttributeSource::Manual));
+        }
+
+        // The device facts follow the same rule, and are left alone when the request omits them.
+        let base = &mut updated_host.base;
+        apply_typed_text(&mut base.manufacturer, manufacturer, HostManufacturerValue);
+        apply_typed_text(&mut base.model, model, HostModelValue);
+        apply_typed_text(
+            &mut base.serial_number,
+            serial_number,
+            HostSerialNumberValue,
+        );
+        apply_typed_text(&mut base.asset_tag, asset_tag, HostAssetTagValue);
+        apply_typed_text(&mut base.sys_location, sys_location, HostSysLocationValue);
+        apply_typed_text(&mut base.sys_contact, sys_contact, HostSysContactValue);
+        apply_typed_text(
+            &mut base.management_url,
+            management_url,
+            HostManagementUrlValue,
+        );
+        if let Some(os) = os
+            && base.os.as_ref().map(|v| &v.value().0) != Some(&os)
+        {
+            base.os = Some(Attributed::new(HostOsValue(os), AttributeSource::Manual));
+        }
+        if let Some(device_type) = device_type {
+            base.matched_device_type =
+                apply_typed_device_type(base.matched_device_type.take(), device_type);
         }
 
         if let Some(org_id) = authentication.organization_id() {
@@ -486,5 +525,154 @@ impl HostService {
         }
 
         Ok(())
+    }
+}
+
+use crate::server::hosts::r#impl::device_type::DeviceType;
+
+impl HostService {
+    /// A person vouches for an unconfirmed host: it becomes `Manual`, which is what a host a
+    /// person created is. Confirming an already confirmed host is refused, as there is nothing
+    /// to settle.
+    pub async fn confirm_host(
+        &self,
+        id: Uuid,
+        authentication: AuthenticatedEntity,
+    ) -> Result<HostResponse> {
+        self.settle_unconfirmed(id, authentication, |host| {
+            host.base.source = EntitySource::Manual;
+            host.dismissed_at = None;
+        })
+        .await
+    }
+
+    /// A person sets an unconfirmed host aside. The row stays, so the next scan sees its MAC or
+    /// chassis id and does not mint it again; lists, topology and warnings leave it out. A scan
+    /// that reaches the device clears the dismissal (`preserve_immutable_fields`).
+    pub async fn dismiss_host(
+        &self,
+        id: Uuid,
+        authentication: AuthenticatedEntity,
+    ) -> Result<HostResponse> {
+        self.settle_unconfirmed(id, authentication, |host| {
+            host.dismissed_at = Some(Utc::now());
+        })
+        .await
+    }
+
+    async fn settle_unconfirmed(
+        &self,
+        id: Uuid,
+        authentication: AuthenticatedEntity,
+        settle: impl FnOnce(&mut Host),
+    ) -> Result<HostResponse> {
+        let mut host = self
+            .get_by_id(&id)
+            .await?
+            .ok_or_else(|| anyhow!("Host '{}' not found", id))?;
+        if !host.base.source.confirmation().is_unconfirmed() {
+            return Err(ValidationError::new("This host is already confirmed.").into());
+        }
+        settle(&mut host);
+        host.updated_at = Utc::now();
+        self.update(&mut host, authentication, UpdateReason::EntityRequested)
+            .await?;
+        self.get_host_response(&id)
+            .await?
+            .ok_or_else(|| anyhow!("Host '{}' not found", id))
+    }
+}
+
+/// A text fact a person may type: `None` leaves the stored value, blank clears it, and a value
+/// that differs from the stored one is recorded as `Manual`. The edit modal sends every fact back
+/// on each save, so an unchanged value keeps the source that produced it.
+fn apply_typed_text<V>(
+    slot: &mut Option<Attributed<V>>,
+    requested: Option<String>,
+    wrap: impl Fn(String) -> V,
+) where
+    V: crate::server::shared::attribution::AttributeValue + std::fmt::Display,
+{
+    let Some(requested) = requested else {
+        return;
+    };
+    let requested = requested.trim().to_string();
+    if requested.is_empty() {
+        *slot = None;
+    } else if attribution::text_of(slot).as_deref() != Some(requested.as_str()) {
+        *slot = Some(Attributed::new(wrap(requested), AttributeSource::Manual));
+    }
+}
+
+/// The device type a person chose. `Unidentified` hands it back to discovery by clearing a typed
+/// value; any other choice is recorded as `Manual`, which `Host::device_type` ranks above every
+/// inference.
+fn apply_typed_device_type(
+    stored: Option<HostMatchedDeviceTypeAttributed>,
+    requested: DeviceType,
+) -> Option<HostMatchedDeviceTypeAttributed> {
+    if requested == DeviceType::Unidentified {
+        return stored.filter(|v| v.source() != AttributeSource::Manual);
+    }
+    if stored
+        .as_ref()
+        .is_some_and(|v| v.value().0 == requested && v.source() == AttributeSource::Manual)
+    {
+        return stored;
+    }
+    Some(Attributed::new(
+        HostMatchedDeviceTypeValue(requested),
+        AttributeSource::Manual,
+    ))
+}
+
+#[cfg(test)]
+mod typed_fact_tests {
+    use super::*;
+
+    fn read() -> Option<Attributed<HostManufacturerValue>> {
+        Some(Attributed::new(
+            HostManufacturerValue("Hirschmann".into()),
+            AttributeSource::ForwardingTable,
+        ))
+    }
+
+    #[test]
+    fn an_omitted_fact_keeps_what_discovery_read() {
+        let mut slot = read();
+        apply_typed_text(&mut slot, None, HostManufacturerValue);
+        assert_eq!(slot, read());
+    }
+
+    #[test]
+    fn a_fact_sent_back_unchanged_keeps_its_source() {
+        let mut slot = read();
+        apply_typed_text(&mut slot, Some("Hirschmann".into()), HostManufacturerValue);
+        assert_eq!(slot, read());
+    }
+
+    #[test]
+    fn a_typed_fact_is_manual_and_a_blank_one_clears() {
+        let mut slot = None;
+        apply_typed_text(&mut slot, Some("Hirschmann".into()), HostManufacturerValue);
+        assert_eq!(
+            slot.as_ref().map(|v| v.source()),
+            Some(AttributeSource::Manual)
+        );
+        apply_typed_text(&mut slot, Some("  ".into()), HostManufacturerValue);
+        assert_eq!(slot, None);
+    }
+
+    #[test]
+    fn choosing_unidentified_hands_a_typed_device_type_back_to_discovery() {
+        let typed = apply_typed_device_type(None, DeviceType::Switch);
+        assert_eq!(
+            typed.as_ref().map(|v| v.source()),
+            Some(AttributeSource::Manual)
+        );
+        assert_eq!(
+            apply_typed_device_type(typed, DeviceType::Unidentified),
+            None
+        );
     }
 }

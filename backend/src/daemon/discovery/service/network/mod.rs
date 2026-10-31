@@ -1,11 +1,12 @@
 pub mod arp;
 pub mod dcp;
 mod dns;
-mod emitted_os;
+pub mod emitted_os;
 pub mod icmp;
 pub mod mdns;
 mod scan;
 mod subnets;
+pub mod tcp_stack;
 
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
@@ -522,10 +523,14 @@ pub(super) struct DeepScanParams<'a> {
     /// What the mDNS browse collected, keyed by address. Empty on any subnet the daemon has no
     /// interface on, because multicast does not cross a router.
     mdns_hosts: Arc<std::collections::HashMap<IpAddr, mdns::DnsSdHost>>,
+    /// The SYN-ACKs the scanning interfaces heard, for the OS family a stack implies.
+    tcp_stack: Arc<tcp_stack::TcpStackCapture>,
     credential_mappings: &'a [crate::server::credentials::r#impl::mapping::CredentialMapping<
         crate::server::credentials::r#impl::mapping::CredentialQueryPayload,
     >],
     known_subnets: Vec<Subnet>,
+    /// The subnets this scan sweeps.
+    scanned_subnets: Vec<Subnet>,
 }
 
 #[cfg(test)]

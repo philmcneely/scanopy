@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Scanopy API",
-    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.1\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.1\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.1)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
+    "description": "\nSite topology discovery and visualization API.\n\n## Authentication\n\nTwo authentication methods are supported:\n\n| Method | Header | Use Case |\n|--------|--------|----------|\n| User API key | `Authorization: Bearer scp_u_...` | Programmatic access, integrations |\n| Session cookie | `Cookie: session_id=...` | Web UI (via `/api/auth/login`) |\n\nUser API keys require your organization to have API access enabled. Create keys at **Platform > API Keys**.\n\n## Rate Limiting\n\nLimit: 300 requests/minute\n\nBurst: 150\n\nResponse headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`\n\nWhen rate limited, you'll receive HTTP `429 Too Many Requests` with a `Retry-After` header.\n\n## Pagination\n\nList endpoints support pagination via query parameters:\n\n| Parameter | Type | Default | Description |\n|-----------|------|---------|-------------|\n| `limit` | integer | 50 | Maximum results to return (1-1000). Use 0 for no limit. |\n| `offset` | integer | 0 | Number of results to skip |\n\nExample: `GET /api/v1/hosts?limit=10&offset=20`\n\n## Response Format\n\nAll responses use a standard envelope:\n\n```json\n{\n  \"success\": true,\n  \"data\": { ... },\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.4\"\n  }\n}\n```\n\n**Paginated list responses** include pagination metadata:\n\n```json\n{\n  \"success\": true,\n  \"data\": [ ... ],\n  \"meta\": {\n    \"api_version\": 1,\n    \"server_version\": \"0.19.4\",\n    \"pagination\": {\n      \"total_count\": 142,\n      \"limit\": 50,\n      \"offset\": 0,\n      \"has_more\": true\n    }\n  }\n}\n```\n\n| Field | Description |\n|-------|-------------|\n| `total_count` | Total items matching your query (ignoring pagination) |\n| `limit` | Applied limit (your request or default) |\n| `offset` | Applied offset |\n| `has_more` | `true` if more results exist beyond this page |\n\n**Error responses** include an `error` field instead of `data`:\n\n```json\n{\n  \"success\": false,\n  \"error\": \"Resource not found\",\n  \"meta\": { ... }\n}\n```\n\n**Common status codes:** `400` validation error, `401` unauthorized, `403` forbidden, `404` not found, `409` conflict, `429` rate limited.\n\n## Versioning\n\nEndpoints are prefixed with `/api/v1/`. The API version is an integer (`api_version: 1`) returned in every response, versioned independently from the application. Check `GET /api/version` for current versions.\n\n**While Scanopy is pre-v1.0 (current: 0.19.4)**, the API should be considered unstable. Breaking changes may be introduced in any release without incrementing the API version. We recommend pinning to a specific Scanopy release if you depend on API stability, and reviewing the [changelog](/changelog) before upgrading. After Scanopy reaches v1.0, breaking API changes will only occur with an API version increment.\n\n## Multi-Tenancy\n\nResources are scoped to your **organization** and **site(s)**:\n\n- You can only access entities within your organization\n- Site-level entities (hosts, services, etc.) are filtered to sites you have access to\n- Use `?site_id=<UUID>` to filter list endpoints to a specific site\n- API keys can be scoped to a subset of your accessible sites\n",
     "license": {
       "name": "Dual (AGPL3.0, Commercial License Available)"
     },
@@ -6885,14 +6885,138 @@
         ]
       }
     },
-    "/api/v1/hosts/{id}/consolidate/{other_id}": {
+    "/api/v1/hosts/{id}/confirm": {
       "post": {
         "tags": [
           "Hosts"
         ],
-        "summary": "Consolidate hosts",
-        "description": "Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,\nthen deletes `other_id`. Both hosts must be on the same site.\n\n### Merge Behavior\n\n- **Interfaces**: Transferred to destination. If an interface with matching subnet+IP or MAC\n  already exists on destination, bindings are remapped to use the existing interface.\n- **Ports**: Transferred to destination. If a port with the same number and protocol already\n  exists, bindings are remapped to use the existing port.\n- **Services**: Transferred to destination with deduplication.\n  See [upsert behavior](https://scanopy.net/docs/discovery/#upsert-behavior) for details.\n\n### Restrictions\n\n- Cannot consolidate a host with itself.\n- Cannot consolidate a host that has a daemon - consolidate into it instead.",
-        "operationId": "consolidate_hosts",
+        "summary": "Confirm unconfirmed host",
+        "description": "Records that a person vouches for a host Scanopy knows only from another device's report (an\nLLDP/CDP neighbour, or a switch's forwarding table). The host's source becomes `Manual`.",
+        "operationId": "confirm_host",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Host ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Host confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_HostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The host is already confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Host not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/hosts/{id}/dismiss": {
+      "post": {
+        "tags": [
+          "Hosts"
+        ],
+        "summary": "Dismiss unconfirmed host",
+        "description": "Sets aside a host Scanopy knows only from another device's report. It leaves lists, topology\nand scan warnings, and is not created again by later scans. A scan that reaches the device\nrestores it.",
+        "operationId": "dismiss_host",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Host ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Host dismissed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse_HostResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The host is already confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Host not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "user_api_key": []
+          },
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/v1/hosts/{id}/merge/{other_id}": {
+      "post": {
+        "tags": [
+          "Hosts"
+        ],
+        "summary": "Merge hosts",
+        "description": "Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,\nthen deletes `other_id`. Both hosts must be on the same site.\n\n### Merge Behavior\n\n- **Interfaces**: Transferred to destination. If an interface with matching subnet+IP or MAC\n  already exists on destination, bindings are remapped to use the existing interface.\n- **Ports**: Transferred to destination. If a port with the same number and protocol already\n  exists, bindings are remapped to use the existing port.\n- **Services**: Transferred to destination with deduplication.\n  See [upsert behavior](https://scanopy.net/docs/discovery/#upsert-behavior) for details.\n\n### Restrictions\n\n- Cannot merge a host with itself.\n- Cannot merge away a host that has a daemon - merge into it instead.",
+        "operationId": "merge_hosts",
         "parameters": [
           {
             "name": "id",
@@ -6917,7 +7041,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Hosts consolidated successfully",
+            "description": "Hosts merged successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -6963,7 +7087,7 @@
           "Hosts"
         ],
         "summary": "Rescan host",
-        "description": "Starts a one-shot scan of this host's addresses and nothing else, answering\n\"is this host still there, and is its data current?\" without sweeping the\nwhole subnet.\n\nThe scan runs on the daemon that last discovered this host, which is evidence\nit can reach the address. Where the daemon has an interface with a MAC on the\naddress's subnet it ARPs the target, which sees a live host even when every\nport is firewalled. Every other address, on a MAC-less interface (a\npoint-to-point tunnel) or on a subnet the daemon reaches through a router, is\nprobed by TCP. An address that doesn't answer comes back as not found. A\nloopback address is reached locally and is excluded from the target set.\n\nDaemons at or below `last_without_routed_rescan` only rescan addresses on\nsubnets they have an interface on, and the request is refused when the host\nhas none.\n\nReturns the session, which streams progress over `/api/v1/discoveries/stream`\nlike any other scan. A `Queued` phase means the daemon is busy; it will start\nwhen the running scan finishes.",
+        "description": "Starts a one-shot scan of this host's addresses and nothing else, answering\n\"is this host still there, and is its data current?\" without sweeping the\nwhole subnet.\n\nThe scan runs on the daemon that last discovered this host, which is evidence\nit can reach the address. Where the daemon has an interface with a MAC on the\naddress's subnet it ARPs the target, which sees a live host even when every\nport is firewalled. Every other address, on a MAC-less interface (a\npoint-to-point tunnel) or on a subnet the daemon reaches through a router, is\nprobed by TCP. An address that doesn't answer comes back as not found. A\nloopback address is reached locally and is excluded from the target set.\n\nDaemons at or below `last_without_routed_rescan` only rescan addresses on\nsubnets they have an interface on, and the request is refused when the host\nhas none.\n\nReturns the session, which streams progress over `/api/v1/live-updates/stream`\nlike any other scan. A `Queued` phase means the daemon is busy; it will start\nwhen the running scan finishes.",
         "operationId": "rescan_host",
         "parameters": [
           {
@@ -11733,6 +11857,18 @@
             }
           },
           {
+            "name": "include_shared_ranges",
+            "in": "query",
+            "description": "With `user_managed=true`, also returns the Internet and Remote Network ranges every site is\nseeded with, once each: one site's copy, from the lowest site id among the sites listed.",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
             "name": "tag_ids",
             "in": "query",
             "description": "Filter by tag IDs (returns subnets that have ANY of the specified tags)",
@@ -12114,6 +12250,18 @@
             "name": "user_managed",
             "in": "query",
             "description": "`true` returns only the subnets the user curates, leaving out the ones Scanopy fabricates\n(`Subnet::is_user_managed`).",
+            "required": false,
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "include_shared_ranges",
+            "in": "query",
+            "description": "With `user_managed=true`, also returns the Internet and Remote Network ranges every site is\nseeded with, once each: one site's copy, from the lowest site id among the sites listed.",
             "required": false,
             "schema": {
               "type": [
@@ -15554,12 +15702,12 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.1"
+            "example": "0.19.4"
           }
         },
         "example": {
           "api_version": 1,
-          "server_version": "0.19.1"
+          "server_version": "0.19.4"
         }
       },
       "ApiResponse": {
@@ -15691,19 +15839,19 @@
             ],
             "description": "Association between a service and a port / interface that the service is listening on",
             "example": {
-              "created_at": "2026-10-26T05:36:24.539784Z",
+              "created_at": "2026-10-30T13:27:50.908908Z",
               "first_discovery_id": null,
-              "id": "27f75c68-c407-42cb-9c7b-7a5a8de964a9",
+              "id": "31a88c70-f82f-484f-aa6d-05846c56c340",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T05:36:24.539784Z",
+              "last_seen_at": "2026-10-30T13:27:50.908908Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T05:36:24.539784Z",
-              "valid_from": "2026-10-26T05:36:24.539784Z",
+              "updated_at": "2026-10-30T13:27:50.908908Z",
+              "valid_from": "2026-10-30T13:27:50.908908Z",
               "valid_to": null
             }
           },
@@ -16322,7 +16470,9 @@
               "recent_discoveries",
               "plan_usage",
               "uncovered_integrations",
-              "targetless_credentials"
+              "targetless_credentials",
+              "unconfirmed_host_count",
+              "unconfirmed_subnet_count"
             ],
             "properties": {
               "daemons": {
@@ -16356,6 +16506,18 @@
                   "$ref": "#/components/schemas/TargetlessCredential"
                 },
                 "description": "Credentials no scan will send to a daemon, by name."
+              },
+              "unconfirmed_host_count": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Hosts known only from another device's report, waiting to be confirmed, merged or\ndismissed.",
+                "minimum": 0
+              },
+              "unconfirmed_subnet_count": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Subnets whose range was assumed, waiting to be confirmed or corrected.",
+                "minimum": 0
               },
               "uncovered_integrations": {
                 "type": "array",
@@ -17007,7 +17169,21 @@
               },
               "device_type": {
                 "$ref": "#/components/schemas/DeviceType",
-                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+                "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC\nvendor, as the topology computes it.\nRead-only.",
+                "readOnly": true
+              },
+              "device_type_source": {
+                "$ref": "#/components/schemas/HostDeviceTypeSource",
+                "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
+                "readOnly": true
+              },
+              "dismissed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.",
                 "readOnly": true
               },
               "display_name": {
@@ -17050,6 +17226,15 @@
                 ],
                 "format": "uuid",
                 "description": "The discovery run that first observed this host. Drives the \"First found by\" column.",
+                "readOnly": true
+              },
+              "found_by_discovery_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or\none no scan reported. Read-only.",
                 "readOnly": true
               },
               "hidden": {
@@ -17180,6 +17365,15 @@
                   "$ref": "#/components/schemas/Port"
                 },
                 "description": "Open ports on this host."
+              },
+              "reported_by_host_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "readOnly": true
+                },
+                "description": "For an unconfirmed host, the hosts whose report it is known from: the switch whose\nforwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed\nhost. Read-only."
               },
               "serial_number": {
                 "type": [
@@ -17360,11 +17554,18 @@
               "credential_assignments": [],
               "description": "Primary web server",
               "device_type": "Server",
+              "device_type_source": {
+                "service_id": "550e8400-e29b-41d4-a716-446655440007",
+                "service_name": "nginx",
+                "type": "Service"
+              },
+              "dismissed_at": null,
               "display_name": "web-server-01",
               "display_name_rung": "Name",
               "firmware_revision": null,
               "firmware_revision_source": "Unspecified",
               "first_discovery_id": null,
+              "found_by_discovery_id": null,
               "hidden": false,
               "hostname": "web-server-01.local",
               "hostname_source": "Manual",
@@ -17479,24 +17680,25 @@
                   "valid_to": null
                 }
               ],
+              "reported_by_host_ids": [],
               "serial_number_source": "Unspecified",
               "services": [
                 {
                   "bindings": [
                     {
-                      "created_at": "2026-10-26T05:36:24.507713Z",
+                      "created_at": "2026-10-30T13:27:50.852706Z",
                       "first_discovery_id": null,
-                      "id": "8e0c3f44-f93f-424d-973d-9d614c6e3f9e",
+                      "id": "a7f65aff-3536-4c58-b1ed-894500af395e",
                       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                       "last_discovery_id": null,
-                      "last_seen_at": "2026-10-26T05:36:24.507713Z",
+                      "last_seen_at": "2026-10-30T13:27:50.852706Z",
                       "lineage_id": null,
                       "port_id": "550e8400-e29b-41d4-a716-446655440006",
                       "service_id": "550e8400-e29b-41d4-a716-446655440007",
                       "site_id": "550e8400-e29b-41d4-a716-446655440002",
                       "type": "Port",
-                      "updated_at": "2026-10-26T05:36:24.507713Z",
-                      "valid_from": "2026-10-26T05:36:24.507713Z",
+                      "updated_at": "2026-10-30T13:27:50.852706Z",
+                      "valid_from": "2026-10-30T13:27:50.852706Z",
                       "valid_to": null
                     }
                   ],
@@ -17509,7 +17711,7 @@
                   "lineage_id": null,
                   "name": "nginx",
                   "position": 0,
-                  "service_definition": "Scanopy Server",
+                  "service_definition": "Gogs",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "source": {
                     "type": "Manual"
@@ -18586,7 +18788,8 @@
               "server_admin_contact_email",
               "license_signing_available",
               "license_key_buffer_days",
-              "license_key_grace_days"
+              "license_key_grace_days",
+              "default_site_stale_after_hours"
             ],
             "properties": {
               "available_upgrade": {
@@ -18599,6 +18802,11 @@
                     "type": "null"
                   }
                 ]
+              },
+              "default_site_stale_after_hours": {
+                "type": "integer",
+                "format": "int64",
+                "description": "The staleness window, in hours, a site uses when it sets none of its own."
               },
               "deployment_type": {
                 "$ref": "#/components/schemas/DeploymentType",
@@ -19001,19 +19209,19 @@
             "example": {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T05:36:24.534158Z",
+                  "created_at": "2026-10-30T13:27:50.901807Z",
                   "first_discovery_id": null,
-                  "id": "8642e38e-b2f4-4415-89a0-9926ec1f73e9",
+                  "id": "9ebb425e-bbc0-4981-9964-f80f98bba004",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T05:36:24.534158Z",
+                  "last_seen_at": "2026-10-30T13:27:50.901807Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T05:36:24.534158Z",
-                  "valid_from": "2026-10-26T05:36:24.534158Z",
+                  "updated_at": "2026-10-30T13:27:50.901807Z",
+                  "valid_from": "2026-10-30T13:27:50.901807Z",
                   "valid_to": null
                 }
               ],
@@ -19026,7 +19234,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Scanopy Server",
+              "service_definition": "Gogs",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -20067,13 +20275,18 @@
                       "LinkState",
                       "Staleness",
                       "OperStatus",
-                      "GuestState"
+                      "GuestState",
+                      "Confirmation"
                     ]
                   }
                 },
                 "propertyNames": {
                   "type": "string",
                   "enum": [
+                    "Topology",
+                    "Snapshot",
+                    "Share",
+                    "Dependency",
                     "Site",
                     "Vlan",
                     "Subnet",
@@ -20086,17 +20299,62 @@
                     "Discovery",
                     "Daemon",
                     "DaemonApiKey",
+                    "Credential",
                     "Tag",
                     "TagGroup",
                     "User",
                     "UserApiKey",
-                    "Credential",
                     "Organization",
-                    "Invite",
-                    "Topology",
-                    "Snapshot",
-                    "Share",
-                    "Dependency"
+                    "Invite"
+                  ]
+                }
+              },
+              "hidden_by_tag": {
+                "type": "object",
+                "description": "Per view, how many entities of each type a Visibility tag left out that the view would\nhave drawn. They never reach the browser, so this is how the filter panel knows to offer\nthe Visibility filter only in a view, and for a type, where it hid something. Views and\ntypes with none are absent.",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "Topology",
+                      "Snapshot",
+                      "Share",
+                      "Dependency",
+                      "Site",
+                      "Vlan",
+                      "Subnet",
+                      "Host",
+                      "Service",
+                      "IPAddress",
+                      "Interface",
+                      "Port",
+                      "Binding",
+                      "Discovery",
+                      "Daemon",
+                      "DaemonApiKey",
+                      "Credential",
+                      "Tag",
+                      "TagGroup",
+                      "User",
+                      "UserApiKey",
+                      "Organization",
+                      "Invite"
+                    ]
+                  }
+                },
+                "propertyNames": {
+                  "type": "string",
+                  "description": "Which topology view is being rendered",
+                  "enum": [
+                    "L2Physical",
+                    "L3Logical",
+                    "Workloads",
+                    "Application"
                   ]
                 }
               },
@@ -20127,6 +20385,34 @@
                   "$ref": "#/components/schemas/InterfaceNeighborRow"
                 },
                 "description": "Resolved LLDP/CDP neighbour adjacencies (GH #701): the merged read-model of\n`interface_neighbor_interfaces` + `interface_neighbor_hosts`, replacing the old\n`Interface.neighbor` scalar now that a port can anchor several links."
+              },
+              "node_entities": {
+                "type": "object",
+                "description": "Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:\nthe addresses reached through an L2 port, the services bound to all of a host's addresses\non its IP cards, the members inlined on a card. The topology search selects a node when it\nmatches any of them. Nodes with none are absent.",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "propertyNames": {
+                  "type": "string",
+                  "description": "Which topology view is being rendered",
+                  "enum": [
+                    "L2Physical",
+                    "L3Logical",
+                    "Workloads",
+                    "Application"
+                  ]
+                }
               },
               "nodes": {
                 "type": "object",
@@ -21627,6 +21913,76 @@
           },
           {
             "type": "string",
+            "description": "A device or OS matched in the subject of a TLS certificate the host served, such as the\n`OU=RV042` a Linksys router's self-signed certificate carries.",
+            "enum": [
+              "X509SubjectMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in the issuer of a TLS certificate the host served: an appliance\nwhose factory certificate names its own maker as the CA.",
+            "enum": [
+              "X509IssuerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in the `<title>` of a page the host's web server returned.",
+            "enum": [
+              "HtmlTitleMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in the realm of an HTTP `WWW-Authenticate` challenge.",
+            "enum": [
+              "HttpWwwAuthMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in a cookie the host's web server set.",
+            "enum": [
+              "HttpCookieMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched by the MD5 hash of the host's `/favicon.ico`.",
+            "enum": [
+              "FaviconMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in an FTP server's greeting.",
+            "enum": [
+              "FtpBannerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in a Telnet banner.",
+            "enum": [
+              "TelnetBannerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "A device or OS matched in an RTSP server's `Server` header.",
+            "enum": [
+              "RtspServerMatch"
+            ]
+          },
+          {
+            "type": "string",
+            "description": "An operating system family matched in the TCP/IP stack's reply to a connection: the initial\nTTL, window, MSS and TCP option layout of its SYN-ACK. The weakest match: it names only a\nfamily, and is applied only to a host nothing else names an OS for.",
+            "enum": [
+              "TcpStackMatch"
+            ]
+          },
+          {
+            "type": "string",
             "description": "An operating system matched in an mDNS `_device-info._tcp` record, such as a Mac's\n`model=MacBookPro18,3`.",
             "enum": [
               "DnsSdDeviceInfoMatch"
@@ -22153,19 +22509,19 @@
         ],
         "description": "Association between a service and a port / interface that the service is listening on",
         "example": {
-          "created_at": "2026-10-26T05:36:24.508279Z",
+          "created_at": "2026-10-30T13:27:50.853389Z",
           "first_discovery_id": null,
-          "id": "7db003de-dd12-4cd4-8b37-fb035c232dc8",
+          "id": "5dc92b21-ce11-4afa-a7b0-57706ea2586d",
           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
           "last_discovery_id": null,
-          "last_seen_at": "2026-10-26T05:36:24.508279Z",
+          "last_seen_at": "2026-10-30T13:27:50.853389Z",
           "lineage_id": null,
           "port_id": "550e8400-e29b-41d4-a716-446655440006",
           "service_id": "550e8400-e29b-41d4-a716-446655440007",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "type": "Port",
-          "updated_at": "2026-10-26T05:36:24.508279Z",
-          "valid_from": "2026-10-26T05:36:24.508279Z",
+          "updated_at": "2026-10-30T13:27:50.853389Z",
+          "valid_from": "2026-10-30T13:27:50.853389Z",
           "valid_to": null
         }
       },
@@ -22666,6 +23022,7 @@
           "DockerPing",
           "PodmanPing",
           "Ipp",
+          "Lpd",
           "SpotifyConnect",
           "Vnc",
           "AppleLockdown",
@@ -23073,7 +23430,7 @@
               "id": "550e8400-e29b-41d4-a716-446655440007",
               "name": "nginx",
               "position": 0,
-              "service_definition": "Scanopy Server",
+              "service_definition": "Gogs",
               "tags": [],
               "virtualization_metadata": null,
               "virtualization_service_id": null
@@ -23596,14 +23953,6 @@
             "description": "What it did in this run."
           }
         }
-      },
-      "CredentialStability": {
-        "type": "string",
-        "description": "Release maturity of a credential type's integration.\n\nAdditive and exhaustive: a new credential variant will not compile until it declares its\nstability, and every existing type is `Stable` by explicit arm rather than by wildcard, so\npromoting an integration is a one-line reviewable change rather than a deletion nobody\nnotices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —\nit is never stored on a credential row, so it carries no deploy-coexistence obligation.",
-        "enum": [
-          "Stable",
-          "Beta"
-        ]
       },
       "CredentialType": {
         "oneOf": [
@@ -24872,7 +25221,9 @@
           "recent_discoveries",
           "plan_usage",
           "uncovered_integrations",
-          "targetless_credentials"
+          "targetless_credentials",
+          "unconfirmed_host_count",
+          "unconfirmed_subnet_count"
         ],
         "properties": {
           "daemons": {
@@ -24906,6 +25257,18 @@
               "$ref": "#/components/schemas/TargetlessCredential"
             },
             "description": "Credentials no scan will send to a daemon, by name."
+          },
+          "unconfirmed_host_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hosts known only from another device's report, waiting to be confirmed, merged or\ndismissed.",
+            "minimum": 0
+          },
+          "unconfirmed_subnet_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Subnets whose range was assumed, waiting to be confirmed or corrected.",
+            "minimum": 0
           },
           "uncovered_integrations": {
             "type": "array",
@@ -25289,22 +25652,89 @@
         "type": "string",
         "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several device types takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific device type.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
         "enum": [
+          "Ips",
+          "SecurityAppliance",
+          "Vpn",
           "Firewall",
+          "SdWanAppliance",
+          "BroadbandRouter",
+          "CableModem",
+          "DslModem",
+          "VoipGateway",
+          "SipGateway",
+          "Multiplexer",
+          "Telecom",
           "Router",
           "Switch",
+          "NetworkManagementDevice",
+          "LightsOutManagement",
+          "Kvm",
+          "DeviceServer",
+          "WirelessController",
+          "WlanRepeater",
+          "Powerline",
           "AccessPoint",
           "Hypervisor",
+          "Nas",
+          "StorageAppliance",
+          "TapeLibrary",
           "Storage",
+          "MultifunctionDevice",
+          "PrintServer",
+          "Scanner",
+          "HandheldScanner",
+          "CheckScanner",
           "Printer",
+          "NetworkVideoRecorder",
+          "Dvr",
+          "WebCam",
           "Camera",
+          "VideoConferencing",
+          "VideoEncoder",
+          "VideoDecoder",
+          "DisplayController",
+          "WirelessPresenter",
+          "Whiteboard",
+          "VoipServer",
+          "VoiceAppliance",
           "Phone",
+          "Laptop",
+          "Desktop",
           "Workstation",
           "Tablet",
           "Mobile",
+          "DataTerminal",
+          "SmartTv",
+          "Iptv",
+          "MediaReceiver",
+          "AvReceiver",
+          "MediaServer",
           "MediaPlayer",
+          "NetworkAudio",
+          "AudioEncoder",
           "Speaker",
+          "Plc",
+          "HmiController",
           "Industrial",
+          "BuildingAutomation",
+          "AccessControl",
+          "AlarmPanel",
+          "EnvironmentControl",
+          "Ups",
+          "PowerDevice",
+          "PowerMeter",
+          "PowerRelay",
+          "RelayController",
+          "DeviceHub",
+          "Sensor",
+          "LightBulb",
           "IoT",
+          "Medical",
+          "TestInstrument",
+          "JtagAdapter",
+          "EthernetAdapter",
+          "SupportAppliance",
+          "Monitoring",
           "Server",
           "Unidentified"
         ]
@@ -25515,7 +25945,8 @@
         "description": "Protocol that discovered the physical link between network devices",
         "enum": [
           "LLDP",
-          "CDP"
+          "CDP",
+          "ForwardingTable"
         ]
       },
       "DiscoveryTerminalReason": {
@@ -25529,7 +25960,10 @@
           "DaemonRestarted",
           "DaemonUnreachable",
           "DaemonBusy",
-          "WatchdogTimeout"
+          "WatchdogTimeout",
+          "DaemonOffline",
+          "SessionSilent",
+          "DaemonDroppedSession"
         ]
       },
       "DiscoveryType": {
@@ -27398,6 +27832,99 @@
           },
           {
             "type": "object",
+            "title": "ProxmoxGuestOutsideScan",
+            "description": "A running guest at addresses no subnet this scan covers, on a shared network or one the\nnode's config doesn't list, so it was recorded without ports or services.",
+            "required": [
+              "address",
+              "guest",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestOutsideScan"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxmoxGuestBehindNode",
+            "description": "A running guest on a bridge with no uplink that only its node holds an address on (a NAT'd\n`vmbr1`), so only a daemon on that node reaches it.",
+            "required": [
+              "address",
+              "guest",
+              "node",
+              "bridge",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "bridge": {
+                "type": "string",
+                "description": "The bridge its NIC is on."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestBehindNode"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              },
+              "node": {
+                "type": "string",
+                "description": "The node it runs on."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxmoxGuestIsolated",
+            "description": "A running guest on a bridge with no uplink and no node address, so only a daemon on a guest\nattached to that bridge reaches it.",
+            "required": [
+              "address",
+              "guest",
+              "bridge",
+              "code"
+            ],
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "The guest's first address."
+              },
+              "bridge": {
+                "type": "string",
+                "description": "The bridge its NIC is on."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "ProxmoxGuestIsolated"
+                ]
+              },
+              "guest": {
+                "type": "string",
+                "description": "Its Proxmox VE name, else its VMID."
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "ConnectionsWithoutProtocolResponse",
             "description": "Addresses on a routed subnet completed a TCP handshake and then answered nothing, so no\nhost was recorded at any of them.\n\nThe shape a middlebox in the path produces: a firewall session helper, a load balancer or a\nscrubbing appliance answering on behalf of addresses with nothing behind them. One warning\nper subnet rather than per address — the case that raises it raises it for every address in\nthe range, and 254 copies of a sentence is not 254 findings.",
             "required": [
@@ -27707,6 +28234,29 @@
               }
             ],
             "description": "A range was created from the addresses unplaceable far ends publish for themselves."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnconfirmedHost",
+                "description": "A host is known only from another device's report and awaits confirmation."
+              },
+              {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "UnconfirmedHostInferred"
+                    ]
+                  }
+                }
+              }
+            ],
+            "description": "A host is known only from another device's report and awaits confirmation."
           },
           {
             "type": "object",
@@ -28673,6 +29223,10 @@
       "EntityDiscriminants": {
         "type": "string",
         "enum": [
+          "Topology",
+          "Snapshot",
+          "Share",
+          "Dependency",
           "Site",
           "Vlan",
           "Subnet",
@@ -28685,17 +29239,13 @@
           "Discovery",
           "Daemon",
           "DaemonApiKey",
+          "Credential",
           "Tag",
           "TagGroup",
           "User",
           "UserApiKey",
-          "Credential",
           "Organization",
-          "Invite",
-          "Topology",
-          "Snapshot",
-          "Share",
-          "Dependency"
+          "Invite"
         ]
       },
       "EntityField": {
@@ -28708,7 +29258,8 @@
           "path",
           "format",
           "summary",
-          "many"
+          "many",
+          "searchable"
         ],
         "properties": {
           "field": {
@@ -28742,6 +29293,10 @@
               "$ref": "#/components/schemas/Hop"
             },
             "description": "Steps from the entity to the objects the value is read from. Empty for the entity itself."
+          },
+          "searchable": {
+            "type": "boolean",
+            "description": "Matched by the topology search: a value that names or identifies the entity on the map\n(a name, an address, a MAC, a port name, a vendor). The search reads only these."
           },
           "source_field": {
             "type": [
@@ -28834,7 +29389,7 @@
           {
             "type": "object",
             "title": "Inferred",
-            "description": "Known only because something else reported it — an LLDP/CDP neighbour publishing an address,\nor a controller listing a device — and never contacted directly.\n\nA distinct rung rather than plain `Discovery` because the difference is exactly what an\noperator cannot otherwise see: a host with no ports, no services and an address nothing ever\nanswered on is indistinguishable from a device that is simply down. It counts as discovered\nfor every other purpose — see [`Self::is_from_discovery`] — so staleness, quota and the\ndiscovery FKs behave for it precisely as they do for a swept host.",
+            "description": "Known only because something else reported it, and never contacted directly: a host an\nLLDP/CDP neighbour advertised or a switch learned the MAC of, or a subnet whose range was\nassumed around such an address. An inferred entity is unconfirmed until a person confirms\nit or a scan reaches it ([`Self::confirmation`]).\n\nA distinct rung rather than plain `Discovery` because the difference is exactly what an\noperator cannot otherwise see: a host with no ports, no services and an address nothing ever\nanswered on is indistinguishable from a device that is simply down. It counts as discovered\nfor every other purpose — see [`Self::is_from_discovery`] — so staleness and the discovery\nFKs behave for it precisely as they do for a swept host.",
             "required": [
               "type"
             ],
@@ -28844,6 +29399,10 @@
                 "enum": [
                   "Inferred"
                 ]
+              },
+              "via": {
+                "$ref": "#/components/schemas/InferredVia",
+                "description": "What reported it, recorded when the entity was created. Defaulted because every row\nstored before the field existed came from an LLDP/CDP neighbour."
               }
             }
           },
@@ -29245,6 +29804,22 @@
           },
           {
             "type": "object",
+            "title": "AttributeSource",
+            "description": "Where a value came from (an `AttributeSource`), named as the UI names sources elsewhere:\n\"SNMP\", \"Forwarding table\".",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "AttributeSource"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "Entity",
             "description": "A related entity. The UI links it; CSV writes its id; text-only outputs write its display\nfield.",
             "required": [
@@ -29602,6 +30177,15 @@
                 "description": "When this record was first created.",
                 "readOnly": true
               },
+              "dismissed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "When a person dismissed this unconfirmed host. A dismissed host is left out of lists,\ntopology and warnings, and its MAC or chassis id is not minted again. Cleared when a scan\nreaches the device.",
+                "readOnly": true
+              },
               "first_discovery_id": {
                 "type": [
                   "string",
@@ -29673,6 +30257,7 @@
           "created_at": "2026-01-15T10:30:00Z",
           "credential_assignments": [],
           "description": "Primary web server",
+          "dismissed_at": null,
           "first_discovery_id": null,
           "hostname": "web-server-01.local",
           "hostname_source": "Manual",
@@ -29774,6 +30359,10 @@
             "description": "The host's operating system, from whichever source read or matched it. See\n[`HostOsValue`](super::attributes::HostOsValue) for who writes it and how they rank."
           },
           {
+            "$ref": "#/components/schemas/HostMatchedDeviceType",
+            "description": "The device class a fingerprint of something the host emitted names. One rung of the\ndevice type the host shows; see\n[`HostMatchedDeviceTypeValue`](super::attributes::HostMatchedDeviceTypeValue)."
+          },
+          {
             "type": "object",
             "required": [
               "site_id",
@@ -29862,6 +30451,158 @@
           }
         }
       },
+      "HostDeviceTypeSource": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "Service",
+            "description": "A service on the host declares the device type, or implies `Server`.",
+            "required": [
+              "service_id",
+              "service_name",
+              "type"
+            ],
+            "properties": {
+              "service_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The service whose definition declares or implies the device type."
+              },
+              "service_name": {
+                "type": "string",
+                "description": "That service's name, for display."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Service"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Matched",
+            "description": "A fingerprint of something the host emitted, stored in `matched_device_type`.",
+            "required": [
+              "source",
+              "type"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/AttributeSource"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Matched"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "OperatingSystem",
+            "description": "The host's OS implies it. `source` is where the OS came from.",
+            "required": [
+              "source",
+              "type"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/AttributeSource"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "OperatingSystem"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Hostname",
+            "description": "The host's hostname names a product.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Hostname"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Name",
+            "description": "The host's name names a product.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MacVendor",
+            "description": "The maker of one of the host's network adapters makes only this type of device.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "MacVendor"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Containers",
+            "description": "The host runs containers.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Containers"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "NoEvidence",
+            "description": "Nothing on the host names what it is. Also what a reader makes of a rung it does not know.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "NoEvidence"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Which rung of [`Host::device_type`] decided a host's device type, and the evidence on it.\n\nOnly `Matched` is a stored value with a source of its own. Every other rung is derived from\nother fields each time the host is read, so the UI says which ones instead of naming a source."
+      },
       "HostFirmwareRevision": {
         "type": "object",
         "properties": {
@@ -29906,6 +30647,105 @@
             "description": "ENTITY-MIB entPhysicalMfgName - hardware manufacturer"
           },
           "manufacturer_source": {
+            "$ref": "#/components/schemas/AttributeSource"
+          }
+        }
+      },
+      "HostMatchedDeviceType": {
+        "type": "object",
+        "properties": {
+          "matched_device_type": {
+            "type": "string",
+            "description": "What a host is, as a device: the class its icon stands for on the map.\n\nDeclaration order is precedence, highest first. A host whose services claim several device types takes\nthe first one here, so a firewall that also serves files reads as a firewall, and `Server`,\nwhich any application implies, never hides a more specific device type.\n\n`Unidentified` means no evidence yet, not a device class outside this list: every class the\nevidence names gets its own variant.",
+            "enum": [
+              "Ips",
+              "SecurityAppliance",
+              "Vpn",
+              "Firewall",
+              "SdWanAppliance",
+              "BroadbandRouter",
+              "CableModem",
+              "DslModem",
+              "VoipGateway",
+              "SipGateway",
+              "Multiplexer",
+              "Telecom",
+              "Router",
+              "Switch",
+              "NetworkManagementDevice",
+              "LightsOutManagement",
+              "Kvm",
+              "DeviceServer",
+              "WirelessController",
+              "WlanRepeater",
+              "Powerline",
+              "AccessPoint",
+              "Hypervisor",
+              "Nas",
+              "StorageAppliance",
+              "TapeLibrary",
+              "Storage",
+              "MultifunctionDevice",
+              "PrintServer",
+              "Scanner",
+              "HandheldScanner",
+              "CheckScanner",
+              "Printer",
+              "NetworkVideoRecorder",
+              "Dvr",
+              "WebCam",
+              "Camera",
+              "VideoConferencing",
+              "VideoEncoder",
+              "VideoDecoder",
+              "DisplayController",
+              "WirelessPresenter",
+              "Whiteboard",
+              "VoipServer",
+              "VoiceAppliance",
+              "Phone",
+              "Laptop",
+              "Desktop",
+              "Workstation",
+              "Tablet",
+              "Mobile",
+              "DataTerminal",
+              "SmartTv",
+              "Iptv",
+              "MediaReceiver",
+              "AvReceiver",
+              "MediaServer",
+              "MediaPlayer",
+              "NetworkAudio",
+              "AudioEncoder",
+              "Speaker",
+              "Plc",
+              "HmiController",
+              "Industrial",
+              "BuildingAutomation",
+              "AccessControl",
+              "AlarmPanel",
+              "EnvironmentControl",
+              "Ups",
+              "PowerDevice",
+              "PowerMeter",
+              "PowerRelay",
+              "RelayController",
+              "DeviceHub",
+              "Sensor",
+              "LightBulb",
+              "IoT",
+              "Medical",
+              "TestInstrument",
+              "JtagAdapter",
+              "EthernetAdapter",
+              "SupportAppliance",
+              "Monitoring",
+              "Server",
+              "Unidentified"
+            ]
+          },
+          "matched_device_type_source": {
             "$ref": "#/components/schemas/AttributeSource"
           }
         }
@@ -30237,7 +31077,21 @@
           },
           "device_type": {
             "$ref": "#/components/schemas/DeviceType",
-            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+            "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC\nvendor, as the topology computes it.\nRead-only.",
+            "readOnly": true
+          },
+          "device_type_source": {
+            "$ref": "#/components/schemas/HostDeviceTypeSource",
+            "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
+            "readOnly": true
+          },
+          "dismissed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.",
             "readOnly": true
           },
           "display_name": {
@@ -30280,6 +31134,15 @@
             ],
             "format": "uuid",
             "description": "The discovery run that first observed this host. Drives the \"First found by\" column.",
+            "readOnly": true
+          },
+          "found_by_discovery_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or\none no scan reported. Read-only.",
             "readOnly": true
           },
           "hidden": {
@@ -30410,6 +31273,15 @@
               "$ref": "#/components/schemas/Port"
             },
             "description": "Open ports on this host."
+          },
+          "reported_by_host_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "readOnly": true
+            },
+            "description": "For an unconfirmed host, the hosts whose report it is known from: the switch whose\nforwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed\nhost. Read-only."
           },
           "serial_number": {
             "type": [
@@ -30590,11 +31462,18 @@
           "credential_assignments": [],
           "description": "Primary web server",
           "device_type": "Server",
+          "device_type_source": {
+            "service_id": "550e8400-e29b-41d4-a716-446655440007",
+            "service_name": "nginx",
+            "type": "Service"
+          },
+          "dismissed_at": null,
           "display_name": "web-server-01",
           "display_name_rung": "Name",
           "firmware_revision": null,
           "firmware_revision_source": "Unspecified",
           "first_discovery_id": null,
+          "found_by_discovery_id": null,
           "hidden": false,
           "hostname": "web-server-01.local",
           "hostname_source": "Manual",
@@ -30709,24 +31588,25 @@
               "valid_to": null
             }
           ],
+          "reported_by_host_ids": [],
           "serial_number_source": "Unspecified",
           "services": [
             {
               "bindings": [
                 {
-                  "created_at": "2026-10-26T05:36:24.506997Z",
+                  "created_at": "2026-10-30T13:27:50.851866Z",
                   "first_discovery_id": null,
-                  "id": "612479f7-e0cb-4a44-be2e-5e30b7fec0fc",
+                  "id": "40467d2a-79a6-458a-9377-c76d53d9220d",
                   "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                   "last_discovery_id": null,
-                  "last_seen_at": "2026-10-26T05:36:24.506997Z",
+                  "last_seen_at": "2026-10-30T13:27:50.851866Z",
                   "lineage_id": null,
                   "port_id": "550e8400-e29b-41d4-a716-446655440006",
                   "service_id": "550e8400-e29b-41d4-a716-446655440007",
                   "site_id": "550e8400-e29b-41d4-a716-446655440002",
                   "type": "Port",
-                  "updated_at": "2026-10-26T05:36:24.506997Z",
-                  "valid_from": "2026-10-26T05:36:24.506997Z",
+                  "updated_at": "2026-10-30T13:27:50.851866Z",
+                  "valid_from": "2026-10-30T13:27:50.851866Z",
                   "valid_to": null
                 }
               ],
@@ -30739,7 +31619,7 @@
               "lineage_id": null,
               "name": "nginx",
               "position": 0,
-              "service_definition": "Scanopy Server",
+              "service_definition": "Gogs",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "source": {
                 "type": "Manual"
@@ -31440,6 +32320,15 @@
           "Dormant",
           "NotPresent",
           "LowerLayerDown"
+        ]
+      },
+      "InferredVia": {
+        "type": "string",
+        "description": "What reported an [`EntitySource::Inferred`] entity.",
+        "enum": [
+          "Neighbour",
+          "ForwardingTable",
+          "ReportedAddress"
         ]
       },
       "InlineFormat": {
@@ -32827,6 +33716,67 @@
           "pending"
         ]
       },
+      "LiveTopologyUpdate": {
+        "type": "object",
+        "description": "A site whose live topology changed.",
+        "required": [
+          "site_id"
+        ],
+        "properties": {
+          "site_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The site whose live entities changed."
+          }
+        }
+      },
+      "LiveUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "Discovery",
+            "description": "Progress or an end state of a discovery session.",
+            "required": [
+              "data",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/DiscoveryUpdatePayload",
+                "description": "Progress or an end state of a discovery session."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Discovery"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Topology",
+            "description": "A site's live entity set changed, so its topology needs refetching.",
+            "required": [
+              "data",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/LiveTopologyUpdate",
+                "description": "A site's live entity set changed, so its topology needs refetching."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Topology"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "An event on the live-update stream (`GET /api/v1/live-updates/stream`)."
+      },
       "LldpChassisId": {
         "oneOf": [
           {
@@ -33483,7 +34433,8 @@
           "LinkState",
           "Staleness",
           "OperStatus",
-          "GuestState"
+          "GuestState",
+          "Confirmation"
         ]
       },
       "MetadataFixture": {
@@ -34124,7 +35075,7 @@
           "server_version": {
             "type": "string",
             "description": "Server version (semver)",
-            "example": "0.19.1"
+            "example": "0.19.4"
           }
         },
         "example": {
@@ -34135,7 +35086,7 @@
             "offset": 0,
             "total_count": 142
           },
-          "server_version": "0.19.1"
+          "server_version": "0.19.4"
         }
       },
       "PaginatedApiResponse_Credential": {
@@ -34570,7 +35521,21 @@
                 },
                 "device_type": {
                   "$ref": "#/components/schemas/DeviceType",
-                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, then its OS, as the topology computes it.\nRead-only.",
+                  "description": "What this host is, as a device: the role its icon shows everywhere it appears. Computed\nby [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC\nvendor, as the topology computes it.\nRead-only.",
+                  "readOnly": true
+                },
+                "device_type_source": {
+                  "$ref": "#/components/schemas/HostDeviceTypeSource",
+                  "description": "Which rung of the ladder decided `device_type`, and its evidence: a service, the stored\nfingerprint match with its source, or a field the type is derived from. Read-only.",
+                  "readOnly": true
+                },
+                "dismissed_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.",
                   "readOnly": true
                 },
                 "display_name": {
@@ -34613,6 +35578,15 @@
                   ],
                   "format": "uuid",
                   "description": "The discovery run that first observed this host. Drives the \"First found by\" column.",
+                  "readOnly": true
+                },
+                "found_by_discovery_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid",
+                  "description": "For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or\none no scan reported. Read-only.",
                   "readOnly": true
                 },
                 "hidden": {
@@ -34743,6 +35717,15 @@
                     "$ref": "#/components/schemas/Port"
                   },
                   "description": "Open ports on this host."
+                },
+                "reported_by_host_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                  },
+                  "description": "For an unconfirmed host, the hosts whose report it is known from: the switch whose\nforwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed\nhost. Read-only."
                 },
                 "serial_number": {
                   "type": [
@@ -34923,11 +35906,18 @@
                 "credential_assignments": [],
                 "description": "Primary web server",
                 "device_type": "Server",
+                "device_type_source": {
+                  "service_id": "550e8400-e29b-41d4-a716-446655440007",
+                  "service_name": "nginx",
+                  "type": "Service"
+                },
+                "dismissed_at": null,
                 "display_name": "web-server-01",
                 "display_name_rung": "Name",
                 "firmware_revision": null,
                 "firmware_revision_source": "Unspecified",
                 "first_discovery_id": null,
+                "found_by_discovery_id": null,
                 "hidden": false,
                 "hostname": "web-server-01.local",
                 "hostname_source": "Manual",
@@ -35042,24 +36032,25 @@
                     "valid_to": null
                   }
                 ],
+                "reported_by_host_ids": [],
                 "serial_number_source": "Unspecified",
                 "services": [
                   {
                     "bindings": [
                       {
-                        "created_at": "2026-10-26T05:36:24.496633Z",
+                        "created_at": "2026-10-30T13:27:50.829707Z",
                         "first_discovery_id": null,
-                        "id": "87856ab4-3786-4f99-8596-cb7d8e91bdf2",
+                        "id": "a41c1754-997b-4877-b4f7-ba94b6eec7a0",
                         "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                         "last_discovery_id": null,
-                        "last_seen_at": "2026-10-26T05:36:24.496633Z",
+                        "last_seen_at": "2026-10-30T13:27:50.829707Z",
                         "lineage_id": null,
                         "port_id": "550e8400-e29b-41d4-a716-446655440006",
                         "service_id": "550e8400-e29b-41d4-a716-446655440007",
                         "site_id": "550e8400-e29b-41d4-a716-446655440002",
                         "type": "Port",
-                        "updated_at": "2026-10-26T05:36:24.496633Z",
-                        "valid_from": "2026-10-26T05:36:24.496633Z",
+                        "updated_at": "2026-10-30T13:27:50.829707Z",
+                        "valid_from": "2026-10-30T13:27:50.829707Z",
                         "valid_to": null
                       }
                     ],
@@ -35072,7 +36063,7 @@
                     "lineage_id": null,
                     "name": "nginx",
                     "position": 0,
-                    "service_definition": "Scanopy Server",
+                    "service_definition": "Gogs",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "source": {
                       "type": "Manual"
@@ -35319,19 +36310,19 @@
               "example": {
                 "bindings": [
                   {
-                    "created_at": "2026-10-26T05:36:24.533332Z",
+                    "created_at": "2026-10-30T13:27:50.900854Z",
                     "first_discovery_id": null,
-                    "id": "d28b4f19-523b-4472-b5aa-3c435efb33df",
+                    "id": "eac72ae9-778c-454f-b39c-dcb50b47d1f6",
                     "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
                     "last_discovery_id": null,
-                    "last_seen_at": "2026-10-26T05:36:24.533332Z",
+                    "last_seen_at": "2026-10-30T13:27:50.900854Z",
                     "lineage_id": null,
                     "port_id": "550e8400-e29b-41d4-a716-446655440006",
                     "service_id": "550e8400-e29b-41d4-a716-446655440007",
                     "site_id": "550e8400-e29b-41d4-a716-446655440002",
                     "type": "Port",
-                    "updated_at": "2026-10-26T05:36:24.533332Z",
-                    "valid_from": "2026-10-26T05:36:24.533332Z",
+                    "updated_at": "2026-10-30T13:27:50.900854Z",
+                    "valid_from": "2026-10-30T13:27:50.900854Z",
                     "valid_to": null
                   }
                 ],
@@ -35344,7 +36335,7 @@
                 "lineage_id": null,
                 "name": "nginx",
                 "position": 0,
-                "service_definition": "Scanopy Server",
+                "service_definition": "Gogs",
                 "site_id": "550e8400-e29b-41d4-a716-446655440002",
                 "source": {
                   "type": "Manual"
@@ -36705,7 +37696,8 @@
           "server_admin_contact_email",
           "license_signing_available",
           "license_key_buffer_days",
-          "license_key_grace_days"
+          "license_key_grace_days",
+          "default_site_stale_after_hours"
         ],
         "properties": {
           "available_upgrade": {
@@ -36718,6 +37710,11 @@
                 "type": "null"
               }
             ]
+          },
+          "default_site_stale_after_hours": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The staleness window, in hours, a site uses when it sets none of its own."
           },
           "deployment_type": {
             "$ref": "#/components/schemas/DeploymentType",
@@ -38041,19 +39038,19 @@
         "example": {
           "bindings": [
             {
-              "created_at": "2026-10-26T05:36:24.508101Z",
+              "created_at": "2026-10-30T13:27:50.853169Z",
               "first_discovery_id": null,
-              "id": "6d5bb6c8-c9ba-459b-8525-fed600dcbe64",
+              "id": "f9769872-25ce-40ed-b88f-2e8b5ac78328",
               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
               "last_discovery_id": null,
-              "last_seen_at": "2026-10-26T05:36:24.508101Z",
+              "last_seen_at": "2026-10-30T13:27:50.853169Z",
               "lineage_id": null,
               "port_id": "550e8400-e29b-41d4-a716-446655440006",
               "service_id": "550e8400-e29b-41d4-a716-446655440007",
               "site_id": "550e8400-e29b-41d4-a716-446655440002",
               "type": "Port",
-              "updated_at": "2026-10-26T05:36:24.508101Z",
-              "valid_from": "2026-10-26T05:36:24.508101Z",
+              "updated_at": "2026-10-30T13:27:50.853169Z",
+              "valid_from": "2026-10-30T13:27:50.853169Z",
               "valid_to": null
             }
           ],
@@ -38066,7 +39063,7 @@
           "lineage_id": null,
           "name": "nginx",
           "position": 0,
-          "service_definition": "Scanopy Server",
+          "service_definition": "Gogs",
           "site_id": "550e8400-e29b-41d4-a716-446655440002",
           "source": {
             "type": "Manual"
@@ -39230,6 +40227,14 @@
           }
         }
       },
+      "Stability": {
+        "type": "string",
+        "description": "Release maturity of something Scanopy ships: a credential type's integration, or a plan\nfeature.\n\nEach owner declares it in an exhaustive match, so promoting one to `Stable` is a one-line\nreviewable change. This is presentation metadata about the *code*, like\n`last_unsupported_daemon_version`. It is never stored on a row, so it carries no\ndeploy-coexistence obligation.",
+        "enum": [
+          "Stable",
+          "Beta"
+        ]
+      },
       "Subnet": {
         "allOf": [
           {
@@ -40097,13 +41102,18 @@
                   "LinkState",
                   "Staleness",
                   "OperStatus",
-                  "GuestState"
+                  "GuestState",
+                  "Confirmation"
                 ]
               }
             },
             "propertyNames": {
               "type": "string",
               "enum": [
+                "Topology",
+                "Snapshot",
+                "Share",
+                "Dependency",
                 "Site",
                 "Vlan",
                 "Subnet",
@@ -40116,17 +41126,62 @@
                 "Discovery",
                 "Daemon",
                 "DaemonApiKey",
+                "Credential",
                 "Tag",
                 "TagGroup",
                 "User",
                 "UserApiKey",
-                "Credential",
                 "Organization",
-                "Invite",
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency"
+                "Invite"
+              ]
+            }
+          },
+          "hidden_by_tag": {
+            "type": "object",
+            "description": "Per view, how many entities of each type a Visibility tag left out that the view would\nhave drawn. They never reach the browser, so this is how the filter panel knows to offer\nthe Visibility filter only in a view, and for a type, where it hid something. Views and\ntypes with none are absent.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "Topology",
+                  "Snapshot",
+                  "Share",
+                  "Dependency",
+                  "Site",
+                  "Vlan",
+                  "Subnet",
+                  "Host",
+                  "Service",
+                  "IPAddress",
+                  "Interface",
+                  "Port",
+                  "Binding",
+                  "Discovery",
+                  "Daemon",
+                  "DaemonApiKey",
+                  "Credential",
+                  "Tag",
+                  "TagGroup",
+                  "User",
+                  "UserApiKey",
+                  "Organization",
+                  "Invite"
+                ]
+              }
+            },
+            "propertyNames": {
+              "type": "string",
+              "description": "Which topology view is being rendered",
+              "enum": [
+                "L2Physical",
+                "L3Logical",
+                "Workloads",
+                "Application"
               ]
             }
           },
@@ -40157,6 +41212,34 @@
               "$ref": "#/components/schemas/InterfaceNeighborRow"
             },
             "description": "Resolved LLDP/CDP neighbour adjacencies (GH #701): the merged read-model of\n`interface_neighbor_interfaces` + `interface_neighbor_hosts`, replacing the old\n`Interface.neighbor` scalar now that a port can anchor several links."
+          },
+          "node_entities": {
+            "type": "object",
+            "description": "Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:\nthe addresses reached through an L2 port, the services bound to all of a host's addresses\non its IP cards, the members inlined on a card. The topology search selects a node when it\nmatches any of them. Nodes with none are absent.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "propertyNames": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "propertyNames": {
+              "type": "string",
+              "description": "Which topology view is being rendered",
+              "enum": [
+                "L2Physical",
+                "L3Logical",
+                "Workloads",
+                "Application"
+              ]
+            }
           },
           "nodes": {
             "type": "object",
@@ -40254,7 +41337,8 @@
                         "LinkState",
                         "Staleness",
                         "OperStatus",
-                        "GuestState"
+                        "GuestState",
+                        "Confirmation"
                       ]
                     },
                     {
@@ -40295,7 +41379,8 @@
                         "LinkState",
                         "Staleness",
                         "OperStatus",
-                        "GuestState"
+                        "GuestState",
+                        "Confirmation"
                       ]
                     },
                     {
@@ -40413,7 +41498,7 @@
             "default": {
               "Application": [
                 {
-                  "id": "f17daac5-3334-49bd-95da-e11a27a0348b",
+                  "id": "357a612c-f5d9-40e5-a5fb-31df8516ce70",
                   "rule": {
                     "ByApplication": {
                       "tag_ids": []
@@ -40423,23 +41508,23 @@
               ],
               "L2Physical": [
                 {
-                  "id": "751c1326-c151-4fa3-8f17-72ee49eec6e4",
+                  "id": "9ac25707-27c0-4112-8068-2d39b0e24e6f",
                   "rule": "ByHost"
                 }
               ],
               "L3Logical": [
                 {
-                  "id": "7c32e991-cf6a-4bd4-81b6-153059e1469f",
+                  "id": "a88c4962-4b6c-4454-9fab-a0f263be11fb",
                   "rule": "BySubnet"
                 },
                 {
-                  "id": "ef87337c-e7ad-4312-a28b-f58425057a39",
+                  "id": "e5b9ceee-6a39-4bb7-ad5c-d3fc34d92754",
                   "rule": "MergeContainerBridges"
                 }
               ],
               "Workloads": [
                 {
-                  "id": "751c1326-c151-4fa3-8f17-72ee49eec6e4",
+                  "id": "9ac25707-27c0-4112-8068-2d39b0e24e6f",
                   "rule": "ByHost"
                 }
               ]
@@ -40469,19 +41554,19 @@
             "description": "Rules deciding how entities are placed and inlined within containers. A missing field\ntakes the rules for an organization with no stated use case.",
             "default": [
               {
-                "id": "b4997a3a-bdd8-418d-b290-603c3166cf5f",
+                "id": "5a72526f-81ef-4ce9-9e65-5865521445e5",
                 "rule": "ByTrunkPort"
               },
               {
-                "id": "e542fc59-ca1e-44c1-bf34-11779a235fea",
+                "id": "2c8289b7-ca2f-4856-8851-a272af08d84d",
                 "rule": "ByVLAN"
               },
               {
-                "id": "b1d1cc7f-8eb7-47e9-a472-624e8c257ca6",
+                "id": "8ba6ed72-5913-499f-b424-3f94ac820149",
                 "rule": "ByPortOpStatus"
               },
               {
-                "id": "6b05a24b-99c8-4937-a314-caea52e48715",
+                "id": "1a7a9195-d222-4719-af4d-abc65620a989",
                 "rule": {
                   "ByServiceCategory": {
                     "categories": [
@@ -40502,7 +41587,7 @@
                 }
               },
               {
-                "id": "6f2698ea-5d9a-4cc8-88d4-0ae39324d103",
+                "id": "659845bc-3a29-462f-aede-24d44541f2e8",
                 "rule": {
                   "ByTag": {
                     "tag_ids": [],
@@ -40511,19 +41596,19 @@
                 }
               },
               {
-                "id": "4e1b0610-f6f0-4c88-8602-0c3dda8b7c71",
+                "id": "b081e780-887a-44da-a978-cfb51814877c",
                 "rule": "ByDeviceType"
               },
               {
-                "id": "7efe43fe-422f-4ea3-ba7a-293eeb8cf33a",
+                "id": "b379e14a-4c23-48a9-ba06-560dc87bd95d",
                 "rule": "ByHypervisor"
               },
               {
-                "id": "989409f6-9381-479c-8dc1-d64af9ce4c2d",
+                "id": "0d3df34a-bff9-4a86-98e8-9808891fcb98",
                 "rule": "ByContainerRuntime"
               },
               {
-                "id": "99dc1252-7a78-43c1-b5f2-321e0ae59dca",
+                "id": "2ad098a9-059e-406d-a770-ce9bf8bf8b00",
                 "rule": "ByStack"
               }
             ]
@@ -40624,13 +41709,18 @@
                     "LinkState",
                     "Staleness",
                     "OperStatus",
-                    "GuestState"
+                    "GuestState",
+                    "Confirmation"
                   ]
                 }
               },
               "propertyNames": {
                 "type": "string",
                 "enum": [
+                  "Topology",
+                  "Snapshot",
+                  "Share",
+                  "Dependency",
                   "Site",
                   "Vlan",
                   "Subnet",
@@ -40643,17 +41733,13 @@
                   "Discovery",
                   "Daemon",
                   "DaemonApiKey",
+                  "Credential",
                   "Tag",
                   "TagGroup",
                   "User",
                   "UserApiKey",
-                  "Credential",
                   "Organization",
-                  "Invite",
-                  "Topology",
-                  "Snapshot",
-                  "Share",
-                  "Dependency"
+                  "Invite"
                 ]
               }
             },
@@ -40696,7 +41782,8 @@
                         "LinkState",
                         "Staleness",
                         "OperStatus",
-                        "GuestState"
+                        "GuestState",
+                        "Confirmation"
                       ]
                     },
                     {
@@ -40728,6 +41815,10 @@
             "propertyNames": {
               "type": "string",
               "enum": [
+                "Topology",
+                "Snapshot",
+                "Share",
+                "Dependency",
                 "Site",
                 "Vlan",
                 "Subnet",
@@ -40740,17 +41831,13 @@
                 "Discovery",
                 "Daemon",
                 "DaemonApiKey",
+                "Credential",
                 "Tag",
                 "TagGroup",
                 "User",
                 "UserApiKey",
-                "Credential",
                 "Organization",
-                "Invite",
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency"
+                "Invite"
               ]
             }
           }
@@ -40776,6 +41863,41 @@
       "TupleUnit": {
         "type": "object",
         "description": "No payload. Present only so the envelope keeps its shape."
+      },
+      "UnconfirmedHost": {
+        "type": "object",
+        "description": "A host known only because another device reported it: an LLDP/CDP neighbour advertised it, or a\nswitch learned its MAC. Reported on every scan until a person confirms, merges or dismisses it,\nor a scan reaches the device.",
+        "required": [
+          "host_id",
+          "via",
+          "identifier",
+          "sys_name"
+        ],
+        "properties": {
+          "host_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The host, so the UI can open it. `None` once it has been deleted."
+          },
+          "identifier": {
+            "type": "string",
+            "description": "The identifier it is known by: a chassis id for a neighbour, a MAC for a learned device."
+          },
+          "sys_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The `sysName` a neighbour advertised for it, where it sent one."
+          },
+          "via": {
+            "$ref": "#/components/schemas/InferredVia",
+            "description": "What reported it."
+          }
+        }
       },
       "UncoveredIntegration": {
         "type": "object",
@@ -40935,6 +42057,13 @@
           "tags"
         ],
         "properties": {
+          "asset_tag": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Asset tag."
+          },
           "credential_assignments": {
             "type": [
               "array",
@@ -40951,6 +42080,17 @@
               "null"
             ],
             "description": "Free-text notes about the host."
+          },
+          "device_type": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeviceType",
+                "description": "What the device is. Omitted leaves the stored one; `Unidentified` hands the device type\nback to discovery."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "expected_updated_at": {
             "type": [
@@ -40992,9 +42132,41 @@
             },
             "description": "Interfaces to sync with this host.\nIf Some, server will create/update/delete to match this list.\nIf None, existing ip_addresses are preserved."
           },
+          "management_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Link to the host's own management interface."
+          },
+          "manufacturer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Hardware manufacturer, such as \"Hirschmann\"."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Hardware model."
+          },
           "name": {
             "type": "string",
             "description": "Human-facing name for the host."
+          },
+          "os": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HostOs",
+                "description": "Operating system. Omitted leaves the stored one."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ports": {
             "type": [
@@ -41006,6 +42178,13 @@
             },
             "description": "Ports to sync with this host.\nIf Some, server will create/update/delete to match this list.\nIf None, existing ports are preserved."
           },
+          "serial_number": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Hardware serial number."
+          },
           "services": {
             "type": [
               "array",
@@ -41015,6 +42194,20 @@
               "$ref": "#/components/schemas/ServiceInput"
             },
             "description": "Services to sync with this host.\nIf Some, server will create/update/delete to match this list.\nIf None, existing services are preserved."
+          },
+          "sys_contact": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Administrative contact."
+          },
+          "sys_location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Physical location."
           },
           "tags": {
             "type": "array",
@@ -41167,7 +42360,7 @@
       },
       "UpstreamSupport": {
         "type": "string",
-        "description": "Whether the vendor publishes and supports the API a credential type talks to.\n\nDeliberately *not* folded into [`CredentialStability`], because the two describe different\nthings and change independently. Stability is about our own maturity and is meant to be retired\nby promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API\nthat our promotion does not change. Collapsing them would force an integration built on a\nreverse-engineered API to sit in `Beta` forever to keep the warning — or to reach `Stable` with\nthe warning silently dropped. UniFi is the proof that both combinations are real: it is\n`Stable` and `Undocumented` today.",
+        "description": "Whether the vendor publishes and supports the API a credential type talks to.\n\nDeliberately *not* folded into [`Stability`], because the two describe different\nthings and change independently. Stability is about our own maturity and is meant to be retired\nby promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API\nthat our promotion does not change. Collapsing them would force an integration built on a\nreverse-engineered API to sit in `Beta` forever to keep the warning — or to reach `Stable` with\nthe warning silently dropped. UniFi is the proof that both combinations are real: it is\n`Stable` and `Undocumented` today.",
         "enum": [
           "Vendor",
           "Undocumented"
@@ -41380,6 +42573,11 @@
             "$ref": "#/components/schemas/EmailSettings",
             "description": "Per-user email preferences"
           },
+          "email_verification_required": {
+            "type": "boolean",
+            "description": "Whether the user must verify their email before the API serves their\nsession (an org on a license plan, see `auth::verification_gate`).\nComputed and set like `terms_acceptance_required`.",
+            "readOnly": true
+          },
           "email_verified": {
             "type": "boolean",
             "description": "Whether the user has verified their email address"
@@ -41573,13 +42771,18 @@
                   "LinkState",
                   "Staleness",
                   "OperStatus",
-                  "GuestState"
+                  "GuestState",
+                  "Confirmation"
                 ]
               }
             },
             "propertyNames": {
               "type": "string",
               "enum": [
+                "Topology",
+                "Snapshot",
+                "Share",
+                "Dependency",
                 "Site",
                 "Vlan",
                 "Subnet",
@@ -41592,17 +42795,13 @@
                 "Discovery",
                 "Daemon",
                 "DaemonApiKey",
+                "Credential",
                 "Tag",
                 "TagGroup",
                 "User",
                 "UserApiKey",
-                "Credential",
                 "Organization",
-                "Invite",
-                "Topology",
-                "Snapshot",
-                "Share",
-                "Dependency"
+                "Invite"
               ]
             }
           },

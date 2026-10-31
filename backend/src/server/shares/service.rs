@@ -124,8 +124,8 @@ fn verify_token_impl(share: &Share, token: &str) -> Result<(), ApiError> {
 /// - If the org lacks the embed feature, framing is blocked (`'none'`).
 /// - Otherwise, `allowed_domains` (filtered through `validate_csp_domain`)
 ///   is used; empty/None means allow all (`*`).
-pub fn build_frame_ancestors(share: &Share, has_embeds_feature: bool) -> String {
-    if !has_embeds_feature {
+pub fn build_frame_ancestors(share: &Share, has_sharing_feature: bool) -> String {
+    if !has_sharing_feature {
         return "frame-ancestors 'none'".to_string();
     }
 

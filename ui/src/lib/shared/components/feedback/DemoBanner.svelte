@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Rocket } from 'lucide-svelte';
+	import { Rocket } from '@lucide/svelte';
 	import AppBanner from './AppBanner.svelte';
 	import { BOOK_CALL_URL } from '$lib/features/support/support';
 	import { auth_createAccount, demo_bannerBody, demo_talkToSales } from '$lib/paraglide/messages';

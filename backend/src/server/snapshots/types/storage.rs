@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::server::{
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
     snapshots::types::base::{Snapshot, SnapshotBase},
@@ -106,8 +106,8 @@ impl Entity for Snapshot {
     const ENTITY_NAME_PLURAL: &'static str = "Snapshots";
     const ENTITY_DESCRIPTION: &'static str = "Point-in-time capture of a site's topology and entities. Created manually via the topology tab; loadable from the snapshots dropdown.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Visualization
+    fn product_area() -> ProductArea {
+        ProductArea::Topology
     }
 
     fn site_id(&self) -> Option<Uuid> {

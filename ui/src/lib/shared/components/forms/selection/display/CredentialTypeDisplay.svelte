@@ -5,13 +5,13 @@
 		CredentialTypeMetadata,
 		FeatureId
 	} from '$lib/shared/stores/metadata';
+	import { getStabilityTagProps } from '$lib/shared/utils/stability';
 	import {
-		getStabilityTagProps,
 		getTargetTagProps,
 		getUpstreamSupportTagProps
 	} from '$lib/features/credentials/types/base';
 	import { upgradeTagProps } from '$lib/features/billing/upgrade-tag';
-	import { common_availableOnPaidPlans } from '$lib/paraglide/messages';
+	import { common_availableOnPaidPlans, credentials_betaTooltip } from '$lib/paraglide/messages';
 
 	export type CredentialTypeOption = TypedTypeMetadata<CredentialTypeMetadata>;
 
@@ -40,14 +40,16 @@
 		// in a single definition. Beta and unofficial are independent, so a type may carry both.
 		getTags: (item, context) => {
 			const upgrade = context?.upgradeFeature ? upgradeTagProps() : null;
-			const stability = getStabilityTagProps(item.metadata?.stability);
+			const stability = getStabilityTagProps(item.metadata?.stability, credentials_betaTooltip());
 			const upstream = getUpstreamSupportTagProps(item.metadata?.upstream_support);
 			const targets = (item.metadata?.targets ?? []).map((t: string) => getTargetTagProps(t));
 			return [upgrade, stability, upstream, ...targets].filter((tag) => tag !== null);
 		},
 		getDisabled: (_item, context) => !!context?.disabledReason || !!context?.upgradeFeature,
 		getDisabledReason: (_item, context) =>
-			context?.disabledReason ?? (context?.upgradeFeature ? common_availableOnPaidPlans() : null)
+			context?.disabledReason ?? (context?.upgradeFeature ? common_availableOnPaidPlans() : null),
+		// Only the upgrade badge opens something. A type the daemon can't run stays dimmed.
+		getDisabledClickable: (_item, context) => !context?.disabledReason && !!context?.upgradeFeature
 	};
 </script>
 

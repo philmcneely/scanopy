@@ -199,6 +199,9 @@ erDiagram
   uuid virtualization_interface_id FK
   text asset_tag
   jsonb asset_tag_source
+  text matched_device_type
+  jsonb matched_device_type_source
+  timestamp_with_time_zone dismissed_at
 }
 "public.subnets" {
   uuid id

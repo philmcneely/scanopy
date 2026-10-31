@@ -28,7 +28,9 @@
 	import type { TooltipContent } from '$lib/shared/actions/tooltip';
 	import { useSitesQuery } from '$lib/features/sites/queries';
 	import { getFreshnessTag } from '$lib/shared/utils/freshness';
+	import { getConfirmationTag } from '$lib/shared/utils/confirmation';
 	import { entities } from '$lib/shared/stores/metadata';
+	import { entityUIConfig } from '$lib/shared/entity-ui-config';
 	import { queryClient, queryKeys } from '$lib/api/query-client';
 	import type { Tag, TagGroup } from '$lib/features/tags/types/base';
 	import { tagTooltip } from '$lib/features/tags/groups';
@@ -141,14 +143,26 @@
 	let entity = $derived(containerSubject?.entity);
 	let entityType = $derived(containerSubject?.entityType);
 	let entitySite = $derived((sitesQuery.data ?? []).find((n) => n.id === entity?.site_id));
+	// A subcontainer standing for an entity titles itself as that entity's pill.
+	let entityColor = $derived(entityType ? entities.getColorHelper(entityType).color : null);
+	// Its icon is the one every chip for that entity draws (a host's device type), so the title is
+	// the same chip as any other reference to it.
+	let chipIcon = $derived(
+		entity && entityType
+			? (entityUIConfig[entityType]?.displayComponent?.getChipIcon?.(entity as never) ??
+					entities.getIconComponent(entityType))
+			: null
+	);
 
-	// Staleness pill, judged on that entity alone with `getFreshnessTag`, the same helper element
-	// cards and inventory badges use.
+	// The status pill, judged on that entity alone with the helpers element cards and inventory
+	// badges use: Unconfirmed (a subnet whose range was assumed, a device another one reported)
+	// ahead of Stale, as on element cards.
 	let staleTag = $derived(
 		entity && entityType
-			? getFreshnessTag(entity, entitySite, {
-					entityTypeLabel: entities.getName(entityType) || undefined
-				})
+			? (getConfirmationTag(entity) ??
+					getFreshnessTag(entity, entitySite, {
+						entityTypeLabel: entities.getName(entityType) || undefined
+					}))
 			: null
 	);
 
@@ -405,9 +419,6 @@
 	// Only the commented-out resize controls used this.
 	// const grayColorHelper = createColorHelper('Gray');
 
-	// Track pointer position to distinguish clicks from drags
-	let pointerDownPos: { x: number; y: number } | null = null;
-
 	function handleChevronClick(event: MouseEvent | KeyboardEvent) {
 		if ($editModeEnabled) return;
 		event.stopPropagation();
@@ -443,29 +454,12 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- A container is collapsed by its title's chevron and selected by its title chip, the way a card
+     is selected by clicking it. The body holds the children, so a click on it lands on the canvas. -->
 <div
 	class="relative"
 	class:entity-type-hover-active={isEntityTypeHover}
-	style="{nodeStyle} opacity: {nodeOpacity};{isSubcontainer ? ' cursor: pointer;' : ''}"
-	onpointerdown={isSubcontainer
-		? (e) => {
-				pointerDownPos = { x: e.clientX, y: e.clientY };
-			}
-		: undefined}
-	onpointerup={isSubcontainer
-		? (e) => {
-				if (pointerDownPos) {
-					const dx = Math.abs(e.clientX - pointerDownPos.x);
-					const dy = Math.abs(e.clientY - pointerDownPos.y);
-					if (dx < 5 && dy < 5) {
-						e.stopPropagation();
-						handleChevronClick(e);
-					}
-				}
-				pointerDownPos = null;
-			}
-		: undefined}
+	style="{nodeStyle} opacity: {nodeOpacity};"
 >
 	<!-- TITLE: External (card/pill above container) -->
 	<!-- Rendered in both states: the pill is where a root container is named, collapsed or not. -->
@@ -484,6 +478,8 @@
 			{childCount}
 			{childSummary}
 			tooltip={headerTooltip}
+			{entityColor}
+			{chipIcon}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -505,6 +501,8 @@
 			{childCount}
 			{childSummary}
 			tooltip={headerTooltip}
+			{entityColor}
+			{chipIcon}
 			{staleTag}
 			onToggleCollapse={handleChevronClick}
 		/>
@@ -545,6 +543,9 @@
 				{childCount}
 				{childSummary}
 				tooltip={headerTooltip}
+				{entityColor}
+				{chipIcon}
+				{staleTag}
 				countOnly={isInfraRule}
 				onToggleCollapse={handleChevronClick}
 				{searchMatchCount}

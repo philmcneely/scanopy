@@ -107,6 +107,8 @@ pub enum ErrorCode {
     LicenseLocked,
     /// The online key already runs on as many servers as the plan covers
     LicenseInstanceLimitReached { active: u32, limit: u32 },
+    /// The organization's plan is not a self-hosted license plan, so it has no key
+    LicensePlanHasNoKey,
 
     // === Generic Entity Operations ===
     /// Entity was not found
@@ -140,8 +142,8 @@ pub enum ErrorCode {
     EntitySiteMismatch { entity: String },
 
     // === Hosts ===
-    /// Host consolidation failed
-    HostsConsolidateFailed { reason: String },
+    /// Host merge failed
+    HostsMergeFailed { reason: String },
 
     // === Sites ===
     /// User doesn't have access to this site
@@ -190,6 +192,10 @@ pub enum ErrorCode {
     // === IP address ===
     /// IP address is not within subnet range
     IpAddressOutOfRange { ip: String, subnet: String },
+
+    // === Subnet ===
+    /// Internet and Remote Network ranges are seeded for every site and can't be created
+    SubnetTypeSeededPerSite { subnet_type: String },
 
     // === Daemon ===
     /// Cannot send updates for a different site
@@ -315,6 +321,9 @@ impl ErrorCode {
             }
             Self::AuthDemoMode => "This action is disabled in demo mode",
             Self::LicenseLocked => "Your license is not active. The server is in read-only mode.",
+            Self::LicensePlanHasNoKey => {
+                "This organization's plan has no license key. License keys come with the Self-Hosted Standard and Plus plans."
+            }
             Self::LicenseInstanceLimitReached { .. } => {
                 "This license key is in use on {active} servers and your plan covers {limit}, so this server is in read-only mode. Delete a server you no longer run under License in Scanopy Cloud, then restart this one."
             }
@@ -354,7 +363,7 @@ impl ErrorCode {
             Self::EntitySiteMismatch { .. } => "{entity} is on a different site",
 
             // Hosts
-            Self::HostsConsolidateFailed { .. } => "Failed to consolidate hosts: {reason}",
+            Self::HostsMergeFailed { .. } => "Failed to merge hosts: {reason}",
 
             // Sites
             Self::SitesAccessDenied { .. } => "You don't have access to site '{site}'",
@@ -394,6 +403,11 @@ impl ErrorCode {
             // IP address
             Self::IpAddressOutOfRange { .. } => {
                 "IP address '{ip}' is not within subnet '{subnet}' range"
+            }
+
+            // Subnet
+            Self::SubnetTypeSeededPerSite { .. } => {
+                "Every site already has its own {subnet_type} subnet, so a new one can't be created"
             }
 
             // Daemon
@@ -486,6 +500,7 @@ impl ErrorCode {
             | Self::AuthDaemonNotProvisioned
             | Self::AuthDemoMode
             | Self::LicenseLocked
+            | Self::LicensePlanHasNoKey
             | Self::AuthPasswordLoginDisabled
             | Self::AuthRegistrationDisabled
             | Self::AuthOrgLimitReached
@@ -562,7 +577,7 @@ impl ErrorCode {
             }),
 
             // Domain-specific with params
-            Self::HostsConsolidateFailed { reason } => Some(json_map! { "reason" => reason }),
+            Self::HostsMergeFailed { reason } => Some(json_map! { "reason" => reason }),
             Self::SitesAccessDenied { site } => Some(json_map! { "site" => site }),
             Self::CredentialDefaultExists { name }
             | Self::CredentialDefaultDeleteForbidden { name }
@@ -571,6 +586,9 @@ impl ErrorCode {
             Self::DiscoverySessionNotFound { id } => Some(json_map! {"id" => id}),
             Self::IpAddressOutOfRange { ip, subnet } => {
                 Some(json_map! { "ip" => ip, "subnet" => subnet })
+            }
+            Self::SubnetTypeSeededPerSite { subnet_type } => {
+                Some(json_map! { "subnet_type" => subnet_type })
             }
             Self::DaemonVersionTooOld {
                 daemon_version,

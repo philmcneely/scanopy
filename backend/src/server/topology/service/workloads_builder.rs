@@ -643,7 +643,7 @@ mod tests {
         services::r#impl::{
             base::{Service, ServiceBase},
             categories::ServiceCategory,
-            definitions::ServiceDefinition,
+            definitions::{DeviceTypeImplication, ServiceDefinition},
             patterns::Pattern,
             virtualization::{DockerVirtualization, ServiceVirtualization},
         },
@@ -672,6 +672,11 @@ mod tests {
         fn category(&self) -> ServiceCategory {
             ServiceCategory::Hypervisor
         }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Is(
+                crate::server::hosts::r#impl::device_type::DeviceType::Hypervisor,
+            )
+        }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None
         }
@@ -688,6 +693,9 @@ mod tests {
         }
         fn category(&self) -> ServiceCategory {
             ServiceCategory::ContainerRuntime
+        }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Nothing
         }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None
@@ -706,6 +714,11 @@ mod tests {
         fn category(&self) -> ServiceCategory {
             ServiceCategory::Storage
         }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Is(
+                crate::server::hosts::r#impl::device_type::DeviceType::Storage,
+            )
+        }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None
         }
@@ -722,6 +735,9 @@ mod tests {
         }
         fn category(&self) -> ServiceCategory {
             ServiceCategory::RemoteAccess
+        }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Nothing
         }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None
@@ -831,6 +847,9 @@ mod tests {
         }
         fn category(&self) -> ServiceCategory {
             ServiceCategory::OpenPorts
+        }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Nothing
         }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None

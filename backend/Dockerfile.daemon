@@ -25,7 +25,9 @@ RUN chmod +x /usr/local/bin/scanopy-daemon
 RUN mkdir -p /root/.config/scanopy/daemon \
     && ln -s /root/.config/scanopy/daemon /root/.config/daemon
 
-# Notice for third-party data compiled into the binary (Rapid7 Recog, BSD-2-Clause).
+# Notices for third-party software and data compiled into the binary (also printed by
+# `scanopy-daemon licenses`).
+COPY THIRD-PARTY-NOTICES.txt /usr/share/doc/scanopy/THIRD-PARTY-NOTICES.txt
 COPY assets/recog/LICENSE /usr/share/doc/scanopy/recog/LICENSE
 
 # OCI Image Spec labels — https://github.com/opencontainers/image-spec/blob/main/annotations.md

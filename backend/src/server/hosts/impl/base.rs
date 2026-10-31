@@ -2,9 +2,10 @@ use crate::server::credentials::r#impl::types::CredentialAssignment;
 use crate::server::hosts::r#impl::attributes::{
     HostAssetTagAttributed, HostChassisIdAttributed, HostFirmwareRevisionAttributed,
     HostHostnameAttributed, HostManagementUrlAttributed, HostManufacturerAttributed,
-    HostModelAttributed, HostOsAttributed, HostOsValue, HostSerialNumberAttributed,
-    HostSoftwareRevisionAttributed, HostSysContactAttributed, HostSysDescrAttributed,
-    HostSysLocationAttributed, HostSysNameAttributed, HostSysObjectIdAttributed,
+    HostMatchedDeviceTypeAttributed, HostModelAttributed, HostOsAttributed, HostOsValue,
+    HostSerialNumberAttributed, HostSoftwareRevisionAttributed, HostSysContactAttributed,
+    HostSysDescrAttributed, HostSysLocationAttributed, HostSysNameAttributed,
+    HostSysObjectIdAttributed,
 };
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
 use crate::server::hosts::r#impl::os::recog::RecogDatabase;
@@ -165,6 +166,12 @@ pub struct HostBase {
     #[serde(flatten, deserialize_with = "attribution::optional")]
     #[schema(value_type = HostOsAttributed)]
     pub os: Option<HostOsAttributed>,
+    /// The device class a fingerprint of something the host emitted names. One rung of the
+    /// device type the host shows; see
+    /// [`HostMatchedDeviceTypeValue`](super::attributes::HostMatchedDeviceTypeValue).
+    #[serde(flatten, deserialize_with = "attribution::optional")]
+    #[schema(value_type = HostMatchedDeviceTypeAttributed)]
+    pub matched_device_type: Option<HostMatchedDeviceTypeAttributed>,
     /// Credential assignments for this host (hydrated from junction table).
     #[serde(default)]
     #[schema(required)]
@@ -197,6 +204,7 @@ impl Default for HostBase {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: Vec::new(),
         }
     }
@@ -327,6 +335,7 @@ impl HostBase {
             firmware_revision,
             software_revision,
             os,
+            matched_device_type,
         } = incoming;
 
         // A macro rather than a closure: each field is a different carrier type, so every call is
@@ -359,6 +368,7 @@ impl HostBase {
             firmware_revision,
             software_revision,
             os,
+            matched_device_type,
         );
         changed
     }
@@ -370,9 +380,10 @@ impl HostBase {
     /// owner the host already has, its metadata refreshes (a renamed guest).
     ///
     /// A different owner moves the link only for the same guest moving: the stored metadata and
-    /// the report name the same manager's guest id, which survives a live migration (a Proxmox
-    /// VMID is cluster-wide and follows the guest from node to node; a container ID is the same
-    /// container whichever runtime service reports it). A hand assignment never carries a guest
+    /// the report name the same manager's guest id ([`HostVirtualization::guest_id`]), which
+    /// survives a live migration (a Proxmox VMID is cluster-wide and follows the guest from node to
+    /// node, as a vCenter VM id does across ESXi hosts; a container ID is the same container
+    /// whichever runtime service reports it). A hand assignment never carries a guest
     /// id (the UI writes `vm_id: null`), so it is never moved.
     pub fn fill_virtualization_from(&mut self, incoming: &HostBase) -> bool {
         let Some(incoming_owner) = incoming.virtualization_service_id else {
@@ -387,22 +398,11 @@ impl HostBase {
                         && self.virtualization_interface_id != incoming.virtualization_interface_id)
             }
             Some(_) => {
-                // Keyed by variant too, so a VMID never matches a container ID.
+                // Keyed by variant too, so a VMID never matches a container ID. A network identity
+                // names no guest id, so an owned identity never moves.
                 let guest_id = |v: &Option<HostVirtualization>| {
                     let v = v.as_ref()?;
-                    let id = match v {
-                        HostVirtualization::Proxmox(p) => p.vm_id.as_ref(),
-                        HostVirtualization::Libvirt(l) => l.vm_id.as_ref(),
-                        HostVirtualization::Docker(c) | HostVirtualization::Podman(c) => {
-                            c.container_id.as_ref()
-                        }
-                        // A network identity names no guest id: its interface is the owner's, so an
-                        // owned identity never moves.
-                        HostVirtualization::VCenter(_)
-                        | HostVirtualization::ESXi(_)
-                        | HostVirtualization::NetworkIdentity(_) => None,
-                    }?;
-                    Some((v.id(), id.clone()))
+                    Some((v.id(), v.guest_id()?.to_string()))
                 };
                 guest_id(&self.virtualization_metadata)
                     .is_some_and(|id| Some(id) == guest_id(&incoming.virtualization_metadata))
@@ -471,6 +471,45 @@ impl HostBase {
         true
     }
 
+    /// [`Self::reject_manual_name_claim`] for every other attributed fact. A person can type a
+    /// manufacturer, a device type or a location, and `Manual` outranks every scan, so a payload
+    /// claiming it would freeze the value against the person's own edits. Returns whether
+    /// anything changed.
+    pub fn reject_manual_attribute_claims(&mut self) -> bool {
+        fn clamp<T: crate::server::shared::attribution::AttributeValue>(
+            slot: &mut Option<Attributed<T>>,
+        ) -> bool {
+            match slot.take() {
+                Some(v) if v.source() == AttributeSource::Manual => {
+                    *slot = Some(v.clamped_to(AttributeSource::Unspecified));
+                    true
+                }
+                other => {
+                    *slot = other;
+                    false
+                }
+            }
+        }
+        let mut rejected = false;
+        rejected |= clamp(&mut self.hostname);
+        rejected |= clamp(&mut self.sys_descr);
+        rejected |= clamp(&mut self.sys_object_id);
+        rejected |= clamp(&mut self.sys_location);
+        rejected |= clamp(&mut self.sys_contact);
+        rejected |= clamp(&mut self.management_url);
+        rejected |= clamp(&mut self.chassis_id);
+        rejected |= clamp(&mut self.sys_name);
+        rejected |= clamp(&mut self.manufacturer);
+        rejected |= clamp(&mut self.model);
+        rejected |= clamp(&mut self.serial_number);
+        rejected |= clamp(&mut self.asset_tag);
+        rejected |= clamp(&mut self.firmware_revision);
+        rejected |= clamp(&mut self.software_revision);
+        rejected |= clamp(&mut self.os);
+        rejected |= clamp(&mut self.matched_device_type);
+        rejected
+    }
+
     /// Drop a name that is really an identifier copied into `name`. Returns whether anything
     /// changed.
     ///
@@ -535,6 +574,12 @@ pub struct Host {
     #[serde(default)]
     #[schema(read_only)]
     pub first_discovery_id: Option<Uuid>,
+    /// When a person dismissed this unconfirmed host. A dismissed host is left out of lists,
+    /// topology and warnings, and its MAC or chassis id is not minted again. Cleared when a scan
+    /// reaches the device.
+    #[serde(default)]
+    #[schema(read_only)]
+    pub dismissed_at: Option<DateTime<Utc>>,
     #[serde(flatten)]
     #[validate(nested)]
     pub base: HostBase,
@@ -559,6 +604,20 @@ impl Display for Host {
 }
 
 impl Host {
+    /// Refuse a change to a host that is still unconfirmed. Until a person confirms, merges or
+    /// dismisses it, those are the only things to do with it, so editing, deleting, rescanning or
+    /// merging another host into it are turned away rather than half-settling it.
+    pub fn require_confirmed(
+        &self,
+    ) -> Result<(), crate::server::shared::types::api::ValidationError> {
+        if self.base.source.confirmation().is_unconfirmed() {
+            return Err(crate::server::shared::types::api::ValidationError::new(
+                "This host is unconfirmed. Confirm, merge or dismiss it first.",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn new(base: HostBase) -> Self {
         let now = chrono::Utc::now();
         Self {
@@ -571,6 +630,7 @@ impl Host {
             last_seen_at: now,
             last_discovery_id: None,
             first_discovery_id: None,
+            dismissed_at: None,
             base,
         }
     }

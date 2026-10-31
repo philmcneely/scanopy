@@ -262,6 +262,18 @@ pub struct TopologyData {
     /// Connections between the nodes of the built graph.
     #[serde(default)]
     pub edges: HashMap<TopologyView, Vec<Edge>>,
+    /// Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:
+    /// the addresses reached through an L2 port, the services bound to all of a host's addresses
+    /// on its IP cards, the members inlined on a card. The topology search selects a node when it
+    /// matches any of them. Nodes with none are absent.
+    #[serde(default)]
+    pub node_entities: HashMap<TopologyView, HashMap<Uuid, Vec<Uuid>>>,
+    /// Per view, how many entities of each type a Visibility tag left out that the view would
+    /// have drawn. They never reach the browser, so this is how the filter panel knows to offer
+    /// the Visibility filter only in a view, and for a type, where it hid something. Views and
+    /// types with none are absent.
+    #[serde(default)]
+    pub hidden_by_tag: HashMap<TopologyView, HashMap<EntityDiscriminants, usize>>,
     /// How many entities of each type a server-side metadata filter removed, by the filter that
     /// removed them.
     ///

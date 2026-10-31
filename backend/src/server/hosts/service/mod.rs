@@ -11,7 +11,9 @@ use crate::server::{
             InterfaceInput, PortInput, ServiceInput, UpdateHostRequest,
         },
         attributes::{
-            HostChassisIdValue, HostHostnameValue, HostManagementUrlValue, HostSysContactValue,
+            HostAssetTagValue, HostChassisIdValue, HostHostnameValue, HostManagementUrlValue,
+            HostManufacturerValue, HostMatchedDeviceTypeAttributed, HostMatchedDeviceTypeValue,
+            HostModelValue, HostOsValue, HostSerialNumberValue, HostSysContactValue,
             HostSysDescrValue, HostSysLocationValue, HostSysNameValue, HostSysObjectIdValue,
         },
         base::{Host, HostBase},
@@ -46,12 +48,12 @@ use crate::server::{
         storage::{
             filter::StorableFilter,
             generic::GenericPostgresStorage,
-            lock::{CONSOLIDATE_LOCK_TIMEOUT, DEFAULT_LOCK_TIMEOUT, LockKey},
+            lock::{DEFAULT_LOCK_TIMEOUT, LockKey, MERGE_LOCK_TIMEOUT},
             traits::{Entity, PaginatedResult, Storable, Storage},
         },
         types::{
             api::ValidationError,
-            entities::{EntitySource, EntitySourceDiscriminants},
+            entities::{EntitySource, EntitySourceDiscriminants, InferredVia},
         },
     },
     sites::service::SiteService,
@@ -97,6 +99,8 @@ pub struct HostService {
     organization_service: Arc<OrganizationService>,
     event_bus: Arc<EventBus>,
     entity_tag_service: Arc<EntityTagService>,
+    /// Reads the scan warnings that say which scan found an unconfirmed host.
+    warning_service: Arc<crate::server::discovery_warnings::service::DiscoveryWarningService>,
 }
 
 impl EventBusService<Host> for HostService {
@@ -212,7 +216,6 @@ impl CrudService<Host> for HostService {
     }
 }
 
-mod consolidate;
 mod container_reports;
 mod create;
 mod delete;
@@ -220,9 +223,11 @@ mod detach;
 mod discovery;
 mod lifecycle;
 pub(crate) mod mac_identity;
+mod merge;
 mod open_ports;
 mod removed_guests;
 mod same_device;
+mod self_report;
 mod stale_ports;
 pub(crate) mod subnet_vlans;
 mod topology;
@@ -486,7 +491,10 @@ fn select_matching_host(
             })
         };
         let found = pairs()
-            .find(|(_, incoming_ip, existing_ip)| ip_addresses_coincide(incoming_ip, existing_ip))
+            .find(|(_, incoming_ip, existing_ip)| {
+                ip_addresses_coincide(incoming_ip, existing_ip)
+                    && !answered_by_another_nic(incoming_ip, existing_ip)
+            })
             .map(|(candidate, incoming_ip, _)| {
                 (
                     candidate.id,
@@ -501,6 +509,8 @@ fn select_matching_host(
                         candidate.macs_identify_host()
                             && macs_match(incoming_ip, existing_ip, &incoming_mac_counts)
                             && !candidate.lists_other_addresses_for(incoming_ip)
+                            && !mac_of(&existing_ip.base.mac_address)
+                                .is_some_and(|m| candidate.mac_is_foreign(&m))
                     })
                     .map(|(candidate, _, _)| (candidate.id, HostMatchedBy::Mac))
             });
@@ -644,6 +654,25 @@ impl HostCandidate {
                 .chain(listed)
                 .all(|row| row.base.ip_address != incoming.base.ip_address)
     }
+
+    /// Whether `mac`, stored on one of this host's rows, is a MAC its hypervisor did not give it.
+    ///
+    /// A guest's NIC MACs are the ones filed with `HypervisorConfig`: its hypervisor's config
+    /// declares them, whichever hypervisor it is. Once any is known, every other MAC on the guest
+    /// belongs to something inside or behind it (a macvlan link, a network identity, a proxy-ARP
+    /// answer), and the MAC tier must not name the guest by it. A host with no config MAC (a
+    /// physical host, a guest no integration has reported) has nothing to judge by.
+    pub(crate) fn mac_is_foreign(&self, mac: &MacAddress) -> bool {
+        let mut nic_macs = self.ip_addresses.iter().filter_map(|row| {
+            row.base
+                .mac_address
+                .as_ref()
+                .filter(|e| e.source() == AttributeSource::HypervisorConfig)
+                .map(|e| e.value().0)
+        });
+        let first = nic_macs.next();
+        first.is_some() && first.into_iter().chain(nic_macs).all(|nic| nic != *mac)
+    }
 }
 
 /// Same IP on the same subnet — the same logical interface.
@@ -681,6 +710,24 @@ fn ip_addresses_coincide(incoming: &IPAddress, existing: &IPAddress) -> bool {
         || (incoming.id == existing.id && incoming.id != Uuid::nil() && existing.id != Uuid::nil())
 }
 
+/// Whether a different NIC answered for an address a daemon reported as its own.
+///
+/// A daemon reads its own NICs, so the MAC it files with an address is that address's MAC and
+/// nothing else's. When something answers for the same address with another MAC (an ARP reply,
+/// or any source that binds the claim to the device), that is another device holding the address:
+/// the LAN router at 192.168.4.1 while a VM network on the daemon's machine was also numbered
+/// 192.168.4.1. The router's payload must not land on the daemon's host.
+fn answered_by_another_nic(incoming: &IPAddress, existing: &IPAddress) -> bool {
+    let (Some(incoming_mac), Some(own)) = (&incoming.base.mac_address, &existing.base.mac_address)
+    else {
+        return false;
+    };
+    own.source() == AttributeSource::DaemonSelfReport
+        && incoming.base.ip_address_source != AttributeSource::DaemonSelfReport
+        && incoming_mac.source().method().binds_claim_to_subject()
+        && incoming_mac.value().0 != own.value().0
+}
+
 /// The same NIC by MAC, gated on the MAC being unique in the incoming payload.
 ///
 /// On the *value*, never on the evidence. `mac_address` carries its provenance since §7, and
@@ -705,6 +752,32 @@ fn macs_match(
     }
 }
 
+impl HostService {
+    /// Live, confirmed hosts on these sites: what the dashboard counts. An unconfirmed host is a
+    /// report awaiting a person, not a device in the inventory yet.
+    pub async fn confirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
+        self.storage
+            .count(
+                StorableFilter::<Host>::new_from_site_ids(site_ids)
+                    .live()
+                    .unconfirmed(false),
+            )
+            .await
+    }
+
+    /// Live hosts on these sites waiting for a person to confirm, merge or dismiss them.
+    pub async fn unconfirmed_count_for_sites(&self, site_ids: &[Uuid]) -> Result<u64> {
+        self.storage
+            .count(
+                StorableFilter::<Host>::new_from_site_ids(site_ids)
+                    .live()
+                    .not_dismissed()
+                    .unconfirmed(true),
+            )
+            .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -713,6 +786,7 @@ mod tests {
     };
     use crate::server::ip_addresses::r#impl::base::IPAddressBase;
     use crate::server::ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue};
+    use crate::server::services::r#impl::patterns::ClientProbe;
 
     fn make_interface(ip: IpAddr, subnet_id: Uuid, mac: Option<MacAddress>) -> IPAddress {
         IPAddress {
@@ -972,7 +1046,7 @@ mod tests {
     }
 
     /// Two hosts carrying one chassis id are a duplicate this cannot choose between, and merging a
-    /// scan into an arbitrary one of them is worse than creating a row somebody can consolidate.
+    /// scan into an arbitrary one of them is worse than creating a row somebody can merge.
     /// The same single-match rule every other chassis lookup applies.
     #[test]
     fn a_chassis_id_held_by_two_hosts_matches_neither() {
@@ -1387,7 +1461,7 @@ mod tests {
             },
         ];
 
-        let carriers = consolidate::mac_carriers(&[ipvlan_row, runtime_row], &[], &[], &candidates);
+        let carriers = merge::mac_carriers(&[ipvlan_row, runtime_row], &[], &[], &candidates);
         let incoming = [MacEvidence::new(
             MacEvidenceValue(parent_mac()),
             AttributeSource::ArpReply,
@@ -1465,7 +1539,7 @@ mod tests {
 
         assert_eq!(select_matching_host(&incoming, None, &candidates), None);
 
-        let carriers = consolidate::mac_carriers(&[listed], &[], &incoming, &candidates);
+        let carriers = merge::mac_carriers(&[listed], &[], &incoming, &candidates);
         let macs = [MacEvidence::new(
             MacEvidenceValue(lab_ens19()),
             AttributeSource::ArpReply,
@@ -1527,13 +1601,327 @@ mod tests {
         let vm = Uuid::new_v4();
         let listed = listed_by_hypervisor(vm, "192.168.4.63", lan);
         let candidates = vec![candidate(vm, vec![listed.clone()])];
-        let carriers = consolidate::mac_carriers(&[listed], &[], &[], &candidates);
+        let carriers = merge::mac_carriers(&[listed], &[], &[], &candidates);
         let macs = [MacEvidence::new(
             MacEvidenceValue(lab_ens19()),
             AttributeSource::ArpReply,
         )];
         assert_eq!(
             mac_identity::select_matching_host_by_mac(&macs, &carriers),
+            Some(vm)
+        );
+    }
+
+    // The snmp-test lab VM (Proxmox VM 107) as the dev DB held it on 2026-10-22.
+
+    fn snmp_test_eth0() -> MacAddress {
+        "02:e9:65:cc:7f:7b".parse().unwrap()
+    }
+    /// The sim's switch-bulkdrop-01, on the VM's `mv-snmp231` macvlan link.
+    fn mv_snmp231() -> MacAddress {
+        "42:d3:d4:77:c4:0f".parse().unwrap()
+    }
+    /// The VMware guest that answered at 192.168.6.1.
+    fn vmware_guest() -> MacAddress {
+        "00:0c:29:87:81:5d".parse().unwrap()
+    }
+
+    fn sourced(
+        host_id: Uuid,
+        ip: &str,
+        subnet_id: Uuid,
+        mac: MacAddress,
+        source: AttributeSource,
+    ) -> IPAddress {
+        let mut row = row(ip, subnet_id, mac);
+        row.base.host_id = host_id;
+        row.base.mac_address = Some(MacEvidence::new(MacEvidenceValue(mac), source));
+        row
+    }
+
+    fn proxmox_guest(id: Uuid, ip_addresses: Vec<IPAddress>) -> HostCandidate {
+        use crate::server::hosts::r#impl::virtualization::{
+            ProxmoxGuestType, ProxmoxVirtualization,
+        };
+        HostCandidate {
+            id,
+            chassis_id: None,
+            ip_addresses,
+            virtualization: Some(HostVirtualization::Proxmox(ProxmoxVirtualization {
+                state: Default::default(),
+                vm_name: Some("snmp-test".to_string()),
+                vm_id: Some("107".to_string()),
+                guest_type: Some(ProxmoxGuestType::Qemu),
+            })),
+            virtualization_interface_id: None,
+        }
+    }
+
+    /// snmp-test's own NIC addresses as the Proxmox integration files them.
+    fn snmp_test_nic_rows(vm: Uuid, lan: Uuid) -> Vec<IPAddress> {
+        ["192.168.4.21", "192.168.5.96"]
+            .into_iter()
+            .map(|ip| {
+                sourced(
+                    vm,
+                    ip,
+                    lan,
+                    snmp_test_eth0(),
+                    AttributeSource::HypervisorConfig,
+                )
+            })
+            .collect()
+    }
+
+    /// The host a payload resolves to, in the order `find_matching_host_by_ip_addresses` asks:
+    /// the address tiers (whose pass 1 also compares MACs), then the stored rows carrying one of
+    /// the payload's MACs.
+    fn resolve_by_mac(
+        incoming: &[IPAddress],
+        ip_rows: &[IPAddress],
+        interface_rows: &[crate::server::interfaces::r#impl::base::Interface],
+        candidates: &[HostCandidate],
+    ) -> Option<Uuid> {
+        if let Some((id, _)) = select_matching_host(incoming, None, candidates) {
+            return Some(id);
+        }
+        let carriers = merge::mac_carriers(ip_rows, interface_rows, incoming, candidates);
+        mac_identity::select_matching_host_by_mac(
+            &mac_identity::payload_macs(incoming, &[]),
+            &carriers,
+        )
+    }
+
+    /// Fault 2, 2026-10-22 19:12: the sweep's first ARP reply from .231 has no address match, and
+    /// the MAC tier finds the VM's `mv-snmp231` link interface, filed from the guest agent. The
+    /// link is the sim device's NIC inside the VM, not the VM's, so it must resolve to nothing.
+    #[test]
+    fn a_link_inside_a_guest_never_names_the_guest_through_its_interface_row() {
+        use crate::server::interfaces::r#impl::base::{Interface, InterfaceBase};
+        let lan = Uuid::new_v4();
+        let vm = Uuid::new_v4();
+        let candidates = vec![proxmox_guest(vm, snmp_test_nic_rows(vm, lan))];
+        let link = Interface::new(InterfaceBase {
+            host_id: vm,
+            if_name: Some("mv-snmp231".to_string()),
+            mac_address: Some(MacEvidence::new(
+                MacEvidenceValue(mv_snmp231()),
+                AttributeSource::Probe(ClientProbe::Proxmox),
+            )),
+            interface_source: AttributeSource::Probe(ClientProbe::Proxmox),
+            ..Default::default()
+        });
+        let arp = vec![row("192.168.7.231", lan, mv_snmp231())];
+
+        assert_eq!(resolve_by_mac(&arp, &[], &[link], &candidates), None);
+    }
+
+    /// Fault 2 through the address table: once the identity's guest-agent IPv6 row sits on the VM,
+    /// it carries the link MAC as well, so the rule has to cover both tables.
+    #[test]
+    fn a_link_inside_a_guest_never_names_the_guest_through_an_address_row() {
+        let lan = Uuid::new_v4();
+        let vm = Uuid::new_v4();
+        let link_v6 = sourced(
+            vm,
+            "fd0b:d38d:98f6:1:40d3:d4ff:fe77:c40f",
+            Uuid::new_v4(),
+            mv_snmp231(),
+            AttributeSource::Probe(ClientProbe::Proxmox),
+        );
+        let mut rows = snmp_test_nic_rows(vm, lan);
+        rows.push(link_v6.clone());
+        let candidates = vec![proxmox_guest(vm, rows)];
+        let arp = vec![row("192.168.7.231", lan, mv_snmp231())];
+
+        assert_eq!(resolve_by_mac(&arp, &[link_v6], &[], &candidates), None);
+    }
+
+    /// Fault 1, characterized. On 2026-10-21 the VM was not yet a Proxmox guest and its 4.21 row
+    /// was an ARP reply. If that reply carried the VMware guest's MAC, the 6.1 stub resolves to
+    /// the VM by MAC and its row is inserted there under the stub's own id, with no move and no
+    /// history: what the DB showed. The bad ARP datum itself can't be reproduced; this pins the
+    /// path it took.
+    #[test]
+    fn a_stub_sharing_a_stored_arp_mac_lands_on_that_host() {
+        let lan = Uuid::new_v4();
+        let vm = Uuid::new_v4();
+        let candidates = vec![candidate(
+            vm,
+            vec![sourced(
+                vm,
+                "192.168.4.21",
+                lan,
+                vmware_guest(),
+                AttributeSource::ArpReply,
+            )],
+        )];
+        let stub = vec![row("192.168.6.1", lan, vmware_guest())];
+
+        assert_eq!(
+            select_matching_host(&stub, None, &candidates),
+            Some((vm, HostMatchedBy::Mac))
+        );
+    }
+
+    /// Fault 1, characterized: with 6.1 on the VM, every later 6.1 payload matches the VM by
+    /// address, though the VM's config lists only eth0, until something takes the row off it.
+    #[test]
+    fn a_stray_row_on_a_guest_keeps_attracting_its_address() {
+        let lan = Uuid::new_v4();
+        let vm = Uuid::new_v4();
+        let mut rows = snmp_test_nic_rows(vm, lan);
+        rows.push(sourced(
+            vm,
+            "192.168.6.1",
+            lan,
+            vmware_guest(),
+            AttributeSource::ArpReply,
+        ));
+        let candidates = vec![proxmox_guest(vm, rows)];
+        let deep_scan = vec![row("192.168.6.1", lan, vmware_guest())];
+
+        assert_eq!(
+            select_matching_host(&deep_scan, None, &candidates).map(|(id, _)| id),
+            Some(vm)
+        );
+    }
+
+    /// Fault 3: the Mac daemon host self-reported 192.168.4.1 on a VMware bridge (`bridge102`).
+    /// The LAN router answers ARP for the same address with its own MAC. The daemon's NIC MACs are
+    /// its own reading, so a different MAC answering there is a different device, and the router's
+    /// payload must not land on the daemon host.
+    #[test]
+    fn an_arp_reply_from_another_mac_never_matches_a_daemons_own_address() {
+        let lan = Uuid::new_v4();
+        let mac_host = Uuid::new_v4();
+        let candidates = vec![candidate(
+            mac_host,
+            vec![
+                sourced(
+                    mac_host,
+                    "192.168.5.93",
+                    lan,
+                    "34:66:91:ec:6c:2f".parse().unwrap(),
+                    AttributeSource::DaemonSelfReport,
+                ),
+                sourced(
+                    mac_host,
+                    "192.168.4.1",
+                    lan,
+                    "36:66:91:ce:e9:66".parse().unwrap(),
+                    AttributeSource::DaemonSelfReport,
+                ),
+            ],
+        )];
+        let router = vec![row(
+            "192.168.4.1",
+            lan,
+            "c4:f1:74:2f:56:f2".parse().unwrap(),
+        )];
+
+        assert_eq!(select_matching_host(&router, None, &candidates), None);
+    }
+
+    /// The daemon's own address still matches its own report, and an ARP reply carrying the
+    /// daemon's own MAC (another daemon sweeping this one) still finds it.
+    #[test]
+    fn a_daemons_address_still_matches_its_own_nic() {
+        let lan = Uuid::new_v4();
+        let mac_host = Uuid::new_v4();
+        let en0: MacAddress = "34:66:91:ec:6c:2f".parse().unwrap();
+        let candidates = vec![candidate(
+            mac_host,
+            vec![sourced(
+                mac_host,
+                "192.168.5.93",
+                lan,
+                en0,
+                AttributeSource::DaemonSelfReport,
+            )],
+        )];
+        let self_report = vec![sourced(
+            Uuid::nil(),
+            "192.168.5.93",
+            lan,
+            en0,
+            AttributeSource::DaemonSelfReport,
+        )];
+        let swept = vec![row("192.168.5.93", lan, en0)];
+        for payload in [self_report, swept] {
+            assert_eq!(
+                select_matching_host(&payload, None, &candidates).map(|(id, _)| id),
+                Some(mac_host)
+            );
+        }
+    }
+
+    /// A guest's own NIC still names it by MAC (a payload with no address, such as a DCP
+    /// responder), whichever hypervisor filed the config MAC.
+    #[test]
+    fn a_guests_config_mac_still_names_the_guest() {
+        use crate::server::hosts::r#impl::virtualization::VCenterVirtualization;
+        let lan = Uuid::new_v4();
+        let vm = Uuid::new_v4();
+        let mut guest = proxmox_guest(vm, snmp_test_nic_rows(vm, lan));
+        let proxmox = guest.virtualization.clone();
+        let nic = [MacEvidence::new(
+            MacEvidenceValue(snmp_test_eth0()),
+            AttributeSource::ArpReply,
+        )];
+        for virtualization in [
+            proxmox,
+            Some(HostVirtualization::VCenter(VCenterVirtualization {
+                vm_name: Some("snmp-test".to_string()),
+                vm_id: Some("vm-107".to_string()),
+            })),
+        ] {
+            guest.virtualization = virtualization;
+            let carriers = merge::mac_carriers(
+                &snmp_test_nic_rows(vm, lan),
+                &[],
+                &[],
+                std::slice::from_ref(&guest),
+            );
+            assert_eq!(
+                mac_identity::select_matching_host_by_mac(&nic, &carriers),
+                Some(vm)
+            );
+        }
+    }
+
+    /// The rule needs the guest's NIC list: a vCenter guest with config MACs gives up its link
+    /// MACs exactly as a Proxmox guest does, and a host no hypervisor reported keeps matching by
+    /// whatever MAC it holds.
+    #[test]
+    fn foreign_macs_are_judged_only_against_a_known_nic_list() {
+        use crate::server::hosts::r#impl::virtualization::VCenterVirtualization;
+        let lan = Uuid::new_v4();
+        let vm = Uuid::new_v4();
+        let link_v6 = sourced(
+            vm,
+            "fd0b:d38d:98f6:1:40d3:d4ff:fe77:c40f",
+            Uuid::new_v4(),
+            mv_snmp231(),
+            AttributeSource::Probe(ClientProbe::Proxmox),
+        );
+        let arp = vec![row("192.168.7.231", lan, mv_snmp231())];
+
+        let mut rows = snmp_test_nic_rows(vm, lan);
+        rows.push(link_v6.clone());
+        let mut guest = proxmox_guest(vm, rows);
+        guest.virtualization = Some(HostVirtualization::VCenter(VCenterVirtualization {
+            vm_name: Some("snmp-test".to_string()),
+            vm_id: Some("vm-107".to_string()),
+        }));
+        assert_eq!(
+            resolve_by_mac(&arp, std::slice::from_ref(&link_v6), &[], &[guest]),
+            None
+        );
+
+        let unreported = candidate(vm, vec![link_v6.clone()]);
+        assert_eq!(
+            resolve_by_mac(&arp, &[link_v6], &[], &[unreported]),
             Some(vm)
         );
     }

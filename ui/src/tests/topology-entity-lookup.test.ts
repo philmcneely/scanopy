@@ -29,8 +29,9 @@ function buildTopology(): RenderableTopology {
 		id: 'topo-1',
 		site_id: SITE_ID,
 		hosts: [
-			{ ...base, id: 'pve', display_name: 'pve-node' },
-			{ ...base, id: 'vm-host', display_name: 'guest-vm' }
+			{ ...base, id: 'pve', name: 'pve-node', display_name: 'pve-node' },
+			{ ...base, id: 'vm-host', name: 'guest-vm', display_name: 'guest-vm' },
+			{ ...base, id: 'plc', name: '', display_name: null }
 		],
 		services: [
 			{
@@ -47,9 +48,13 @@ function buildTopology(): RenderableTopology {
 			{ ...base, id: 'svc-guest', name: 'nginx', host_id: 'vm-host', bindings: [] }
 		],
 		ip_addresses: [
-			{ id: 'ip-pve', host_id: 'pve', site_id: SITE_ID, ip_address: '10.0.0.5', subnet_id: 's1' }
+			{ id: 'ip-pve', host_id: 'pve', site_id: SITE_ID, ip_address: '10.0.0.5', subnet_id: 's1' },
+			{ id: 'ip-plc', host_id: 'plc', site_id: SITE_ID, ip_address: '10.0.9.7', subnet_id: 's1' }
 		],
-		interfaces: [{ id: 'if-1', host_id: 'pve', site_id: SITE_ID, if_name: 'eth0' }],
+		interfaces: [
+			{ id: 'if-1', host_id: 'pve', site_id: SITE_ID, if_name: 'eth0' },
+			{ id: 'if-2', host_id: 'pve', site_id: SITE_ID, if_descr: 'Port 1/0/8' }
+		],
 		subnets: [{ ...base, id: 's1', name: 'lan', cidr: '10.0.0.0/24' }],
 		ports: [],
 		bindings: [],
@@ -107,8 +112,25 @@ function buildTopology(): RenderableTopology {
 				host_id: 'pve',
 				entity_id: 'if-1',
 				interface_id: 'if-1'
+			},
+			{
+				id: 'n-port-8',
+				node_type: 'Element',
+				element_type: 'Interface',
+				host_id: 'pve',
+				entity_id: 'if-2',
+				interface_id: 'if-2'
+			},
+			{
+				id: 'c-vlan',
+				node_type: 'Container',
+				container_type: 'VLAN',
+				header: 'VLAN 20 (Shop floor)',
+				parent_container_id: 'c-pve'
 			}
-		]
+		],
+		// What the backend associates: the device and address reached through port 8.
+		node_entities: { 'n-port-8': ['plc', 'ip-plc'] }
 	} as unknown as RenderableTopology;
 }
 
@@ -186,6 +208,23 @@ describe('search resolves matches through entity ids', () => {
 		expect(get(searchMatchNodeIds)).toContain('n-ip');
 		updateSearchFilter(buildTopology(), '10.0.0.0/24', 'L3Logical');
 		expect(get(searchMatchNodeIds)).toContain('c-subnet');
+	});
+
+	it('in L2 an address matches the switch port it is reached through, and no other port', () => {
+		updateSearchFilter(buildTopology(), '10.0.9.7', 'L2Physical');
+		const matches = get(searchMatchNodeIds);
+		expect(matches).toContain('n-port-8');
+		expect(matches).not.toContain('n-port');
+	});
+
+	it('a port is found by the description it is labelled with', () => {
+		updateSearchFilter(buildTopology(), '1/0/8', 'L2Physical');
+		expect(get(searchMatchNodeIds)).toContain('n-port-8');
+	});
+
+	it('a subcontainer is found by the header drawn on it', () => {
+		updateSearchFilter(buildTopology(), 'shop floor', 'L2Physical');
+		expect(get(searchMatchNodeIds)).toContain('c-vlan');
 	});
 });
 

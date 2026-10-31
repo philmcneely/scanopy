@@ -2,14 +2,14 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import AppBanners from '$lib/shared/components/feedback/AppBanners.svelte';
+	import ServerUnreachableBanner from '$lib/shared/components/feedback/ServerUnreachableBanner.svelte';
 	import TrialExpiryModal from '$lib/shared/components/feedback/TrialExpiryModal.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
 	import GlobalSearch from '$lib/shared/components/layout/GlobalSearch.svelte';
 	import { onDestroy, onMount } from 'svelte';
-	import { discoverySSEManager } from '$lib/features/discovery/queries';
+	import { liveUpdatesSSEManager } from '$lib/shared/live-updates';
 	import { useCurrentUserQuery } from '$lib/features/auth/queries';
 
-	import { topologySSEManager } from '$lib/features/topology/queries';
 	import { attachUrlState, setActiveTab } from '$lib/shared/stores/url-state';
 	import { useDaemonsQuery } from '$lib/features/daemons/queries';
 	import { useSitesQuery } from '$lib/features/sites/queries';
@@ -20,6 +20,10 @@
 	import DaemonPromptModal from '$lib/features/daemons/components/DaemonPromptModal.svelte';
 	import ReleaseNotesModal from '$lib/features/release-notes/ReleaseNotesModal.svelte';
 	import TermsAcceptanceModal from '$lib/features/auth/components/TermsAcceptanceModal.svelte';
+	import EmailVerificationGate from '$lib/features/auth/components/EmailVerificationGate.svelte';
+	import AuthBackground from '$lib/shared/components/layout/AuthBackground.svelte';
+	import { useQueryClient } from '@tanstack/svelte-query';
+	import { queryKeys } from '$lib/api/query-client';
 	import {
 		useUnseenReleaseNotesQuery,
 		useMarkReleaseNotesSeenMutation
@@ -64,6 +68,9 @@
 	// The server refuses this user's main-app requests until they accept the
 	// current terms, so the app stays unmounted behind the acceptance screen.
 	let termsGated = $derived(currentUserQuery.data?.terms_acceptance_required === true);
+	// The same for a user of an org on a license plan who hasn't verified their
+	// email: the server decides, and the step replaces the app until they do.
+	let verificationGated = $derived(currentUserQuery.data?.email_verification_required === true);
 
 	// Billing modal: show when billing is enabled but user has no active plan
 	const configQuery = useConfigQuery();
@@ -84,6 +91,19 @@
 	// waitForOrgUpdate invalidates and refetches at once, so a seeded plan reverts
 	// within milliseconds and the License tab flickers out of the tab list.
 	let licensedPlanJustPicked = $state(false);
+	// The server sets email_verification_required from the org's plan, so a plan
+	// change (a license trial landing after sign-up, or a later switch) refetches
+	// the current user to pick it up.
+	const queryClient = useQueryClient();
+	let lastPlanType: string | null | undefined = undefined;
+	$effect(() => {
+		const planType = organization?.plan?.type;
+		if (planType === undefined) return;
+		if (lastPlanType !== undefined && planType !== lastPlanType) {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
+		}
+		lastPlanType = planType;
+	});
 	let isSelfHostedPlanLocked = $derived(
 		(isCloudDeployment && licensedPlanJustPicked) ||
 			isSelfHostedPlanLockedFor(organization, isCloudDeployment)
@@ -103,7 +123,11 @@
 	let isMainAppLocked = $derived(isSelfHostedPlanLocked || planUnchosen);
 	// Main-app data (SSE streams, daemons) waits until the lock state is known.
 	let mainAppAvailable = $derived(
-		configQuery.data != null && organization != null && !isMainAppLocked && !termsGated
+		configQuery.data != null &&
+			organization != null &&
+			!isMainAppLocked &&
+			!termsGated &&
+			!verificationGated
 	);
 
 	// TanStack Query for daemons - used to determine default tab
@@ -281,21 +305,23 @@
 		}
 	});
 
-	// Real-time streams are main-app routes: connect only once the org is known
-	// to be unlocked, and drop them if the org moves onto a licensed plan. The
-	// topology stream also needs the topology view on the plan (Free lacks it).
+	// The live-update stream is a main-app route: connect only once the org is known
+	// to be unlocked, and drop it if the org moves onto a licensed plan. The server
+	// reads topology access from the plan at connect, so a change to it reconnects.
+	let streamTopologyAccess: boolean | null = null;
 	$effect(() => {
 		if (!appInitialized) return;
-		if (mainAppAvailable && hasTopologyAccess(organization)) {
-			topologySSEManager.connect();
-		} else {
-			topologySSEManager.disconnect();
+		if (!mainAppAvailable) {
+			liveUpdatesSSEManager.disconnect();
+			streamTopologyAccess = null;
+			return;
 		}
-		if (mainAppAvailable) {
-			discoverySSEManager.connect();
-		} else {
-			discoverySSEManager.disconnect();
+		const topologyAccess = hasTopologyAccess(organization);
+		if (streamTopologyAccess !== null && streamTopologyAccess !== topologyAccess) {
+			liveUpdatesSSEManager.disconnect();
 		}
+		streamTopologyAccess = topologyAccess;
+		liveUpdatesSSEManager.connect();
 	});
 
 	// App-load modals show at most one per page load, in this order: the billing
@@ -425,8 +451,7 @@
 	});
 
 	onDestroy(() => {
-		topologySSEManager.disconnect();
-		discoverySSEManager.disconnect();
+		liveUpdatesSSEManager.disconnect();
 
 		if (typeof window !== 'undefined') {
 			window.removeEventListener('hashchange', handleHashChange);
@@ -437,30 +462,49 @@
 
 {#if appInitialized && termsGated}
 	<TermsAcceptanceModal isOpen={true} />
+{:else if appInitialized && verificationGated}
+	<div class="relative min-h-screen bg-(--color-bg-elevated)">
+		<AuthBackground />
+		<EmailVerificationGate isOpen={true} />
+	</div>
 {:else if appInitialized}
-	<div class="flex h-dvh">
-		<!-- Sidebar -->
+	<div class="flex h-dvh flex-col">
+		<!-- Banners span the full width, sidebar included.
+		     Only while the main app is reachable. When it is gated, or the org is on
+		     a licensed plan, the Settings modal carries the same stack in its frame
+		     instead, so exactly one copy is ever mounted: AppBanner holds its
+		     dismissed state locally, and a second copy behind the overlay would not
+		     follow a dismissal. -->
 		<div class="shrink-0">
-			<Sidebar
-				bind:activeTab
-				bind:collapsed={sidebarCollapsed}
-				bind:allTabs
-				bind:showSettings
-				settingsInitialTab={isBillingBlocking
-					? billingBlockingTab
-					: isSelfHostedPlanLocked
-						? licenseLockTab
-						: 'account'}
-				settingsDismissible={!isBillingBlocking}
-				mainAppLocked={isMainAppLocked}
-				showLockedMainNav={isSelfHostedPlanLocked}
-				{mainAppAvailable}
-				licensedPlanPending={licensedPlanJustPicked}
-			/>
+			{#if !isBillingBlocking && !isSelfHostedPlanLocked}
+				<AppBanners />
+			{/if}
+			<ServerUnreachableBanner />
 		</div>
 
-		<!-- Main Content -->
-		<!--
+		<div class="flex min-h-0 flex-1">
+			<!-- Sidebar -->
+			<div class="shrink-0">
+				<Sidebar
+					bind:activeTab
+					bind:collapsed={sidebarCollapsed}
+					bind:allTabs
+					bind:showSettings
+					settingsInitialTab={isBillingBlocking
+						? billingBlockingTab
+						: isSelfHostedPlanLocked
+							? licenseLockTab
+							: 'account'}
+					settingsDismissible={!isBillingBlocking}
+					mainAppLocked={isMainAppLocked}
+					showLockedMainNav={isSelfHostedPlanLocked}
+					{mainAppAvailable}
+					licensedPlanPending={licensedPlanJustPicked}
+				/>
+			</div>
+
+			<!-- Main Content -->
+			<!--
 			min-w-0: a flex child defaults to min-width:auto, so it cannot shrink
 			below its content. Without it a wide table stretches main, then the flex
 			row, and the whole page scrolls sideways instead of the table alone.
@@ -474,21 +518,9 @@
 			`relative` makes main their containing block, so its own overflow contains
 			them and only main scrolls.
 		-->
-		<main
-			class="relative min-w-0 flex-1 overflow-auto transition-all duration-300"
-			class:ml-16={sidebarCollapsed}
-			class:ml-48={!sidebarCollapsed}
-		>
-			<!-- Only while the main app is reachable. When it is gated, or the org is on
-			     a licensed plan, the Settings modal carries the same stack in its frame
-			     instead, so exactly one copy is ever mounted: AppBanner holds its
-			     dismissed state locally, and a second copy behind the overlay would not
-			     follow a dismissal. -->
-			{#if !isBillingBlocking && !isSelfHostedPlanLocked}
-				<AppBanners />
-			{/if}
-			<div class="p-4 [&_.sticky]:sticky [&_.sticky]:top-0">
-				<!--
+			<main class="relative min-w-0 flex-1 overflow-auto">
+				<div class="p-4 [&_.sticky]:sticky [&_.sticky]:top-0">
+					<!--
 					Programmatically render all tabs based on sidebar config.
 
 					`relative` on the collapsed wrappers is load-bearing, not decoration.
@@ -503,38 +535,37 @@
 					with everything else. `contain: paint` does the same for `position: fixed`
 					descendants, such as a list's bulk-tag island.
 				-->
-				<!-- Main-app tabs mount only once the org is known to be unlocked; their
+					<!-- Main-app tabs mount only once the org is known to be unlocked; their
 				     queries hit routes a licensed self-hosted org is rejected from. -->
-				{#if mainAppAvailable}
-					{#each allTabs as tab (tab.id)}
-						{#if tab.subTabIds && tab.subTabDefs}
-							<div
-								class={!tab.subTabIds.includes(activeTab)
-									? 'relative h-0 overflow-hidden contain-[paint]'
-									: ''}
-							>
-								<ContentSubTabs
-									tabs={tab.subTabDefs}
-									bind:activeTab
-									isReadOnly={tab.isReadOnly}
-									notifications={tab.subTabNotifications}
-								/>
-							</div>
-						{:else}
-							<div
-								class={activeTab !== tab.id ? 'relative h-0 overflow-hidden contain-[paint]' : ''}
-							>
-								<tab.component isReadOnly={tab.isReadOnly} isActive={activeTab === tab.id} />
-							</div>
-						{/if}
-					{/each}
-				{:else if isSelfHostedPlanLocked}
-					<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
-				{/if}
-			</div>
-
-			<Toast />
-		</main>
+					{#if mainAppAvailable}
+						{#each allTabs as tab (tab.id)}
+							{#if tab.subTabIds && tab.subTabDefs}
+								<div
+									class={!tab.subTabIds.includes(activeTab)
+										? 'relative h-0 overflow-hidden contain-[paint]'
+										: ''}
+								>
+									<ContentSubTabs
+										tabs={tab.subTabDefs}
+										bind:activeTab
+										isReadOnly={tab.isReadOnly}
+										notifications={tab.subTabNotifications}
+									/>
+								</div>
+							{:else}
+								<div
+									class={activeTab !== tab.id ? 'relative h-0 overflow-hidden contain-[paint]' : ''}
+								>
+									<tab.component isReadOnly={tab.isReadOnly} isActive={activeTab === tab.id} />
+								</div>
+							{/if}
+						{/each}
+					{:else if isSelfHostedPlanLocked}
+						<CloudPlanRequired page={TAB_LABELS[activeTab] ?? TAB_LABELS.home} />
+					{/if}
+				</div>
+			</main>
+		</div>
 	</div>
 
 	<TrialExpiryModal
@@ -619,3 +650,7 @@
 	<!-- Data still loading -->
 	<Loading />
 {/if}
+
+<!-- Outside the chain above: the verification step and the terms screen
+     replace the app, and their Resend, email change and accept still toast. -->
+<Toast />

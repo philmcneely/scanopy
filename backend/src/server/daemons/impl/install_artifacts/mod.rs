@@ -74,12 +74,16 @@ impl From<&BillingPlan> for DownloadSource {
 }
 
 impl DownloadSource {
-    /// The source for this server. Every Cloud org gets Scarf. A self-hosted server's orgs all
-    /// carry the plan its license resolves to (Community without a valid license), so that plan
-    /// decides.
+    /// The source for this server. Every Cloud org gets Scarf. A self-hosted server with
+    /// `SCANOPY_DISABLE_DOWNLOAD_GATEWAY` set gets GitHub. Otherwise a self-hosted server's orgs
+    /// all carry the plan its license resolves to (Community without a valid license), so that
+    /// plan decides.
     pub async fn for_server(state: &AppState) -> Self {
         if get_deployment_type(&state.config) == DeploymentType::Cloud {
             return Self::Scarf;
+        }
+        if state.config.disable_download_gateway {
+            return Self::Github;
         }
         (&self_hosted_plan(state.services.license_service.as_deref()).await).into()
     }

@@ -8,7 +8,9 @@ pub mod field_definition;
 pub mod guest_state;
 pub mod icon;
 pub mod metadata;
+pub mod stability;
 
 pub use color::Color;
 pub use error_codes::ErrorCode;
 pub use icon::Icon;
+pub use stability::Stability;

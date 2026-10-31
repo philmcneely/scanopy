@@ -221,6 +221,11 @@ impl DiscoveryWarningCode {
             // own "what's discovered" text, which says what a credential adds.
             Self::IntegrationWithoutCredential => &["integration", "count", "discovers"],
 
+            // `addresses` renders each guest as its name and address, joined like any other.
+            Self::ProxmoxGuestOutsideScan => &["addresses"],
+            Self::ProxmoxGuestBehindNode => &["addresses", "bridge", "node"],
+            Self::ProxmoxGuestIsolated => &["addresses", "bridge"],
+
             Self::ConnectionsWithoutProtocolResponse => &["cidr", "declined", "ports"],
 
             Self::ScanTimeLimitWithEstimate => &["hours", "hosts_not_scanned", "minutes_remaining"],
@@ -236,7 +241,7 @@ impl DiscoveryWarningCode {
             | Self::LldpPortNotFound
             | Self::LldpPortAmbiguous => &["count"],
 
-            Self::ProvisionalSubnetInferred => &["count"],
+            Self::ProvisionalSubnetInferred | Self::UnconfirmedHostInferred => &["count"],
 
             Self::NeighbourResolutionIncomplete => &["budget_seconds", "neighbours"],
             Self::FdbResolutionIncomplete => &["budget_seconds", "interfaces"],
@@ -274,6 +279,10 @@ impl DiscoveryWarningCode {
             | Self::CredentialCollectionTimedOut
             | Self::CredentialUnreachable
             | Self::CredentialTimedOut
+            // Recorded, and with nothing on them identified.
+            | Self::ProxmoxGuestOutsideScan
+            | Self::ProxmoxGuestBehindNode
+            | Self::ProxmoxGuestIsolated
             | Self::ScanTimeLimitWithEstimate
             | Self::ScanTimeLimit
             | Self::DcpSweepTimedOut
@@ -314,6 +323,7 @@ impl DiscoveryWarningCode {
             // A range Scanopy proposes, not a fault: the segment is probably real and the operator
             // is being asked to confirm it, which is a different thing from something going wrong.
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
             // The old format was translated, so this scan lost nothing. It reports a daemon
             // that will lose something once the compatibility window closes.
             | Self::OutdatedDaemonFormat
@@ -358,6 +368,10 @@ impl DiscoveryWarningCode {
             | Self::CredentialTimedOut
             // Adding the credential is the fix, and the create flow opens pre-filled from the row.
             | Self::IntegrationWithoutCredential
+            // A daemon where the guest is, or the guest's subnet in the scan.
+            | Self::ProxmoxGuestOutsideScan
+            | Self::ProxmoxGuestBehindNode
+            | Self::ProxmoxGuestIsolated
             // Scan settings: the duration to raise, or the coverage to narrow, or — for the
             // middlebox case — the "Trust Port-Only Detections" opt-in, once the reader has
             // decided the addresses really are empty.
@@ -368,7 +382,8 @@ impl DiscoveryWarningCode {
             // The one warning with a resolution flow of its own, and the one that repeats on
             // every scan until someone answers it.
             | Self::ProvisionalSubnetInferred
-            // Duplicate host records are a Scanopy-side data problem, and consolidating them is a
+            | Self::UnconfirmedHostInferred
+            // Duplicate host records are a Scanopy-side data problem, and merging them is a
             // shipped action.
             | Self::LldpNeighbourAmbiguous
             // Narrowing what one scan covers is the lever that brings the pass back inside budget.
@@ -495,6 +510,9 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::CredentialUnreachable => "Credential target unreachable",
             Self::CredentialTimedOut => "Credential attempt timed out",
             Self::IntegrationWithoutCredential => "{integration} found without a credential",
+            Self::ProxmoxGuestOutsideScan => "Proxmox VE guests outside the scan",
+            Self::ProxmoxGuestBehindNode => "Proxmox VE guests reachable only from their node",
+            Self::ProxmoxGuestIsolated => "Proxmox VE guests on an isolated bridge",
             Self::ConnectionsWithoutProtocolResponse => "Handshakes with nothing behind them",
             Self::ScanTimeLimitWithEstimate => "Scan hit its time limit",
             Self::ScanTimeLimit => "Scan hit its time limit",
@@ -507,6 +525,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::LldpPortNotFound => "Advertised port not found",
             Self::LldpPortAmbiguous => "Advertised port not unique",
             Self::ProvisionalSubnetInferred => "Address range assumed, please confirm",
+            Self::UnconfirmedHostInferred => "Host known only from another device, please confirm",
             Self::NeighbourResolutionIncomplete => "Link resolution did not finish",
             Self::FdbResolutionIncomplete => "FDB link resolution did not finish",
             Self::OutdatedDaemonFormat => "Daemon is outdated",
@@ -639,6 +658,15 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             Self::IntegrationWithoutCredential => {
                 "{integration} answers on {count} host(s) that no {integration} credential works on. Add one to collect more: {discovers}"
             }
+            Self::ProxmoxGuestOutsideScan => {
+                "{addresses} run on Proxmox VE at addresses no subnet this scan covers, so they were recorded without ports or services. Add their subnet to the discovery, or scan it from a daemon on that network."
+            }
+            Self::ProxmoxGuestBehindNode => {
+                "{addresses} sit on {bridge}, a bridge with no uplink that only node {node} has an address on, so this scan reached no ports or services on them. Run a daemon on {node} to scan them."
+            }
+            Self::ProxmoxGuestIsolated => {
+                "{addresses} sit on {bridge}, a bridge with no uplink and no node address, so no daemon outside it reaches them and they were recorded without ports or services. Install a daemon on a guest attached to {bridge} to scan them."
+            }
             Self::ConnectionsWithoutProtocolResponse => {
                 "{declined} address(es) in {cidr} completed a TCP connection on {ports} and then answered nothing, so no host was recorded at any of them. Something in the path — a firewall session helper, a load balancer, a scrubbing appliance — answers for addresses that hold no device, and a bare handshake cannot tell one from the other. If those addresses really do hold devices, scan the subnet from a daemon with an interface on it; if they are empty, nothing here needs fixing."
             }
@@ -661,7 +689,7 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
                 "LLDP/CDP neighbours name devices this site has not discovered ({count} in total), so they draw no links. This is expected where the far end is an endpoint or unmanaged device; a device that should have been scanned means the identifier it advertises is not one this site holds."
             }
             Self::LldpNeighbourAmbiguous => {
-                "LLDP/CDP neighbours advertise an identifier that several hosts on this site hold ({count} in total), so none of them can be picked and no link is drawn. This is usually duplicate records for one device rather than a device that was missed — consolidate the duplicates and the link resolves."
+                "LLDP/CDP neighbours advertise an identifier that several hosts on this site hold ({count} in total), so none of them can be picked and no link is drawn. This is usually duplicate records for one device rather than a device that was missed — merge the duplicates and the link resolves."
             }
             Self::LldpPortNoStrategy => {
                 "LLDP/CDP neighbours resolved to a device but advertise a port id of a subtype there is no lookup for ({count} in total), so Physical Topology draws a dashed device-level link instead of a port-to-port one."
@@ -674,6 +702,9 @@ impl TypeMetadataProvider for DiscoveryWarningCode {
             }
             Self::ProvisionalSubnetInferred => {
                 "{count} subnet(s) on this site have a range Scanopy assumed rather than read, because devices reported addresses in them that nothing scanned holds. Nothing advertises a netmask, so the range around an address is a convention — confirm or correct it on the subnet. No daemon has an interface on these ranges, and they are reported on every scan until confirmed."
+            }
+            Self::UnconfirmedHostInferred => {
+                "{count} host(s) on this site are known only because another device reported them: an LLDP/CDP neighbour advertised them, or a switch learned their MAC on one of its ports. No scan has reached them. Confirm and label, merge or dismiss each one on the host. They are reported on every scan until confirmed."
             }
             Self::NeighbourResolutionIncomplete => {
                 "Matching LLDP/CDP neighbours to the devices and ports they name was stopped after {budget_seconds}s, with {neighbours} interface(s) advertising a neighbour on this site. Physical Topology is missing links this scan would otherwise have drawn; the next scan retries from scratch. Narrow what the scan covers, or split the network across daemons, if it keeps happening."
@@ -763,6 +794,10 @@ impl DiscoveryWarningCode {
             | Self::NeighbourResolutionIncomplete
             | Self::OutdatedDaemonFormat
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
+            | Self::ProxmoxGuestBehindNode
+            | Self::ProxmoxGuestIsolated
+            | Self::ProxmoxGuestOutsideScan
             | Self::ReverseDnsTimedOut
             | Self::ScanTimeLimit
             | Self::ScanTimeLimitWithEstimate
@@ -844,6 +879,10 @@ impl DiscoveryWarningCode {
             | Self::NeighbourResolutionIncomplete
             | Self::OutdatedDaemonFormat
             | Self::ProvisionalSubnetInferred
+            | Self::UnconfirmedHostInferred
+            | Self::ProxmoxGuestOutsideScan
+            | Self::ProxmoxGuestBehindNode
+            | Self::ProxmoxGuestIsolated
             | Self::ReverseDnsTimedOut
             | Self::ScanTimeLimit
             | Self::ScanTimeLimitWithEstimate

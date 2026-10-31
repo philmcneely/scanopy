@@ -8,18 +8,16 @@
 	 */
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { Check, X, ChevronDown, ChevronUp, Info, Loader2 } from 'lucide-svelte';
+	import { Check, X, ChevronDown, ChevronUp, Info, Loader2 } from '@lucide/svelte';
 	import {
 		billing_compareAllFeatures,
 		billing_dayFreeTrial,
-		billing_daysCount,
+		billing_dayRetention,
 		billing_everythingInPlanPlus,
-		billing_notIncluded,
 		billing_extraSeatsMonthly,
 		billing_extraSitesMonthly,
 		billing_includedCount,
 		billing_nonProductionCount,
-		billing_planIntegrations,
 		billing_rateMonthly,
 		billing_rateMonthlyEquivalent,
 		billing_rateYearly,
@@ -29,7 +27,7 @@
 		billing_selfHosted,
 		billing_showFeatures,
 		billing_hideFeatures,
-		billing_snapshotRetention,
+		billing_betaFeatureTooltip,
 		billing_startDayFreeTrial,
 		billing_startTrialNoCreditCard,
 		billing_switchPlan,
@@ -61,7 +59,9 @@
 	import type { ColorStyle } from '$lib/shared/utils/styling';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { tooltip } from '$lib/shared/actions/tooltip';
-	import { useConfigQuery } from '$lib/shared/stores/config-query';
+	import { isCloud, useConfigQuery } from '$lib/shared/stores/config-query';
+	import { getStabilityTagProps } from '$lib/shared/utils/stability';
+	import { betaProgramUrl } from '$lib/features/support/support';
 
 	const configQuery = useConfigQuery();
 
@@ -85,7 +85,11 @@
 	interface Props {
 		plans: BillingPlan[];
 		billingPlanHelpers: MetadataHelpers<BillingPlanMetadata>;
-		featureHelpers: MetadataHelpers<FeatureMetadata>;
+		/** Feature names and metadata; `getIds` gives the backend's declaration order. */
+		featureHelpers: MetadataHelpers<FeatureMetadata> & { getIds: () => string[] };
+		/** Names and icons of the category headings features are grouped under, in display order
+		 * (`product-areas.json`). */
+		productAreaHelpers: MetadataHelpers<object> & { getIds: () => string[] };
 		/** Names the discovery integrations itemized on each card (`credential-integrations.json`). */
 		integrationHelpers: MetadataHelpers<CredentialIntegrationMetadata>;
 		/** Explains each counted limit on the cards (`plan-limits.json`). */
@@ -116,6 +120,7 @@
 		plans,
 		billingPlanHelpers,
 		featureHelpers,
+		productAreaHelpers,
 		integrationHelpers,
 		limitHelpers,
 		onPlanSelect,
@@ -211,20 +216,24 @@
 		return featureHelpers.getMetadata(featureKey)?.is_coming_soon === true;
 	}
 
+	/**
+	 * A beta feature's tag, linking to the beta program sign-up; `null` for a stable feature, and
+	 * for one still coming soon, which carries the Coming Soon tag instead.
+	 */
+	function betaTag(featureKey: string) {
+		if (isComingSoon(featureKey)) return null;
+		const cloud = configQuery.data ? isCloud(configQuery.data) : false;
+		return getStabilityTagProps(
+			featureHelpers.getMetadata(featureKey)?.stability,
+			billing_betaFeatureTooltip(),
+			betaProgramUrl('app_plans', cloud)
+		);
+	}
+
 	const DISCOVERY_INTEGRATIONS = 'discovery_integrations';
 
 	/** Feature categories in display order; unknown ones sort last. */
-	const CATEGORY_ORDER = [
-		'Discovery',
-		'Inventory',
-		'Diagrams',
-		'Export',
-		'API & Automation',
-		'Support',
-		'Security',
-		'Deployment',
-		'Billing'
-	];
+	let categoryOrder = $derived(productAreaHelpers.getIds());
 
 	/** The category the integrations sit under, on the cards and in the comparison. */
 	let discoveryCategory = $derived(featureHelpers.getCategory(DISCOVERY_INTEGRATIONS));
@@ -240,12 +249,29 @@
 		);
 	}
 
-	/** Every integration any shown plan includes, in the order the plans list them. */
-	let comparisonIntegrations = $derived([
-		...new Set(
-			filteredPlans.flatMap((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? [])
-		)
-	]);
+	/**
+	 * Each plan lists its integrations in the Integrations page's order. A merged list sorts by the
+	 * longest plan list, which holds every integration the others do.
+	 */
+	let integrationRank = $derived.by(() => {
+		const lists = plans.map((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? []);
+		const longest = lists.reduce<string[]>((a, b) => (b.length > a.length ? b : a), []);
+		return new SvelteMap(longest.map((id, i) => [id, i]));
+	});
+
+	function sortIntegrations(ids: string[]): string[] {
+		const rank = (id: string) => integrationRank.get(id) ?? Number.MAX_SAFE_INTEGER;
+		return [...ids].sort((a, b) => rank(a) - rank(b));
+	}
+
+	/** Every integration any shown plan includes, in the Integrations page's order. */
+	let comparisonIntegrations = $derived(
+		sortIntegrations([
+			...new Set(
+				filteredPlans.flatMap((p) => billingPlanHelpers.getMetadata(p.type)?.integrations ?? [])
+			)
+		])
+	);
 
 	function planHasIntegration(planType: string, integration: string): boolean {
 		return (billingPlanHelpers.getMetadata(planType)?.integrations ?? []).some(
@@ -253,10 +279,16 @@
 		);
 	}
 
+	/** Every feature in the backend's declaration order (`features.json` order). */
+	let featureOrder = $derived(featureHelpers.getIds());
+
 	let featureKeys = $derived(
 		filteredPlans.length > 0
-			? Object.keys(billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features || {}).filter(
-					(key) => !isItemizedAsIntegrations(key)
+			? featureOrder.filter(
+					(key) =>
+						key in (billingPlanHelpers.getMetadata(filteredPlans[0].type)?.features ?? {}) &&
+						!isItemizedAsIntegrations(key) &&
+						isListed(key)
 				)
 			: []
 	);
@@ -269,17 +301,10 @@
 			if (!groups.has(category)) groups.set(category, []);
 			groups.get(category)!.push(featureKey);
 		}
-		// Sort features within each category by how many plans enable them (most first)
-		for (const [, features] of groups) {
-			features.sort((a, b) => {
-				const countA = filteredPlans.filter((p) => getFeatureValue(p.type, a)).length;
-				const countB = filteredPlans.filter((p) => getFeatureValue(p.type, b)).length;
-				return countB - countA;
-			});
-		}
+		// Features keep the backend's declaration order within each category.
 		// Sort categories into display order
 		const sortedEntries = [...groups.entries()].sort(([a], [b]) => {
-			const order: string[] = CATEGORY_ORDER;
+			const order: string[] = categoryOrder;
 			const aIdx = order.indexOf(a);
 			const bIdx = order.indexOf(b);
 			if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
@@ -381,21 +406,125 @@
 		return value == null ? common_unlimited() : String(value);
 	}
 
-	function formatSnapshotRetention(plan: BillingPlan): string {
-		const value = getFeatureValue(plan.type, 'snapshot_retention_days');
-		if (value === 0) return billing_notIncluded();
-		if (typeof value === 'number') return billing_daysCount({ count: value });
-		return '—';
+	const SNAPSHOT_RETENTION = 'snapshot_retention_days';
+
+	/** "30 day retention", beside the Snapshots feature. */
+	function formatSnapshotRetention(planType: string): string {
+		const value = getFeatureValue(planType, SNAPSHOT_RETENTION);
+		return typeof value === 'number' ? billing_dayRetention({ count: value }) : '';
+	}
+
+	/**
+	 * Whether a card lists snapshot retention under Track & share: a cloud plan that keeps
+	 * snapshots, for a different window than the visible tier below it. A self-hosted deployment
+	 * sets its own window.
+	 */
+	function listsSnapshotRetention(
+		plan: BillingPlan,
+		prevTier: string | null | undefined,
+		prevTierVisible: boolean
+	): boolean {
+		if (getHosting(plan) === 'SelfHosted') return false;
+		const days = getFeatureValue(plan.type, SNAPSHOT_RETENTION);
+		if (typeof days !== 'number' || days === 0) return false;
+		return !(prevTier && prevTierVisible && getFeatureValue(prevTier, SNAPSHOT_RETENTION) === days);
+	}
+
+	// A row or line that some visible card has renders on every card, invisible where it doesn't
+	// apply, so the cards' rows line up across the grid.
+	let anySeatAddon = $derived(filteredPlans.some((p) => p.seat_cents));
+	let anySiteAddon = $derived(filteredPlans.some((p) => p.site_cents));
+	let anySelfHosted = $derived(filteredPlans.some((p) => getHosting(p) === 'SelfHosted'));
+	let anyEverythingIn = $derived(
+		filteredPlans.some((p) => {
+			const prev = billingPlanHelpers.getMetadata(p.type)?.previous_tier;
+			return !!prev && filteredPlans.some((q) => q.type === prev);
+		})
+	);
+
+	/** Whether the cards and the comparison list this feature (`listed_on_plans`). */
+	function isListed(featureKey: string): boolean {
+		return featureHelpers.getMetadata(featureKey)?.listed_on_plans !== false;
+	}
+
+	/** The format a diagram export writes; null for any other feature, CSV export included. */
+	function exportFormat(featureKey: string): string | null {
+		return featureHelpers.getMetadata(featureKey)?.export_format ?? null;
+	}
+
+	/** A category's place in display order; unknown ones sort last. */
+	function categoryRank(category: string): number {
+		const i = categoryOrder.indexOf(category);
+		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+	}
+
+	/** The feature this one nests under (`parent` in features.json); null for a top-line feature. */
+	function parentOf(featureKey: string): string | null {
+		return featureHelpers.getMetadata(featureKey)?.parent ?? null;
+	}
+
+	type CardEntry =
+		{ type: 'feature'; key: string } | { type: 'group'; key: string; members: string[] };
+
+	/**
+	 * One category's features on a card, in order: a feature on its own, or a parent with the
+	 * features under it that the card lists, indented. A group sits where its first feature would.
+	 */
+	function cardEntries(features: string[]): CardEntry[] {
+		const entries: CardEntry[] = [];
+		const groups: Record<string, Extract<CardEntry, { type: 'group' }>> = {};
+		const parents = new Set(features.map(parentOf).filter((p) => p !== null));
+		for (const key of features) {
+			const parent = parentOf(key) ?? (parents.has(key) ? key : null);
+			if (!parent) {
+				entries.push({ type: 'feature', key });
+				continue;
+			}
+			if (!groups[parent]) {
+				groups[parent] = { type: 'group', key: parent, members: [] };
+				entries.push(groups[parent]);
+			}
+			if (key !== parent) groups[parent].members.push(key);
+		}
+		return entries;
+	}
+
+	/**
+	 * A card's features under their category headings, in display order. The integrations sit in
+	 * the Discovery group, which a card listing no other Discovery feature still gets.
+	 */
+	function groupCardFeatures(
+		features: string[],
+		hasIntegrations: boolean
+	): { category: string; features: string[] }[] {
+		const groups: { category: string; features: string[] }[] = [];
+		for (const key of features) {
+			const category = featureHelpers.getCategory(key);
+			const last = groups[groups.length - 1];
+			if (last?.category === category) last.features.push(key);
+			else groups.push({ category, features: [key] });
+		}
+		if (hasIntegrations && !groups.some((g) => g.category === discoveryCategory)) {
+			const at = groups.findIndex(
+				(g) => categoryRank(g.category) > categoryRank(discoveryCategory)
+			);
+			groups.splice(at === -1 ? groups.length : at, 0, {
+				category: discoveryCategory,
+				features: []
+			});
+		}
+		return groups;
 	}
 
 	function sortFeaturesByCategory(features: string[]): string[] {
-		const order: string[] = CATEGORY_ORDER;
+		const order: string[] = categoryOrder;
 		return [...features].sort((a, b) => {
 			const catA = order.indexOf(featureHelpers.getCategory(a));
 			const catB = order.indexOf(featureHelpers.getCategory(b));
 			if (catA !== catB) return (catA === -1 ? 99 : catA) - (catB === -1 ? 99 : catB);
-			// Within a category, coming-soon features sort to the end
-			return (isComingSoon(a) ? 1 : 0) - (isComingSoon(b) ? 1 : 0);
+			// Within a category, coming-soon features sort to the end, the rest in declaration order
+			const soon = (isComingSoon(a) ? 1 : 0) - (isComingSoon(b) ? 1 : 0);
+			return soon !== 0 ? soon : featureOrder.indexOf(a) - featureOrder.indexOf(b);
 		});
 	}
 
@@ -414,47 +543,86 @@
 		}
 		expandedFeatures = next;
 	}
-
-	let expandedIntegrations = new SvelteSet<string>();
-
-	function toggleIntegrations(planType: string) {
-		if (expandedIntegrations.has(planType)) {
-			expandedIntegrations.delete(planType);
-		} else {
-			expandedIntegrations.add(planType);
-		}
-	}
 </script>
 
-<!-- One line per card for its integrations, expanding to their names. -->
-{#snippet integrationsLine(planType: string, integrations: string[])}
-	{@const expanded = expandedIntegrations.has(planType)}
+<!-- A card's integrations under the discovery-integrations feature, one row each with its logo. -->
+{#snippet integrationRows(integrations: string[])}
 	<li class="flex items-start gap-2 text-sm">
 		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
-		<div class="flex flex-col gap-0.5">
-			<button
-				type="button"
-				class="flex cursor-pointer items-center gap-1 text-left text-secondary"
-				aria-expanded={expanded}
-				onclick={() => toggleIntegrations(planType)}
+		<div class="flex flex-col gap-1">
+			<span
+				class="explainer self-start text-secondary"
+				data-tooltip={featureHelpers.getDescription(DISCOVERY_INTEGRATIONS)}
+				use:tooltip>{featureHelpers.getName(DISCOVERY_INTEGRATIONS)}</span
 			>
-				{billing_planIntegrations({
-					planName: billingPlanHelpers.getName(planType),
-					count: integrations.length
-				})}
-				{#if expanded}
-					<ChevronUp class="h-3 w-3" />
-				{:else}
-					<ChevronDown class="h-3 w-3" />
-				{/if}
-			</button>
-			{#if expanded}
-				<span class="text-xs text-tertiary">
-					{integrations.map((id) => integrationHelpers.getName(id)).join(' · ')}
-				</span>
-			{/if}
+			<ul class="space-y-1">
+				{#each integrations as integration (integration)}
+					{@const Logo = integrationHelpers.getIconComponent(integration)}
+					<li class="flex items-center gap-2 text-xs text-tertiary">
+						{#if integrationHelpers.getMetadata(integration)?.logo}
+							<!-- A logo draws in its own round frame. -->
+							<Logo size={20} />
+						{:else}
+							<!-- An integration without one gets the same frame around its icon. -->
+							<span
+								class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600"
+								style="background: var(--color-topology-node-bg)"
+							>
+								<Logo class="h-3 w-3 {integrationHelpers.getColorHelper(integration).icon}" />
+							</span>
+						{/if}
+						{integrationHelpers.getName(integration)}
+					</li>
+				{/each}
+			</ul>
 		</div>
 	</li>
+{/snippet}
+
+<!-- A parent feature with the features under it that a card lists, one
+     member per row, laid out like the integrations.
+     An export reads as its format, any other feature as its name. -->
+{#snippet subRows(parent: string, features: string[])}
+	<li class="flex items-start gap-2 text-sm">
+		<Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />
+		<div class="flex flex-col gap-1">
+			<span
+				class="explainer self-start text-secondary"
+				data-tooltip={featureHelpers.getDescription(parent)}
+				use:tooltip>{featureHelpers.getName(parent)}</span
+			>
+			<ul class="space-y-1">
+				{#each features as featureKey (featureKey)}
+					{@const beta = betaTag(featureKey)}
+					<!-- pl-7: the integration logo (20px) and its gap, so the names line up -->
+					<li class="flex items-center gap-2 pl-7 text-xs text-tertiary">
+						<span
+							class="explainer"
+							data-tooltip={featureHelpers.getDescription(featureKey)}
+							use:tooltip>{exportFormat(featureKey) ?? featureHelpers.getName(featureKey)}</span
+						>
+						{#if isComingSoon(featureKey)}
+							<Tag label={common_comingSoon()} color="Gray" />
+						{/if}
+						{#if beta}
+							<Tag {...beta} />
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</div>
+	</li>
+{/snippet}
+
+<!-- A feature category's heading on a card: its icon and name. -->
+{#snippet categoryHeading(category: string)}
+	{@const CategoryIcon = productAreaHelpers.getIconComponent(category)}
+	<div
+		class="flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-tertiary uppercase"
+	>
+		<CategoryIcon class="h-3 w-3 shrink-0" />
+		{productAreaHelpers.getName(category)}
+	</div>
 {/snippet}
 
 <div class="flex min-h-0 flex-1 flex-col {className}">
@@ -500,27 +668,27 @@
 						prevTier && !prevTierVisible
 							? (billingPlanHelpers.getMetadata(prevTier)?.incremental_features ?? [])
 							: []}
-					{@const displayFeatures = sortFeaturesByCategory(
-						(prevTierFeatures.length > 0
+					{@const displayFeatures = sortFeaturesByCategory([
+						...(prevTierFeatures.length > 0
 							? [...new Set([...prevTierFeatures, ...incrementalFeatures])]
 							: incrementalFeatures
-						).filter((key) => !isItemizedAsIntegrations(key))
-					)}
+						).filter(
+							(key) => !isItemizedAsIntegrations(key) && isListed(key) && key !== SNAPSHOT_RETENTION
+						),
+						...(listsSnapshotRetention(plan, prevTier, prevTierVisible) ? [SNAPSHOT_RETENTION] : [])
+					])}
 					{@const incrementalIntegrations = metadata?.incremental_integrations ?? []}
 					{@const displayIntegrations =
 						prevTier && !prevTierVisible
-							? [
+							? sortIntegrations([
 									...new Set([
 										...(billingPlanHelpers.getMetadata(prevTier)?.incremental_integrations ?? []),
 										...incrementalIntegrations
 									])
-								]
+								])
 							: incrementalIntegrations}
-					{@const leadsWithIntegrations =
-						displayIntegrations.length > 0 &&
-						!displayFeatures.some((key) => featureHelpers.getCategory(key) === discoveryCategory)}
 
-					<div class="plan-card card-static card flex flex-col">
+					<div class="plan-card card-static card">
 						<!-- Plan Header -->
 						<div class="flex flex-col items-center gap-2 pb-4">
 							<div class="flex items-center gap-2">
@@ -561,12 +729,10 @@
 							</div>
 						</div>
 
-						<!-- Description -->
-						{#if description}
-							<p class="pb-4 text-center text-xs leading-relaxed text-tertiary lg:text-sm">
-								{description}
-							</p>
-						{/if}
+						<!-- Description: always rendered, so every card keeps the same grid rows -->
+						<p class="pb-4 text-center text-xs leading-relaxed text-tertiary lg:text-sm">
+							{description}
+						</p>
 
 						<!-- CTA Button -->
 						<div class="py-4" style="border-color: var(--color-border)">
@@ -615,13 +781,13 @@
 							{/if}
 						</div>
 
-						<!-- Included limits, striped so each value reads against its label. Each label explains
-						     its limit; extras bill at the unit price noted under the included count. -->
+						<!-- Included limits, striped so each value reads against its label. Each label explains its
+						     limit and sits level with its value; extras bill at the unit price noted under the count. -->
 						<div class="pb-4">
-							<div class="-mx-2">
+							<div class="-mx-5">
 								<!-- Seats -->
 								<div
-									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-start justify-between gap-2 px-5 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
 								>
 									<span
 										class="explainer text-secondary"
@@ -632,18 +798,20 @@
 										<span class="font-medium text-primary">
 											{formatIncludedLimit(plan.included_seats, plan.seat_cents, plan)}
 										</span>
-										<!-- Always rendered, invisible on plans that sell no extras, so every card's
-										     rows line up. -->
-										<span
-											class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
-											aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
-										>
+										<!-- Invisible on a plan that sells no extras while another card does, so the rows
+										     line up. -->
+										{#if anySeatAddon}
+											<span
+												class={`text-xs text-tertiary ${plan.seat_cents ? 'opacity-100' : 'opacity-0'}`}
+												aria-hidden={!plan.seat_cents}>{formatSeatAddonPricing(plan) || ' '}</span
+											>
+										{/if}
 									</div>
 								</div>
 
 								<!-- Sites -->
 								<div
-									class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+									class="flex items-start justify-between gap-2 px-5 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25"
 								>
 									<span
 										class="explainer text-secondary"
@@ -654,19 +822,26 @@
 										<span class="font-medium text-primary">
 											{formatIncludedLimit(plan.included_sites, plan.site_cents, plan)}
 										</span>
-										<span
-											class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
-											aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
-										>
+										{#if anySiteAddon}
+											<span
+												class={`text-xs text-tertiary ${plan.site_cents ? 'opacity-100' : 'opacity-0'}`}
+												aria-hidden={!plan.site_cents}>{formatSiteAddonPricing(plan) || ' '}</span
+											>
+										{/if}
 									</div>
 								</div>
 
-								<!-- Servers (self-hosted only: how many servers one license key covers) -->
-								{#if getHosting(plan) === 'SelfHosted'}
+								<!-- Servers (self-hosted only: how many servers one license key covers).
+								     Invisible on a cloud card beside a self-hosted one. -->
+								{#if anySelfHosted}
+									{@const selfHosted = getHosting(plan) === 'SelfHosted'}
 									{@const production = metadata?.included_instances}
 									{@const nonProduction = metadata?.included_non_production_instances}
 									<div
-										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
+										class="flex items-start justify-between gap-2 px-5 py-1.5 text-sm odd:bg-gray-100 dark:odd:bg-gray-700/25 {selfHosted
+											? ''
+											: 'invisible'}"
+										aria-hidden={!selfHosted}
 									>
 										<span
 											class="explainer text-secondary"
@@ -687,30 +862,24 @@
 										</span>
 									</div>
 								{/if}
-
-								<!-- Snapshot Retention (cloud only: a self-hosted deployment sets its own window) -->
-								{#if getHosting(plan) !== 'SelfHosted'}
-									<div
-										class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm odd:bg-gray-50 dark:odd:bg-gray-800/30"
-									>
-										<span
-											class="explainer text-secondary"
-											data-tooltip={featureHelpers.getDescription('snapshot_retention_days')}
-											use:tooltip>{billing_snapshotRetention()}</span
-										>
-										<span class="text-right font-medium text-primary">
-											{formatSnapshotRetention(plan)}
-										</span>
-									</div>
-								{/if}
 							</div>
 						</div>
 
 						<!-- Incremental Features -->
 						<div class="flex-1 py-4">
-							{#if prevTier && prevTierVisible}
-								<p class="mb-2 text-xs font-medium text-secondary">
-									{billing_everythingInPlanPlus({ planName: billingPlanHelpers.getName(prevTier) })}
+							{#if anyEverythingIn}
+								<!-- Invisible on a card with no visible tier below it, so feature lists start level. -->
+								<p
+									class="mb-2 text-xs font-medium text-secondary {prevTier && prevTierVisible
+										? ''
+										: 'invisible'}"
+									aria-hidden={!(prevTier && prevTierVisible)}
+								>
+									{prevTier && prevTierVisible
+										? billing_everythingInPlanPlus({
+												planName: billingPlanHelpers.getName(prevTier)
+											})
+										: ' '}
 								</p>
 							{/if}
 
@@ -732,50 +901,49 @@
 								</button>
 							{/if}
 
-							<ul class="space-y-1.5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
-								<!-- The integrations line closes the Discovery group, or opens it when the
-								     card lists no other Discovery feature. -->
-								{#if leadsWithIntegrations}
-									<li class="text-[10px] font-medium tracking-wider text-tertiary uppercase">
-										{discoveryCategory}
+							<!-- One block per category, striped like the limits so each group reads as one. The
+							     integrations sit in the Discovery group. -->
+							<ul class="-mx-5 {expandedFeatures.has(plan.type) ? '' : 'hidden sm:block'}">
+								{#each groupCardFeatures(displayFeatures, displayIntegrations.length > 0) as group (group.category)}
+									<li class="space-y-1.5 px-5 py-2 odd:bg-gray-100 dark:odd:bg-gray-700/25">
+										{@render categoryHeading(group.category)}
+										<ul class="space-y-1.5">
+											{#each cardEntries(group.features) as entry (entry.key)}
+												{#if entry.type === 'group'}
+													{@render subRows(entry.key, entry.members)}
+												{:else}
+													{@const featureKey = entry.key}
+													{@const comingSoon = isComingSoon(featureKey)}
+													{@const beta = betaTag(featureKey)}
+													<li class="flex items-start gap-2 text-sm">
+														<Check
+															class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
+																? 'text-gray-500'
+																: 'text-success'}"
+														/>
+														<span
+															class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
+															data-tooltip={featureHelpers.getDescription(featureKey)}
+															use:tooltip>{featureHelpers.getName(featureKey)}</span
+														>
+														{#if featureKey === SNAPSHOT_RETENTION}
+															<span class="text-tertiary">{formatSnapshotRetention(plan.type)}</span
+															>
+														{/if}
+														{#if comingSoon}
+															<Tag label={common_comingSoon()} color="Gray" />
+														{/if}
+														{#if beta}
+															<Tag {...beta} />
+														{/if}
+													</li>
+												{/if}
+											{/each}
+											{#if group.category === discoveryCategory && displayIntegrations.length > 0}
+												{@render integrationRows(displayIntegrations)}
+											{/if}
+										</ul>
 									</li>
-									{@render integrationsLine(plan.type, displayIntegrations)}
-								{/if}
-								{#each displayFeatures as featureKey, i (featureKey)}
-									{@const category = featureHelpers.getCategory(featureKey)}
-									{@const nextCategory =
-										i + 1 < displayFeatures.length
-											? featureHelpers.getCategory(displayFeatures[i + 1])
-											: null}
-									{#if i === 0 || category !== featureHelpers.getCategory(displayFeatures[i - 1])}
-										<li
-											class="text-[10px] font-medium tracking-wider text-tertiary uppercase {i >
-												0 || leadsWithIntegrations
-												? 'mt-2'
-												: ''}"
-										>
-											{category}
-										</li>
-									{/if}
-									{@const comingSoon = isComingSoon(featureKey)}
-									<li class="flex items-start gap-2 text-sm">
-										<Check
-											class="mt-0.5 h-4 w-4 shrink-0 {comingSoon
-												? 'text-gray-500'
-												: 'text-success'}"
-										/>
-										<span
-											class="explainer {comingSoon ? 'text-tertiary' : 'text-secondary'}"
-											data-tooltip={featureHelpers.getDescription(featureKey)}
-											use:tooltip>{featureHelpers.getName(featureKey)}</span
-										>
-										{#if comingSoon}
-											<Tag label={common_comingSoon()} color="Gray" />
-										{/if}
-									</li>
-									{#if displayIntegrations.length > 0 && category === discoveryCategory && nextCategory !== discoveryCategory}
-										{@render integrationsLine(plan.type, displayIntegrations)}
-									{/if}
 								{/each}
 							</ul>
 						</div>
@@ -821,19 +989,22 @@
 				</div>
 
 				{#each [...groupedFeatures.entries()] as [category, categoryFeatures] (category)}
+					{@const CategoryIcon = productAreaHelpers.getIconComponent(category)}
 					<!-- Category Header -->
 					<div class="comparison-category-row">
 						<span
-							class="p-2 text-xs font-semibold tracking-wide text-secondary uppercase lg:p-3 lg:text-sm"
+							class="flex items-center gap-2 p-2 text-xs font-semibold tracking-wide text-secondary uppercase lg:p-3 lg:text-sm"
 						>
-							{category}
+							<CategoryIcon class="h-4 w-4 shrink-0" />
+							{productAreaHelpers.getName(category)}
 						</span>
 					</div>
 
 					{#each categoryFeatures as featureKey (featureKey)}
 						{@const comingSoon = isComingSoon(featureKey)}
+						{@const beta = betaTag(featureKey)}
 						<div class="comparison-row" style="grid-template-columns: {gridColumns}">
-							<div class="comparison-label-cell">
+							<div class="comparison-label-cell gap-2">
 								<div
 									class="explainer text-xs font-medium lg:text-sm"
 									data-tooltip={featureHelpers.getDescription(featureKey)}
@@ -841,6 +1012,9 @@
 								>
 									{featureHelpers.getName(featureKey)}
 								</div>
+								{#if beta}
+									<Tag {...beta} />
+								{/if}
 							</div>
 							{#each filteredPlans as plan (plan.type)}
 								{@const value = getFeatureValue(plan.type, featureKey)}
@@ -857,6 +1031,10 @@
 										<X class="mx-auto h-4 w-4 text-muted lg:h-5 lg:w-5" />
 									{:else if value === null}
 										<span class="text-tertiary">&mdash;</span>
+									{:else if featureKey === SNAPSHOT_RETENTION}
+										<span class="text-xs text-secondary lg:text-sm"
+											>{formatSnapshotRetention(plan.type)}</span
+										>
 									{:else}
 										<span class="text-xs text-secondary lg:text-sm">{value}</span>
 									{/if}
@@ -921,10 +1099,15 @@
 		}
 	}
 
-	/* Individual plan card */
+	/* Individual plan card. Its six sections (name, price, description, action, limits, features)
+	   share the grid's rows with the cards beside it, so each section starts level across them. */
 	.plan-card {
 		padding: 1.25rem;
 		position: relative;
+		display: grid;
+		grid-template-rows: subgrid;
+		grid-row: span 6;
+		row-gap: 0;
 	}
 
 	/* ============================================ */

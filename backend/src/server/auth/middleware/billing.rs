@@ -111,13 +111,13 @@ pub async fn require_billing_for_users(
     // without it can still read the diagram, which the app draws behind its
     // plan prompt.
     if topology_route(request.uri().path())
-        && !plan.features().topology_view
+        && !plan.features().includes_topology()
         && !topology_preview_route(request.method(), request.uri().path())
     {
         return ApiError::coded(
             StatusCode::PAYMENT_REQUIRED,
             ErrorCode::BillingFeatureNotAvailable {
-                feature: Feature::TopologyView.name().to_string(),
+                feature: Feature::NetworkTopology.name().to_string(),
             },
         )
         .into_response();
@@ -163,8 +163,8 @@ fn topology_route(path: &str) -> bool {
 
 /// The reads that draw the topology: the list, the graph data and one
 /// topology. Open to a plan without the topology view, which sees the diagram
-/// behind its plan prompt. The stream, saving options, exports and snapshots
-/// stay closed to it.
+/// behind its plan prompt. Saving options, exports and snapshots stay closed
+/// to it.
 fn topology_preview_route(method: &Method, path: &str) -> bool {
     const TOPOLOGY: &str = "/api/v1/topologies";
     *method == Method::GET
@@ -172,7 +172,7 @@ fn topology_preview_route(method: &Method, path: &str) -> bool {
             || path
                 .strip_prefix(TOPOLOGY)
                 .and_then(|rest| rest.strip_prefix('/'))
-                .is_some_and(|rest| !rest.is_empty() && !rest.contains('/') && rest != "stream"))
+                .is_some_and(|rest| !rest.is_empty() && !rest.contains('/')))
 }
 
 /// Billed routes the Settings modal calls, which stay open to an org on a

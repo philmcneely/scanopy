@@ -4,7 +4,7 @@ use sqlx::postgres::PgRow;
 use uuid::Uuid;
 
 use crate::server::ip_addresses::r#impl::base::MacEvidenceValue;
-use crate::server::shared::attribution::Attributed;
+use crate::server::shared::attribution::{AttributeSource, Attributed};
 use crate::server::shared::storage::attributed;
 use crate::server::{
     interfaces::r#impl::base::{
@@ -12,7 +12,7 @@ use crate::server::{
     },
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::{
             child::ChildStorableEntity,
             snapshot::{DiscoveryTracked, FkMaps, Snapshotable},
@@ -248,8 +248,8 @@ impl Entity for Interface {
     const ENTITY_DESCRIPTION: &'static str =
         "SNMP ifTable entries. Physical and logical interfaces discovered via SNMP on hosts.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Assets
+    fn product_area() -> ProductArea {
+        ProductArea::Inventory
     }
 
     fn site_id(&self) -> Option<Uuid> {
@@ -279,10 +279,17 @@ impl Entity for Interface {
             Attributed::apply(&mut merged, incoming);
         }
         self.base.mac_address = merged;
-        self.base.interface_source = existing
-            .base
-            .interface_source
-            .keep_or_heal(self.base.interface_source);
+        // A port the forwarding-table pass recorded becomes the device's own once a scan of the
+        // device reports it, so the walk's source replaces the inferred one rather than yielding.
+        self.base.interface_source =
+            match (existing.base.interface_source, self.base.interface_source) {
+                (AttributeSource::ForwardingTable, incoming)
+                    if incoming != AttributeSource::Unspecified =>
+                {
+                    incoming
+                }
+                (existing, incoming) => existing.keep_or_heal(incoming),
+            };
         // Keep a previously-captured if_name if the current scan happens to lack it
         // (partial SNMP response, or device that stopped reporting ifXTable). Losing
         // if_name silently breaks tier-1 matching on the next scan.
@@ -449,6 +456,26 @@ mod tests {
             Some("GigabitEthernet0/1"),
             "Existing if_name must survive a scan that dropped it; otherwise tier-1 matching silently breaks next time."
         );
+    }
+
+    /// A port the forwarding-table pass recorded becomes the device's own once the device's walk
+    /// reports it: the walk's source replaces the inferred one. Any other source still keeps the
+    /// first one recorded.
+    #[test]
+    fn a_walk_reporting_a_recorded_port_takes_over_its_source() {
+        let mut existing = make_interface(1, None, Some("f8:bc:12:dc:14:01"));
+        existing.base.interface_source = AttributeSource::ForwardingTable;
+        let mut walked = make_interface(1, Some("eth0"), Some("f8:bc:12:dc:14:01"));
+        walked.base.interface_source = SNMP_MAC;
+        walked.preserve_immutable_fields(&existing);
+        assert_eq!(walked.base.interface_source, SNMP_MAC);
+
+        let mut kept = make_interface(1, None, None);
+        kept.base.interface_source = AttributeSource::ArpReply;
+        let mut later = make_interface(1, None, None);
+        later.base.interface_source = SNMP_MAC;
+        later.preserve_immutable_fields(&kept);
+        assert_eq!(later.base.interface_source, AttributeSource::ArpReply);
     }
 
     #[test]

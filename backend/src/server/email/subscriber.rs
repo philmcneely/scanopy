@@ -1,5 +1,5 @@
 //! Email subscriber for entity (Host/Site/User Created/Deleted) and
-//! onboarding (FirstDaemonRegistered, FirstDiscoveryCompleted) events.
+//! onboarding (FirstDaemonRegistered, FirstDiscoveryCompleted) events, and failed discovery runs.
 //!
 //! Triggers transactional emails: plan-limit notifications on entity
 //! create/delete, and post-onboarding guides (discovery walkthrough,
@@ -10,11 +10,15 @@ use async_trait::async_trait;
 use secrecy::ExposeSecret;
 use std::collections::HashMap;
 
+use crate::daemon::discovery::types::base::{DiscoveryPhase, DiscoveryPhaseDiscriminants};
 use crate::server::{
     auth::middleware::auth::AuthenticatedEntity,
     billing::types::base::BillingReason,
     digest::payload::{DiscoveryDigestOperation, DiscoveryDigestOperationDiscriminants},
-    email::service::{EmailService, format_cents},
+    email::{
+        messages::{ExtendedTrialEnd, TrialExtended},
+        service::{EmailService, format_cents},
+    },
     license::types::LicenseKeyType,
     shared::{
         entities::{Entity, EntityDiscriminants},
@@ -74,6 +78,7 @@ impl Subscriber<BillingOperation> for EmailService {
             BillingOperationDiscriminants::TrialStarted,
             BillingOperationDiscriminants::TrialEnded,
             BillingOperationDiscriminants::TrialWillEnd,
+            BillingOperationDiscriminants::TrialExtended,
             BillingOperationDiscriminants::PlanChanged,
             BillingOperationDiscriminants::SubscriptionCancelled,
             BillingOperationDiscriminants::PaymentFailed,
@@ -189,6 +194,7 @@ impl Subscriber<BillingOperation> for EmailService {
                 BillingOperation::TrialWillEnd {
                     plan,
                     has_payment_method,
+                    trial_started_at,
                 } => {
                     // The cloud email recaps hosts, sites, daemons and
                     // services found during the trial. A self-hosted trial's
@@ -213,9 +219,49 @@ impl Subscriber<BillingOperation> for EmailService {
                             plan.name(),
                             has_payment_method,
                             plan.billing_period(),
+                            trial_started_at,
                         )
                         .await?;
                     }
+                }
+                BillingOperation::TrialExtended {
+                    plan,
+                    days_added,
+                    new_trial_end,
+                    source,
+                    has_payment_method,
+                    cancellation_scheduled,
+                } => {
+                    // Same reading of the end state as `TrialWillEnd`. For a
+                    // license plan the key runs to `license_paid_through`,
+                    // which applying this event already moved to the new end.
+                    let key_expires = match plan.license_plan() {
+                        Some(_) => Some(
+                            self.license_key_expires(event.scope.organization_id)
+                                .await?,
+                        ),
+                        None => None,
+                    };
+                    let end = if cancellation_scheduled {
+                        ExtendedTrialEnd::CancellationScheduled
+                    } else if has_payment_method {
+                        ExtendedTrialEnd::Converts
+                    } else {
+                        ExtendedTrialEnd::NoPaymentMethod
+                    };
+                    self.send_trial_extended_email(
+                        org_owner,
+                        &TrialExtended {
+                            source,
+                            plan_name: plan.name(),
+                            billing_period: plan.billing_period(),
+                            days_added,
+                            new_trial_end: &new_trial_end.format("%B %-d, %Y").to_string(),
+                            end,
+                            key_expires: key_expires.as_deref(),
+                        },
+                    )
+                    .await?;
                 }
                 BillingOperation::SubscriptionCancelled {
                     plan,
@@ -733,3 +779,35 @@ inventory::submit!(SubscriberRegistration::new::<
     EmailService,
     DiscoveryDigestOperation,
 >());
+
+#[async_trait]
+impl Subscriber<DiscoveryPhase> for EmailService {
+    fn filter(&self) -> EventFilter<DiscoveryPhase> {
+        EventFilter::ops(vec![DiscoveryPhaseDiscriminants::Failed])
+    }
+
+    /// A failed run that brings its daemon to several failures in a row emails the daemon's
+    /// recipients. Every `Failed` event is a finished run, published once its historical row is
+    /// written. Not retried: a re-run would mail recipients that already got it.
+    async fn handle(&self, events: Vec<Event<DiscoveryPhase>>) -> Result<(), Error> {
+        let mut failures = Vec::new();
+        for event in events {
+            if let Err(e) = self
+                .daemon_service
+                .send_failure_streak_notification(
+                    event.scope.session_id,
+                    event.scope.daemon_id,
+                    self,
+                )
+                .await
+            {
+                failures.push(anyhow::anyhow!(
+                    "failure streak email for session {}: {e:#}",
+                    event.scope.session_id
+                ));
+            }
+        }
+        NonRetryable::from_failures(failures).map_or(Ok(()), |e| Err(e.into()))
+    }
+}
+inventory::submit!(SubscriberRegistration::new::<EmailService, DiscoveryPhase>());

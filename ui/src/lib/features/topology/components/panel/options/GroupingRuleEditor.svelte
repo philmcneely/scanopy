@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Edit, Check, Eye, EyeOff } from 'lucide-svelte';
+	import { Edit, Check, Eye, EyeOff } from '@lucide/svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { SimpleOptionDisplay } from '$lib/shared/components/forms/selection/display/SimpleOptionDisplay';
 	import FilterGroup from './FilterGroup.svelte';
@@ -75,6 +75,9 @@
 		topology_groupRuleTitlePlaceholder,
 		topology_showDisabledRules,
 		topology_hideDisabledRules,
+		topology_ruleBuiltInRemove,
+		topology_ruleBuiltInReorder,
+		topology_ruleNoSettings,
 		topology_showAllToReorder,
 		topology_noHiddenRules,
 		topology_byTagRuleDescription,
@@ -85,6 +88,7 @@
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import viewsJson from '$lib/data/views.json';
 	import { metaName, metaDescription } from '$lib/i18n/metadata';
+	import { disabledWhen, hiddenWhen, type Unavailable } from '$lib/shared/components/data/types';
 
 	// Topology for edit state and option-saving
 	const topologiesQuery = useTopologiesQuery();
@@ -387,6 +391,25 @@
 		return !canRemoveElementRule(item) && !canReorderElementRule(item);
 	}
 
+	// Settings exist only on configurable rule types, so the others never show an edit action. A
+	// rule that does nothing in this view shows edit and remove disabled, with the views it
+	// applies to.
+	function elementRuleEditUnavailable(item: ElementGraphRule): Unavailable | undefined {
+		const notApplicable = getElementRuleDisabledTooltip(item);
+		return (
+			hiddenWhen(!canConfigureElementRule(item), topology_ruleNoSettings()) ??
+			disabledWhen(!!notApplicable, notApplicable ?? '')
+		);
+	}
+
+	function elementRuleRemoveUnavailable(item: ElementGraphRule): Unavailable | undefined {
+		const notApplicable = getElementRuleDisabledTooltip(item);
+		return (
+			disabledWhen(!canRemoveElementRule(item), topology_ruleBuiltInRemove()) ??
+			disabledWhen(!!notApplicable, notApplicable ?? '')
+		);
+	}
+
 	// --- Element Rules ---
 
 	let elementAddOptions = $derived(
@@ -597,12 +620,15 @@
 		options={containerAddOptions}
 		optionDisplayComponent={SimpleOptionDisplay}
 		itemDisplayComponent={containerRuleDisplayComponent}
-		allowReorder={true}
+		allowReorder={editState.isEditable}
 		allowDuplicates={false}
 		allowAddFromOptions={editState.isEditable && containerAddOptions.length > 0}
-		allowItemEdit={() => false}
-		allowItemRemove={canRemoveContainerRule}
-		allowItemReorder={canReorderContainerRule}
+		allowItemEdit={false}
+		allowItemRemove={editState.isEditable}
+		itemRemoveUnavailable={(item) =>
+			disabledWhen(!canRemoveContainerRule(item), topology_ruleBuiltInRemove())}
+		itemReorderUnavailable={(item) =>
+			disabledWhen(!canReorderContainerRule(item), topology_ruleBuiltInReorder())}
 		onAdd={handleContainerAdd}
 		onRemove={handleContainerRemove}
 		onMoveUp={handleContainerMoveUp}
@@ -629,12 +655,15 @@
 	options={elementAddOptions}
 	optionDisplayComponent={SimpleOptionDisplay}
 	itemDisplayComponent={elementRuleDisplayComponent}
-	allowReorder={true}
+	allowReorder={editState.isEditable}
 	allowDuplicates={true}
 	allowAddFromOptions={editState.isEditable && elementAddOptions.length > 0}
-	allowItemEdit={(item) => canConfigureElementRule(item) && isElementRuleApplicable(item)}
-	allowItemRemove={(item) => isElementRuleApplicable(item) && canRemoveElementRule(item)}
-	allowItemReorder={canReorderElementRule}
+	allowItemEdit={editState.isEditable}
+	allowItemRemove={editState.isEditable}
+	itemEditUnavailable={elementRuleEditUnavailable}
+	itemRemoveUnavailable={elementRuleRemoveUnavailable}
+	itemReorderUnavailable={(item) =>
+		disabledWhen(!canReorderElementRule(item), topology_ruleBuiltInReorder())}
 	reorderDisabledTooltip={hideDisabledElementRules ? topology_showAllToReorder() : undefined}
 	editIcon={getElementEditIcon}
 	editButtonClass={getElementEditButtonClass}

@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { rowStatusBadges } from '$lib/shared/utils/row-badges';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import DataControls from '$lib/shared/components/data/DataControls.svelte';
@@ -18,7 +21,7 @@
 	import { listPageState } from '$lib/shared/components/data/listPage.svelte';
 	import { useFieldValuesQuery } from '$lib/shared/api/field-values';
 	import VlanEditModal from './VlanEditModal.svelte';
-	import { Edit, Trash2 } from 'lucide-svelte';
+	import { Edit, Trash2 } from '@lucide/svelte';
 	import type { CardAction } from '$lib/shared/components/data/types';
 	import type { TabProps } from '$lib/shared/types';
 	import { modalState, resolveModalDeepLink } from '$lib/shared/stores/modal-registry';
@@ -111,6 +114,7 @@
 		new Map((subnetsQuery.data ?? []).filter(isUserManagedSubnet).map((s) => [s.id, s]))
 	);
 	let isLoading = $derived(vlansQuery.isPending && !vlansQuery.data);
+	let pageLoad = $derived(loadFailure(organizationQuery, vlansQuery));
 
 	const updateVlanMutation = useUpdateVlanMutation();
 	const deleteVlanMutation = useDeleteVlanMutation();
@@ -203,7 +207,9 @@
 <div class="space-y-6">
 	<!-- Header: no actions — VLANs are discovery-populated, so there is nothing to create -->
 
-	{#if !hasDaemon(onboarding)}
+	{#if pageLoad.failed}
+		<LoadFailedState onRetry={pageLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptVlans()} />
 	{:else if isLoading}
 		<!-- Loading state -->
@@ -231,6 +237,7 @@
 			serverQuery={{ stale: false }}
 			onCsvExport={handleCsvExport}
 			getActions={vlanActions}
+			getRowBadges={rowStatusBadges(() => sitesData, 'Vlan')}
 			entityLabel={common_vlans()}
 		></DataControls>
 	{/if}

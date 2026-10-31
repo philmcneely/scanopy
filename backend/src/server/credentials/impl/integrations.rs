@@ -16,12 +16,9 @@ use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::shared::logos::Logo;
 use crate::server::shared::types::field_definition::FieldDefinition;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
-use crate::server::shared::types::{Color, Icon};
+use crate::server::shared::types::{Color, Icon, Stability};
 
-use super::types::{
-    CredentialIntegration, CredentialStability, CredentialTypeDiscriminants, Target,
-    UpstreamSupport,
-};
+use super::types::{CredentialIntegration, CredentialTypeDiscriminants, Target, UpstreamSupport};
 
 /// A kind of host virtualization an integration reports, by id (`HostVirtualization`'s tag) and
 /// display name.
@@ -101,7 +98,7 @@ pub struct IntegrationTransport {
     /// Where this transport can be applied (daemon host, hosts, site).
     pub targets: Vec<Target>,
     /// Release maturity of this specific transport.
-    pub stability: CredentialStability,
+    pub stability: Stability,
     /// Whether the vendor publishes the API this transport talks to. Independent of
     /// `stability`: a transport can be fully validated (`Stable`) and still ride an
     /// endpoint the vendor never documented, which is true of both UniFi transports.
@@ -207,6 +204,28 @@ pub(crate) fn join_oxford(items: &[String]) -> String {
         [a, b] => format!("{a} and {b}"),
         [rest @ .., last] => format!("{}, and {}", rest.join(", "), last),
     }
+}
+
+/// Integrations in the order the website's Integrations page lists them: grouped by category,
+/// categories in the order [`all_integrations`] first reaches them, and that order within each.
+/// Plan cards list a plan's integrations in this order too.
+pub fn integrations_in_page_order() -> Vec<CredentialIntegration> {
+    let all = all_integrations();
+    let mut categories: Vec<&str> = Vec::new();
+    for integration in &all {
+        if !categories.contains(&integration.category.as_str()) {
+            categories.push(&integration.category);
+        }
+    }
+    let mut ordered: Vec<CredentialIntegration> = Vec::new();
+    for category in categories {
+        for integration in all.iter().filter(|i| i.category == category) {
+            if !ordered.contains(&integration.integration) {
+                ordered.push(integration.integration);
+            }
+        }
+    }
+    ordered
 }
 
 #[cfg(test)]

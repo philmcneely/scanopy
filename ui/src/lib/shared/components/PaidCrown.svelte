@@ -4,7 +4,7 @@
 	 * the plans. Lucide's crown, filled. On the page it is amber with a darker outline, which keeps
 	 * 3:1 against a light background; `onPrimary` draws it on a primary (blue) button.
 	 */
-	import { Crown } from 'lucide-svelte';
+	import { Crown } from '@lucide/svelte';
 
 	let {
 		size = 16,

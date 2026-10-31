@@ -59,7 +59,7 @@ impl AppProbe for DnsTcpProbe {
 }
 
 /// Whether the reply is a DNS response to our query.
-fn parse_reply(bytes: &[u8], transaction_id: u16) -> AppProbeOutcome {
+pub(crate) fn parse_reply(bytes: &[u8], transaction_id: u16) -> AppProbeOutcome {
     let Some(header) = bytes.get(LENGTH_PREFIX_LEN..LENGTH_PREFIX_LEN + 4) else {
         return AppProbeOutcome::NoAnswer;
     };

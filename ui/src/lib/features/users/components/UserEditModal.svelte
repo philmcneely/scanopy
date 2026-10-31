@@ -228,7 +228,7 @@
 								allowReorder={false}
 								allowAddFromOptions={true}
 								allowCreateNew={false}
-								allowItemEdit={() => false}
+								allowItemEdit={false}
 								disableCreateNewButton={false}
 								onAdd={handleAddSite}
 								onRemove={handleRemoveSite}

@@ -56,6 +56,7 @@ impl DiscoveryWarning {
 
             // `seen_by_host_ids` stays in the JSON: a list of ids cannot be a foreign key.
             Self::ProvisionalSubnetInferred(p) => slots.subnet_id = Some(&mut p.subnet_id),
+            Self::UnconfirmedHostInferred(p) => slots.host_id = Some(&mut p.host_id),
 
             Self::SnmpWalkBridgeMibAbsent { credential_id, .. }
             | Self::SnmpWalkFailed { credential_id, .. }
@@ -88,6 +89,9 @@ impl DiscoveryWarning {
 
             Self::VlanRecordingFailed { .. }
             | Self::EqualReachIntegrationsMerged { .. }
+            | Self::ProxmoxGuestOutsideScan { .. }
+            | Self::ProxmoxGuestBehindNode { .. }
+            | Self::ProxmoxGuestIsolated { .. }
             | Self::ConnectionsWithoutProtocolResponse { .. }
             | Self::ScanTimeLimitWithEstimate { .. }
             | Self::ScanTimeLimit { .. }

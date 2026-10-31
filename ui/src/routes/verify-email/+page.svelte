@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { themeStore } from '$lib/shared/stores/theme.svelte';
+	import AuthBackground from '$lib/shared/components/layout/AuthBackground.svelte';
 	import { goto } from '$app/navigation';
 	import {
 		useVerifyEmailMutation,
@@ -12,7 +12,7 @@
 	import { fetchOrganization } from '$lib/features/organizations/queries';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-	import { Mail } from 'lucide-svelte';
+	import { Mail } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import {
 		auth_backToLogin,
@@ -84,16 +84,7 @@
 </script>
 
 <div class="relative flex min-h-screen flex-col items-center bg-(--color-bg-elevated) p-4">
-	<!-- Background image with overlay -->
-	<div class="absolute inset-0 z-0">
-		<div
-			class="h-full w-full bg-cover bg-center bg-no-repeat blur-xs"
-			style="background-image: url('/images/background-{themeStore.resolvedTheme}.webp')"
-		></div>
-		<div
-			class="absolute inset-0 {themeStore.resolvedTheme === 'dark' ? 'bg-black/30' : 'bg-white/15'}"
-		></div>
-	</div>
+	<AuthBackground />
 
 	<!-- Spacer to push modal down -->
 	<div class="flex flex-1 items-center justify-center">

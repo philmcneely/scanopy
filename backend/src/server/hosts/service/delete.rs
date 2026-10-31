@@ -19,7 +19,7 @@ impl HostService {
     }
 
     /// Deletion body without the `Host(id)` lock. Callers that already hold
-    /// the host's lock (consolidation) use this directly — re-acquiring on a
+    /// the host's lock (a merge) use this directly — re-acquiring on a
     /// second connection would self-deadlock.
     pub(crate) async fn delete_host_inner(
         &self,

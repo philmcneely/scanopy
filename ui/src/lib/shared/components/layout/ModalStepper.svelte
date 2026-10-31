@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ModalTab } from './GenericModal.svelte';
-	import { Check } from 'lucide-svelte';
+	import { Check } from '@lucide/svelte';
 	import { common_progressSteps } from '$lib/paraglide/messages';
 
 	let {

@@ -166,6 +166,7 @@ function flush() {
 	flushQueued = false;
 	if (!attached) return;
 
+	applyPendingOpen(pendingTab ?? tabOf(new URL(window.location.href)));
 	const url = buildUrl(new URL(window.location.href), owners, pendingTab, handedOut);
 	const push = pendingPush;
 	pendingTab = null;
@@ -202,6 +203,38 @@ function handlePopState() {
 	for (const owner of shownOwners(owners, tabOf(new URL(window.location.href)))) {
 		owner.restore?.(params);
 	}
+}
+
+/** A tab an in-app link opened, with the list view it carries, until that tab's list takes it. */
+let pendingOpen: { tab: string; params: URLSearchParams } | null = null;
+
+/**
+ * Open `tab` with `params` as its list's view, the same as following a link that carries them:
+ * a nudge's "Review hosts" opens `?sources=Inferred#hosts`, and Back returns to where it was.
+ *
+ * Every list tab stays mounted, so the list on `tab` takes the params as the tab comes on screen
+ * (`flush`). A list that isn't mounted yet takes them as it hydrates, like a pasted link.
+ */
+export function openTab(tab: string, params: URLSearchParams): void {
+	pendingOpen = { tab, params };
+	if (!initialParams) initialParams = new URLSearchParams();
+	for (const key of scopeKeysIn('list', initialParams)) initialParams.delete(key);
+	for (const [key, value] of params) {
+		initialParams.append(key, value);
+		handedOut.delete(key);
+	}
+	// Moving the hash adds the history entry; the flush that follows writes the params into it.
+	window.location.hash = tab;
+}
+
+/** Hand a pending link's view to the list now on its tab. */
+function applyPendingOpen(tab: string) {
+	if (!pendingOpen || pendingOpen.tab !== tab) return;
+	const list = shownOwners(owners, tab).find((owner) => owner.scope === 'list' && owner.restore);
+	if (!list) return;
+	list.restore?.(pendingOpen.params);
+	for (const key of pendingOpen.params.keys()) initialParams?.delete(key);
+	pendingOpen = null;
 }
 
 /**

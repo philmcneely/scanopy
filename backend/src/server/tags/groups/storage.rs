@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::server::{
     shared::{
         entities::EntityDiscriminants,
-        entity_metadata::EntityCategory,
+        product_area::ProductArea,
         storage::traits::{Entity, SqlValue, Storable},
     },
     tags::groups::base::{TagGroup, TagGroupBase, TagGroupType},
@@ -150,8 +150,8 @@ impl Entity for TagGroup {
     const ENTITY_NAME_PLURAL: &'static str = "Tag Groups";
     const ENTITY_DESCRIPTION: &'static str = "Sets of tags an entity holds one of, in a set order, optionally limited to some entity types.";
 
-    fn entity_category() -> EntityCategory {
-        EntityCategory::Platform
+    fn product_area() -> ProductArea {
+        ProductArea::Platform
     }
 
     fn site_id(&self) -> Option<Uuid> {

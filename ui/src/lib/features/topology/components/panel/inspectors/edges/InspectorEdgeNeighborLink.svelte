@@ -44,7 +44,13 @@
 		</div>
 	{/if}
 
-	<p class="text-sm text-tertiary">{topology_neighborLinkPortsUnknown()}</p>
+	<!-- A forwarding-table link says what that evidence is; an LLDP/CDP one that the ports are
+	     unknown. -->
+	<p class="text-sm text-tertiary">
+		{protocol === 'ForwardingTable'
+			? discoveryProtocols.getDescription(protocol)
+			: topology_neighborLinkPortsUnknown()}
+	</p>
 
 	{#if sourceHost}
 		<InspectorSection

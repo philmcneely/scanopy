@@ -127,6 +127,7 @@ pub fn host() -> Host {
         last_seen_at: example_timestamp(),
         last_discovery_id: None,
         first_discovery_id: None,
+        dismissed_at: None,
         base: HostBase {
             name: HostName::manual("web-server-01".to_string()),
             hostname: Some(crate::server::shared::attribution::Attributed::new(
@@ -161,6 +162,7 @@ pub fn host() -> Host {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         },
     }
@@ -408,6 +410,7 @@ pub fn user() -> User {
             site_ids: vec![ids::SITE],
             terms_accepted_at: Some(example_timestamp()),
             terms_acceptance_required: false,
+            email_verification_required: false,
             email_verified: true,
             email_verification_token: None,
             email_verification_expires: None,

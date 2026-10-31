@@ -11,6 +11,7 @@ mod airgap_renewal;
 mod cancellation_initiated;
 mod checkout_completed;
 mod compose;
+mod daemon_scans_failing;
 mod daemon_standby;
 mod daemon_sunset;
 mod daemon_unreachable;
@@ -53,6 +54,7 @@ mod terms_update;
 mod trial_converted;
 mod trial_ending;
 mod trial_expired;
+mod trial_extended;
 mod trial_started;
 mod usage_summary;
 mod verification;
@@ -71,6 +73,7 @@ pub use airgap_renewal::AirgapRenewal;
 pub use cancellation_initiated::CancellationInitiated;
 pub use checkout_completed::CheckoutCompleted;
 pub use compose::{BILLING_DETAILS_TAGLINE, Body, Content};
+pub use daemon_scans_failing::DaemonScansFailing;
 pub use daemon_standby::DaemonStandby;
 pub use daemon_sunset::DaemonSunset;
 pub use daemon_unreachable::DaemonUnreachable;
@@ -112,6 +115,7 @@ pub use terms_update::TermsUpdate;
 pub use trial_converted::TrialConverted;
 pub use trial_ending::TrialEnding;
 pub use trial_expired::TrialExpired;
+pub use trial_extended::{ExtendedTrialEnd, TrialExtended};
 pub use trial_started::TrialStarted;
 pub use usage_summary::UsageSummary;
 pub use verification::Verification;
@@ -446,6 +450,7 @@ mod tests {
     use super::*;
     use crate::server::digest::payload::DiscoveryDigestPayload;
     use crate::server::license::types::LicenseKeyType;
+    use crate::server::shared::events::types::TrialExtensionSource;
     use crate::server::sites::r#impl::DEFAULT_STALE_AFTER_HOURS;
     use uuid::Uuid;
 
@@ -572,6 +577,20 @@ mod tests {
             },
         );
         f(
+            "daemon_scans_failing",
+            &DaemonScansFailing {
+                daemon_name: "daemon-1",
+                site_name: "Home",
+                failed_runs: 3,
+                discovery_names: &["Office LAN", "Server VLAN"],
+                reason_name: "Daemon offline",
+                reason_description: "The daemon stopped checking in with the server during the scan, so no progress or cancellation could get through. Check that the daemon is running and can reach the server.",
+                log_command: Some(
+                    "sudo grep -h '0b8f7c52-4d1e-4f3a-9a77-1c2d3e4f5a6b' /var/log/scanopy/*.log | sort -u",
+                ),
+            },
+        );
+        f(
             "daemon_sunset",
             &DaemonSunset {
                 daemon_names: &["daemon-1", "daemon-2"],
@@ -620,6 +639,28 @@ mod tests {
                 billing_period: "Monthly",
             },
         );
+        for source in [TrialExtensionSource::User, TrialExtensionSource::Staff] {
+            for end in [
+                ExtendedTrialEnd::Converts,
+                ExtendedTrialEnd::NoPaymentMethod,
+                ExtendedTrialEnd::CancellationScheduled,
+            ] {
+                for key_expires in [None, Some("March 3, 2027")] {
+                    f(
+                        &format!("trial_extended_{source}_{end:?}_{key_expires:?}"),
+                        &TrialExtended {
+                            source,
+                            plan_name: "Pro",
+                            billing_period: "Monthly",
+                            days_added: 7,
+                            new_trial_end: "March 1, 2027",
+                            end,
+                            key_expires,
+                        },
+                    );
+                }
+            }
+        }
         f(
             "trial_converted",
             &TrialConverted {

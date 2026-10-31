@@ -49,6 +49,7 @@ struct TestContext {
     managed_device: Option<super::ManagedDevice>,
     dns_sd: Option<crate::daemon::discovery::service::network::mdns::DnsSdHost>,
     certificates: Vec<crate::daemon::utils::app_probe::tls::PortCertificate>,
+    fingerprints: Vec<crate::daemon::discovery::service::network::emitted_os::PortFingerprint>,
 }
 
 impl TestContext {
@@ -66,6 +67,7 @@ impl TestContext {
             headers: HashMap::new(),
             status: 200,
             over_tls: false,
+            set_cookies: Vec::new(),
         }];
 
         Self {
@@ -89,6 +91,7 @@ impl TestContext {
             managed_device: None,
             dns_sd: None,
             certificates: Vec::new(),
+            fingerprints: Vec::new(),
         }
     }
 
@@ -128,6 +131,7 @@ impl TestContext {
             managed_device: &self.managed_device,
             dns_sd: &self.dns_sd,
             certificates: &self.certificates,
+            fingerprints: &self.fingerprints,
         }
     }
 }
@@ -339,6 +343,7 @@ fn definition_matches_status(
             .collect(),
         status,
         over_tls: false,
+        set_cookies: Vec::new(),
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -352,6 +357,7 @@ fn definition_matches_status(
         managed_device: &None,
         dns_sd: &None,
         certificates: &[],
+        fingerprints: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -618,6 +624,7 @@ fn test_jenkins_https_header_detection() {
         headers: HashMap::from([("x-jenkins".to_string(), "2.541.3".to_string())]),
         status: 403,
         over_tls: false,
+        set_cookies: Vec::new(),
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -631,6 +638,7 @@ fn test_jenkins_https_header_detection() {
         managed_device: &None,
         dns_sd: &None,
         certificates: &[],
+        fingerprints: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -668,6 +676,7 @@ fn test_jenkins_http8080_body_detection() {
         headers: HashMap::new(),
         status: 200,
         over_tls: false,
+        set_cookies: Vec::new(),
     }];
     let client_responses = HashMap::new();
     let baseline = ServiceMatchBaselineParams {
@@ -681,6 +690,7 @@ fn test_jenkins_http8080_body_detection() {
         managed_device: &None,
         dns_sd: &None,
         certificates: &[],
+        fingerprints: &[],
     };
     let params = DiscoverySessionServiceMatchParams {
         host_id: &ctx.host_id,
@@ -1247,6 +1257,7 @@ fn definition_binds_with_certificates(
                 .collect(),
             status: *status,
             over_tls: false,
+            set_cookies: Vec::new(),
         })
         .collect();
     let ports = ports.to_vec();
@@ -1782,6 +1793,7 @@ fn no_definition_matches_a_catch_all_web_server() {
                         headers: HashMap::new(),
                         status: 200,
                         over_tls: false,
+                        set_cookies: Vec::new(),
                     })
                     .collect();
             }
@@ -1870,4 +1882,162 @@ fn a_myq_hub_binds_its_setup_server_by_its_certificate() {
     )
     .expect("a myQ hub matches");
     assert!(bound.contains(&PortType::Http) && bound.contains(&PortType::Https));
+}
+
+fn fingerprint(
+    port: PortType,
+    database: crate::server::hosts::r#impl::os::recog::RecogDatabase,
+    vendor: &str,
+    product: &str,
+) -> crate::daemon::discovery::service::network::emitted_os::PortFingerprint {
+    use crate::server::hosts::r#impl::os::recog::{RecogMatch, RecogSoftware};
+    crate::daemon::discovery::service::network::emitted_os::PortFingerprint {
+        port,
+        database,
+        matched: RecogMatch {
+            software: Some(RecogSoftware {
+                vendor: vendor.to_string(),
+                product: product.to_string(),
+            }),
+            ..Default::default()
+        },
+    }
+}
+
+/// A fingerprint naming the product binds its port; one naming another vendor's product of the
+/// same name does not, and a favicon alone is weaker evidence than a title.
+#[test]
+fn a_recog_fingerprint_names_the_product_by_vendor_and_name() {
+    use crate::server::hosts::r#impl::os::recog::RecogDatabase;
+    use crate::server::services::r#impl::patterns::MatchConfidence;
+
+    let pattern = Pattern::Recog(&[("Kubernetes", "Dashboard")], &[8443]);
+    let port = PortType::new_tcp(8443);
+    let open = vec![port];
+
+    let mut ctx = TestContext::new();
+    ctx.fingerprints = vec![fingerprint(
+        port,
+        RecogDatabase::HtmlTitle,
+        "OpenStack",
+        "Dashboard",
+    )];
+    let baseline = ctx.create_baseline_params(&open);
+    let params = ctx.create_params_with_ports(&baseline, &open);
+    assert!(
+        pattern.matches(&params).is_err(),
+        "another vendor's Dashboard"
+    );
+
+    let mut ctx = TestContext::new();
+    ctx.fingerprints = vec![fingerprint(
+        port,
+        RecogDatabase::Favicon,
+        "Kubernetes",
+        "Dashboard",
+    )];
+    let baseline = ctx.create_baseline_params(&open);
+    let params = ctx.create_params_with_ports(&baseline, &open);
+    let matched = pattern.matches(&params).expect("the favicon names it");
+    assert_eq!(matched.ports, vec![port]);
+    assert_eq!(matched.details.confidence, MatchConfidence::Medium);
+
+    ctx.fingerprints.push(fingerprint(
+        port,
+        RecogDatabase::HtmlTitle,
+        "Kubernetes",
+        "Dashboard",
+    ));
+    let baseline = ctx.create_baseline_params(&open);
+    let params = ctx.create_params_with_ports(&baseline, &open);
+    let matched = pattern.matches(&params).expect("the title names it");
+    assert_eq!(matched.details.confidence, MatchConfidence::High);
+}
+
+/// Every product a definition matches on is one the vendored Recog data can name, so a typo or a
+/// product Recog renamed in a refresh fails here instead of never matching.
+#[test]
+fn every_recog_product_a_definition_names_exists_in_the_vendored_data() {
+    use crate::server::hosts::r#impl::os::recog::RecogDatabase;
+    use strum::IntoEnumIterator;
+
+    fn recog_pairs(pattern: &Pattern<'_>, out: &mut Vec<(&'static str, &'static str)>) {
+        match pattern {
+            Pattern::Recog(pairs, _) => out.extend(pairs.iter().copied()),
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().for_each(|p| recog_pairs(p, out))
+            }
+            Pattern::Not(inner) | Pattern::Optional(inner) => recog_pairs(inner, out),
+            _ => {}
+        }
+    }
+
+    let known: std::collections::HashSet<(&str, &str)> =
+        RecogDatabase::iter().flat_map(|db| db.software()).collect();
+    let mut missing = Vec::new();
+    let mut named = 0;
+    for definition in ServiceDefinitionRegistry::all_service_definitions() {
+        let mut pairs = Vec::new();
+        recog_pairs(&definition.discovery_pattern(), &mut pairs);
+        named += pairs.len();
+        for pair in pairs {
+            if !known.contains(&pair) {
+                missing.push(format!("{}: {pair:?}", definition.name()));
+            }
+        }
+    }
+    assert!(named > 0, "no definition matches on Recog");
+    assert!(
+        missing.is_empty(),
+        "not in the vendored Recog data:\n{}",
+        missing.join("\n")
+    );
+}
+
+/// Web Service binds the ports that answered HTTP and are still unbound, and stands down once a
+/// product holds them.
+#[test]
+fn a_web_service_takes_only_unbound_ports_that_answered_http() {
+    let ctx = TestContext::new();
+    let web = ServiceDefinitionRegistry::find_by_id("Web Service").expect("Web Service exists");
+    // The context's one response is on 80. 2222 is open and answered nothing.
+    let all_ports = vec![PortType::Http, PortType::new_tcp(2222)];
+    let baseline = ctx.create_baseline_params(&all_ports);
+
+    let params = ctx.create_params_with_ports(&baseline, &all_ports);
+    let result = web
+        .discovery_pattern()
+        .matches(&params)
+        .expect("80 answered HTTP");
+    assert_eq!(result.ports, vec![PortType::Http]);
+
+    let unbound = vec![PortType::new_tcp(2222)];
+    let params = ctx.create_params_with_ports(&baseline, &unbound);
+    assert!(web.discovery_pattern().matches(&params).is_err());
+}
+
+/// An optional part binds its ports when present and is never evidence: the match rests on what
+/// sits beside it.
+#[test]
+fn an_optional_part_binds_beside_the_evidence_and_never_alone() {
+    let ctx = TestContext::new();
+    let pattern = Pattern::AllOf(vec![
+        Pattern::Port(PortType::Http),
+        Pattern::Optional(Box::new(Pattern::Port(PortType::new_tcp(1400)))),
+    ]);
+    let ports_bound = |open: Vec<PortType>| {
+        let baseline = ctx.create_baseline_params(&open);
+        let params = ctx.create_params_with_ports(&baseline, &open);
+        pattern.matches(&params).ok().map(|result| result.ports)
+    };
+
+    assert_eq!(
+        ports_bound(vec![PortType::Http]),
+        Some(vec![PortType::Http])
+    );
+    assert_eq!(
+        ports_bound(vec![PortType::Http, PortType::new_tcp(1400)]),
+        Some(vec![PortType::Http, PortType::new_tcp(1400)])
+    );
+    assert_eq!(ports_bound(vec![PortType::new_tcp(1400)]), None);
 }

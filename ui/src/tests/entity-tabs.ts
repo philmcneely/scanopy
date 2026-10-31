@@ -294,6 +294,9 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				email_settings: excluded("The user's own email preferences, not an account fact"),
 				terms_acceptance_required: excluded(
 					"Set only on the signed-in user's own record, false in every list"
+				),
+				email_verification_required: excluded(
+					"Set only on the signed-in user's own record, false in every list"
 				)
 			}),
 			decide('Invite', {
@@ -339,6 +342,13 @@ export const COVERAGE: Record<string, TabCoverage> = {
 				credential_assignments: 'credentials',
 				description: 'description',
 				device_type: 'device_type',
+				// The Device type tag's hover text.
+				device_type_source: 'device_type',
+				dismissed_at: excluded(
+					'A dismissed host is left out of the list, so every listed row has none'
+				),
+				reported_by_host_ids: excluded('Shown in the resolve modal, not as a column'),
+				found_by_discovery_id: excluded('Shown in the resolve modal, not as a column'),
 				firmware_revision: 'firmware_revision',
 				hidden: excluded(
 					'Always false, kept for older daemons; the Visibility tag group hides a host'

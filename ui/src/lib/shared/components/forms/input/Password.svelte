@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { AnyFieldApi } from '@tanstack/svelte-form';
-	import { AlertCircle } from 'lucide-svelte';
+	import { AlertCircle } from '@lucide/svelte';
 	import {
 		common_password,
 		common_passwordConfirm,

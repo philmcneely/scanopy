@@ -411,6 +411,7 @@ impl DaemonService {
             firmware_revision: None,
             software_revision: None,
             os: None,
+            matched_device_type: None,
             credential_assignments: vec![],
         });
         dummy_host
@@ -865,6 +866,18 @@ impl DaemonService {
                         interfaces,
                     });
             }
+        }
+
+        // After both passes, so a host the forwarding-table pass minted is reported by the scan
+        // that minted it.
+        match host_service.unconfirmed_host_warnings(update.site_id).await {
+            Ok(warnings) => update.warnings.extend(warnings),
+            Err(e) => tracing::warn!(
+                session_id = %update.session_id,
+                site_id = %update.site_id,
+                error = %e,
+                "Could not list unconfirmed hosts; finalizing the session without their warnings"
+            ),
         }
     }
 

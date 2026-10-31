@@ -17,7 +17,7 @@
 	import type { Host } from '$lib/features/hosts/types/base';
 	import type { Subnet } from '$lib/features/subnets/types/base';
 	import { triggerUpgrade } from '$lib/features/billing/trigger-upgrade';
-	import { ArrowUpCircle } from 'lucide-svelte';
+	import { ArrowUpCircle } from '@lucide/svelte';
 	import CollapsibleCard from '$lib/shared/components/data/CollapsibleCard.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import SelectInput from '$lib/shared/components/forms/input/SelectInput.svelte';

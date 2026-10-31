@@ -23,7 +23,7 @@ use crate::server::{
         FdbMacs, FdbMacsValue, IfAdminStatus, IfOperStatus, Interface, InterfaceBase,
         InterfaceDataComplete, if_type,
     },
-    ip_addresses::r#impl::base::{MacEvidence, MacEvidenceValue},
+    ip_addresses::r#impl::base::{IPAddress, IPAddressBase, MacEvidence, MacEvidenceValue},
     lldp::LldpChassisId,
     services::r#impl::patterns::ClientProbe,
     shared::{
@@ -49,6 +49,7 @@ struct Lab {
     interface_neighbor_service: std::sync::Arc<InterfaceNeighborService>,
     storage: StorageFactory,
     site_id: Uuid,
+    subnet_id: Uuid,
     _container: testcontainers::ContainerAsync<testcontainers::GenericImage>,
 }
 
@@ -67,6 +68,7 @@ impl Lab {
             host_service: services.host_service.clone(),
             interface_neighbor_service: services.interface_neighbor_service.clone(),
             site_id: site.id,
+            subnet_id: subnet.id,
             storage,
             _container,
         }
@@ -459,10 +461,160 @@ async fn a_bridge_only_device_resolves_its_single_mac_port_via_resolve_fdb_links
         "the collected FDB, not a hand-typed value, is what this test resolves"
     );
 
-    assert_eq!(lab.resolve().await.unwrap(), 1);
+    // Two links: the anchor's, and switch-core-01's Gi0/2, whose one learned MAC belongs to no
+    // scanned host. That device is minted as an unconfirmed host first, then placed on the port.
+    assert_eq!(lab.resolve().await.unwrap(), 2);
     assert_eq!(
         lab.resolved_neighbor(anchor.id).await,
         Some(Neighbor::Interface(far_port.id)),
         "a switch with no LLDP remote table at all must still produce a physical link from FDB"
+    );
+
+    let learned: mac_address::MacAddress = "00:1a:2b:00:12:01".parse().unwrap();
+    let minted_port = lab
+        .storage
+        .interfaces
+        .get_all(StorableFilter::<Interface>::new_from_site_ids(&[
+            lab.site_id
+        ]))
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|i| i.base.mac_address.as_ref().map(|m| m.value().0) == Some(learned))
+        .expect("an interface carrying the learned MAC");
+    let minted = lab
+        .storage
+        .hosts
+        .get_by_id(&minted_port.base.host_id)
+        .await
+        .unwrap()
+        .expect("the host minted for it");
+    assert_eq!(
+        minted.base.source,
+        crate::server::shared::types::entities::EntitySource::Inferred {
+            via: crate::server::shared::types::entities::InferredVia::ForwardingTable
+        },
+        "a device known only from a switch's forwarding table is unconfirmed"
+    );
+}
+
+impl Lab {
+    /// An address on `host_id` carrying `mac`, with no interface holding it: a device known by its
+    /// IP and the MAC an ARP reply gave, as a ping sweep finds it.
+    async fn address_with_mac(&self, host_id: Uuid, mac: &str) -> IPAddress {
+        let address = IPAddress::new(IPAddressBase {
+            host_id,
+            site_id: self.site_id,
+            subnet_id: self.subnet_id,
+            mac_address: Some(MacEvidence::new(
+                MacEvidenceValue(mac.parse().unwrap()),
+                AttributeSource::ArpReply,
+            )),
+            ..Default::default()
+        });
+        self.storage.ip_addresses.create(&address).await.unwrap();
+        address
+    }
+
+    /// The ports the forwarding-table pass recorded on `host_id`.
+    async fn recorded_ports(&self, host_id: Uuid) -> Vec<Interface> {
+        self.storage
+            .interfaces
+            .get_all(StorableFilter::<Interface>::new_from_host_ids(&[host_id]).live())
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|i| i.base.interface_source == AttributeSource::ForwardingTable)
+            .collect()
+    }
+}
+
+/// A device known only by an address whose MAC a switch port learned has no port for the link to
+/// end on, so the pass records one: the MAC, the address it carries, the forwarding table as its
+/// source. The switch port then resolves to it, port to port, replacing the host-level row an
+/// earlier pass left for want of a port. A second pass records nothing more.
+#[tokio::test]
+async fn an_address_only_device_gets_a_port_where_the_switch_learned_it() {
+    let lab = Lab::new().await;
+    let switch = lab.host("switch").await;
+    let nas = lab.host("nas").await;
+    let address = lab.address_with_mac(nas.id, "f8:bc:12:dc:14:01").await;
+    let anchor = lab
+        .fdb_port(switch.id, 5, "Gi0/5", "f8:bc:12:dc:14:01")
+        .await;
+    lab.interface_neighbor_service
+        .reconcile_interface_neighbors(
+            lab.site_id,
+            anchor.id,
+            &[(Neighbor::Host(nas.id), None)],
+            Utc::now(),
+            None,
+        )
+        .await
+        .unwrap();
+
+    lab.resolve().await.unwrap();
+
+    let recorded = lab.recorded_ports(nas.id).await;
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(recorded[0].base.ip_address_id, Some(address.id));
+    assert_eq!(
+        lab.resolved_neighbor(anchor.id).await,
+        Some(Neighbor::Interface(recorded[0].id))
+    );
+
+    lab.resolve().await.unwrap();
+    assert_eq!(lab.recorded_ports(nas.id).await.len(), 1);
+}
+
+/// A device whose own walk listed its ports, none of which carries the MAC a switch learned
+/// behind it (a virtual MAC, a NIC the walk missed), gets a port for that MAC too, so the link
+/// still ends on a port.
+#[tokio::test]
+async fn a_walked_device_whose_ports_lack_the_learned_mac_gets_a_port_for_it() {
+    let lab = Lab::new().await;
+    let switch = lab.host("switch").await;
+    let server = lab.host("server").await;
+    lab.port(server.id, 1, "eth0", Some("f8:bc:12:dc:15:01"))
+        .await;
+    lab.address_with_mac(server.id, "f8:bc:12:dc:15:02").await;
+    lab.fdb_port(switch.id, 6, "Gi0/6", "f8:bc:12:dc:15:02")
+        .await;
+
+    lab.resolve().await.unwrap();
+
+    assert_eq!(lab.recorded_ports(server.id).await.len(), 1);
+}
+
+/// A complete walk of a device that doesn't report a port the forwarding-table pass recorded
+/// keeps it while a switch still learns its MAC, so it isn't deleted and recorded again every
+/// scan; it goes once no switch does.
+#[tokio::test]
+async fn a_recorded_port_is_kept_while_a_switch_still_learns_its_mac() {
+    let lab = Lab::new().await;
+    let switch = lab.host("switch").await;
+    let nas = lab.host("nas").await;
+    lab.address_with_mac(nas.id, "f8:bc:12:dc:14:01").await;
+    let anchor = lab
+        .fdb_port(switch.id, 5, "Gi0/5", "f8:bc:12:dc:14:01")
+        .await;
+    lab.resolve().await.unwrap();
+    let recorded = lab.recorded_ports(nas.id).await.remove(0);
+
+    assert!(
+        lab.host_service
+            .still_learned_by_a_switch(&recorded)
+            .await
+            .unwrap()
+    );
+
+    let mut forgotten = anchor.clone();
+    forgotten.base.fdb_macs = None;
+    lab.storage.interfaces.update(&mut forgotten).await.unwrap();
+    assert!(
+        !lab.host_service
+            .still_learned_by_a_switch(&recorded)
+            .await
+            .unwrap()
     );
 }

@@ -35,8 +35,8 @@ use std::time::Duration;
 use uuid::Uuid;
 
 pub const DEFAULT_LOCK_TIMEOUT: Duration = Duration::from_secs(30);
-/// Consolidation locks two hosts and is user-interactive; fail faster.
-pub const CONSOLIDATE_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
+/// A merge locks two hosts and is user-interactive; fail faster.
+pub const MERGE_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const RETRY_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Closed registry of every DB-level lock in the system. Adding a lock site
@@ -45,7 +45,7 @@ const RETRY_INTERVAL: Duration = Duration::from_millis(50);
 /// accidentally mint overlapping keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockKey {
-    /// Serialize update/delete/consolidate of one host.
+    /// Serialize update/delete/merge of one host.
     Host(Uuid),
     /// Serialize host discovery dedup within a site. Scope-keyed (not
     /// id-keyed) because two concurrent submissions of the same NEW device

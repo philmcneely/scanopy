@@ -2,10 +2,12 @@
 	import { applicationGroupId, isApplicationTag } from '$lib/features/tags/groups';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
+	import LoadFailedState from '$lib/shared/components/layout/LoadFailedState.svelte';
+	import { loadFailure } from '$lib/shared/utils/load-failure';
 	import { hasDaemon } from '$lib/shared/onboarding/checklist';
 	import TopologyViewer from './visualization/TopologyViewer.svelte';
 	import TopologyOptionsPanel from './panel/TopologyOptionsPanel.svelte';
-	import { Camera, Radar, Share2, Trash2 } from 'lucide-svelte';
+	import { Camera, Radar, Share2, Trash2 } from '@lucide/svelte';
 	import LiveDot from './LiveDot.svelte';
 	import type { IconComponent } from '$lib/shared/utils/types';
 	import { createColorHelper } from '$lib/shared/utils/styling';
@@ -103,7 +105,8 @@
 		daemons_installPromptTopology,
 		topology_asOf,
 		common_current,
-		topology_noTopologySelected,
+		topology_noSites,
+		topology_siteTopologyMissing,
 		topology_snapshotDeleteConfirm,
 		topology_takeSnapshot
 	} from '$lib/paraglide/messages';
@@ -151,7 +154,8 @@
 	// Derived data
 	let topologiesData = $derived(topologiesQuery.data ?? []);
 	let sitesData = $derived(sitesQuery.data ?? []);
-	let isLoading = $derived(topologiesQuery.isPending || topologyDataQuery.isPending);
+	let organizationLoad = $derived(loadFailure(organizationQuery));
+	let topologyLoad = $derived(loadFailure(sitesQuery, topologiesQuery, topologyDataQuery));
 
 	let hasEmail = $derived(configQuery.data?.has_email_service ?? false);
 
@@ -713,7 +717,11 @@
 </script>
 
 <SvelteFlowProvider>
-	{#if !hasDaemon(onboarding)}
+	{#if organizationLoad.failed}
+		<!-- Onboarding comes from the organization, and reading a failed load as an empty one
+		     would ask the user to install a daemon. -->
+		<LoadFailedState onRetry={organizationLoad.retry} />
+	{:else if !hasDaemon(onboarding)}
 		<PreDaemonEmptyState title={daemons_installPromptTopology()} {isReadOnly} />
 	{:else}
 		<div class="space-y-3">
@@ -837,8 +845,22 @@
 				<ViewSwitcherHint anchor={viewSwitcherEl} />
 			{/if}
 
-			{#if isLoading}
+			<!-- Each site gets its topology row when it is created, so a site without one is an
+			     error to retry, not something the user creates. -->
+			{#if topologyLoad.failed}
+				<LoadFailedState onRetry={topologyLoad.retry} />
+			{:else if sitesQuery.isPending || topologiesQuery.isPending}
 				<Loading />
+			{:else if sitesData.length === 0}
+				<div class="card-static card text-secondary">
+					{topology_noSites()}
+				</div>
+			{:else if $selectedSiteId && !currentTopologyRow}
+				<LoadFailedState
+					title={topology_siteTopologyMissing()}
+					subtitle=""
+					onRetry={() => topologiesQuery.refetch()}
+				/>
 			{:else if currentTopology}
 				<div class="relative" id="topology-view-area">
 					{#if topologyAccess}
@@ -894,9 +916,8 @@
 					{/if}
 				</div>
 			{:else}
-				<div class="card-static card text-secondary">
-					{topology_noTopologySelected()}
-				</div>
+				<!-- A site is being selected, or the selected view's data is on its way. -->
+				<Loading />
 			{/if}
 		</div>
 

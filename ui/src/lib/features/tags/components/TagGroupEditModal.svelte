@@ -319,8 +319,8 @@
 										optionDisplayComponent={EntityTypeDisplay}
 										allowAddFromOptions={!scopeFixed}
 										allowReorder={false}
-										allowItemEdit={() => false}
-										allowItemRemove={() => !scopeFixed}
+										allowItemEdit={false}
+										allowItemRemove={!scopeFixed}
 										onAdd={addType}
 										onRemove={removeType}
 									/>
@@ -357,8 +357,8 @@
 						optionDisplayComponent={TagDisplay}
 						allowAddFromOptions={false}
 						allowReorder={ordering === 'set'}
-						allowItemEdit={() => false}
-						allowItemRemove={() => false}
+						allowItemEdit={false}
+						allowItemRemove={false}
 						onMoveUp={move}
 						onMoveDown={move}
 					/>

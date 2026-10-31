@@ -2085,7 +2085,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/hosts/{id}/consolidate/{other_id}": {
+    "/api/v1/hosts/{id}/confirm": {
         parameters: {
             query?: never;
             header?: never;
@@ -2095,7 +2095,50 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Consolidate hosts
+         * Confirm unconfirmed host
+         * @description Records that a person vouches for a host Scanopy knows only from another device's report (an
+         *     LLDP/CDP neighbour, or a switch's forwarding table). The host's source becomes `Manual`.
+         */
+        post: operations["confirm_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss unconfirmed host
+         * @description Sets aside a host Scanopy knows only from another device's report. It leaves lists, topology
+         *     and scan warnings, and is not created again by later scans. A scan that reaches the device
+         *     restores it.
+         */
+        post: operations["dismiss_host"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hosts/{id}/merge/{other_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge hosts
          * @description Merges all IP addresses, ports, and services from the host `other_id` into the host `id`,
          *     then deletes `other_id`. Both hosts must be on the same site.
          *
@@ -2110,10 +2153,10 @@ export interface paths {
          *
          *     ### Restrictions
          *
-         *     - Cannot consolidate a host with itself.
-         *     - Cannot consolidate a host that has a daemon - consolidate into it instead.
+         *     - Cannot merge a host with itself.
+         *     - Cannot merge away a host that has a daemon - merge into it instead.
          */
-        post: operations["consolidate_hosts"];
+        post: operations["merge_hosts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2147,7 +2190,7 @@ export interface paths {
          *     subnets they have an interface on, and the request is refused when the host
          *     has none.
          *
-         *     Returns the session, which streams progress over `/api/v1/discoveries/stream`
+         *     Returns the session, which streams progress over `/api/v1/live-updates/stream`
          *     like any other scan. A `Queued` phase means the daemon is busy; it will start
          *     when the running scan finishes.
          */
@@ -4144,7 +4187,7 @@ export interface components {
          * @description API metadata included in all responses
          * @example {
          *       "api_version": 1,
-         *       "server_version": "0.19.1"
+         *       "server_version": "0.19.4"
          *     }
          */
         ApiMeta: {
@@ -4155,7 +4198,7 @@ export interface components {
             api_version: number;
             /**
              * @description Server version (semver)
-             * @example 0.19.1
+             * @example 0.19.4
              */
             server_version: string;
         };
@@ -4184,19 +4227,19 @@ export interface components {
             /**
              * @description Association between a service and a port / interface that the service is listening on
              * @example {
-             *       "created_at": "2026-10-26T05:36:24.444998Z",
+             *       "created_at": "2026-10-30T13:27:50.781197Z",
              *       "first_discovery_id": null,
-             *       "id": "956c0acd-7001-4077-b7b7-809c090e2f02",
+             *       "id": "1197e35a-b113-4b09-af4b-58ac52b5a228",
              *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *       "last_discovery_id": null,
-             *       "last_seen_at": "2026-10-26T05:36:24.444998Z",
+             *       "last_seen_at": "2026-10-30T13:27:50.781197Z",
              *       "lineage_id": null,
              *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "type": "Port",
-             *       "updated_at": "2026-10-26T05:36:24.444998Z",
-             *       "valid_from": "2026-10-26T05:36:24.444998Z",
+             *       "updated_at": "2026-10-30T13:27:50.781197Z",
+             *       "valid_from": "2026-10-30T13:27:50.781197Z",
              *       "valid_to": null
              *     }
              */
@@ -4598,6 +4641,17 @@ export interface components {
                 sites: components["schemas"]["SiteSummary"][];
                 /** @description Credentials no scan will send to a daemon, by name. */
                 targetless_credentials: components["schemas"]["TargetlessCredential"][];
+                /**
+                 * Format: int64
+                 * @description Hosts known only from another device's report, waiting to be confirmed, merged or
+                 *     dismissed.
+                 */
+                unconfirmed_host_count: number;
+                /**
+                 * Format: int64
+                 * @description Subnets whose range was assumed, waiting to be confirmed or corrected.
+                 */
+                unconfirmed_subnet_count: number;
                 /** @description Integrations found on hosts with no credential of them, most hosts first. */
                 uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
             };
@@ -4950,11 +5004,18 @@ export interface components {
              *       "credential_assignments": [],
              *       "description": "Primary web server",
              *       "device_type": "Server",
+             *       "device_type_source": {
+             *         "service_id": "550e8400-e29b-41d4-a716-446655440007",
+             *         "service_name": "nginx",
+             *         "type": "Service"
+             *       },
+             *       "dismissed_at": null,
              *       "display_name": "web-server-01",
              *       "display_name_rung": "Name",
              *       "firmware_revision": null,
              *       "firmware_revision_source": "Unspecified",
              *       "first_discovery_id": null,
+             *       "found_by_discovery_id": null,
              *       "hidden": false,
              *       "hostname": "web-server-01.local",
              *       "hostname_source": "Manual",
@@ -5069,24 +5130,25 @@ export interface components {
              *           "valid_to": null
              *         }
              *       ],
+             *       "reported_by_host_ids": [],
              *       "serial_number_source": "Unspecified",
              *       "services": [
              *         {
              *           "bindings": [
              *             {
-             *               "created_at": "2026-10-26T05:36:24.406607Z",
+             *               "created_at": "2026-10-30T13:27:50.744219Z",
              *               "first_discovery_id": null,
-             *               "id": "02ef33ac-639a-4e45-a4bc-e4182ed631fa",
+             *               "id": "2830c253-68ae-4585-a7f4-855fd3e68996",
              *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *               "last_discovery_id": null,
-             *               "last_seen_at": "2026-10-26T05:36:24.406607Z",
+             *               "last_seen_at": "2026-10-30T13:27:50.744219Z",
              *               "lineage_id": null,
              *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *               "type": "Port",
-             *               "updated_at": "2026-10-26T05:36:24.406607Z",
-             *               "valid_from": "2026-10-26T05:36:24.406607Z",
+             *               "updated_at": "2026-10-30T13:27:50.744219Z",
+             *               "valid_from": "2026-10-30T13:27:50.744219Z",
              *               "valid_to": null
              *             }
              *           ],
@@ -5099,7 +5161,7 @@ export interface components {
              *           "lineage_id": null,
              *           "name": "nginx",
              *           "position": 0,
-             *           "service_definition": "Scanopy Server",
+             *           "service_definition": "Gogs",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "source": {
              *             "type": "Manual"
@@ -5156,10 +5218,21 @@ export interface components {
                 description?: string | null;
                 /**
                  * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+                 *     by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+                 *     vendor, as the topology computes it.
                  *     Read-only.
                  */
                 readonly device_type?: components["schemas"]["DeviceType"];
+                /**
+                 * @description Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+                 *     fingerprint match with its source, or a field the type is derived from. Read-only.
+                 */
+                readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
+                /**
+                 * Format: date-time
+                 * @description When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+                 */
+                readonly dismissed_at?: string | null;
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -5181,6 +5254,12 @@ export interface components {
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
                  */
                 readonly first_discovery_id?: string | null;
+                /**
+                 * Format: uuid
+                 * @description For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+                 *     one no scan reported. Read-only.
+                 */
+                readonly found_by_discovery_id?: string | null;
                 /**
                  * @description Always `false`. Kept because daemons before v0.17.23 require it when they read a host
                  *     back; a host is hidden from topology by a tag of the Visibility group.
@@ -5243,6 +5322,12 @@ export interface components {
                 readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
+                /**
+                 * @description For an unconfirmed host, the hosts whose report it is known from: the switch whose
+                 *     forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+                 *     host. Read-only.
+                 */
+                reported_by_host_ids?: string[];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
@@ -5900,6 +5985,11 @@ export interface components {
             /** @description The result payload. Omitted on failure. */
             data?: {
                 available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
+                /**
+                 * Format: int64
+                 * @description The staleness window, in hours, a site uses when it sets none of its own.
+                 */
+                default_site_stale_after_hours: number;
                 /** @description How this instance is run: cloud, commercial self-hosted, or community. */
                 deployment_type: components["schemas"]["DeploymentType"];
                 /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -6103,19 +6193,19 @@ export interface components {
              * @example {
              *       "bindings": [
              *         {
-             *           "created_at": "2026-10-26T05:36:24.439171Z",
+             *           "created_at": "2026-10-30T13:27:50.775587Z",
              *           "first_discovery_id": null,
-             *           "id": "2e10e6b8-6a05-450a-86b4-1c4dde0f0f1b",
+             *           "id": "db7344bf-c182-47c0-b9ac-9df2e7cc7f49",
              *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
              *           "last_discovery_id": null,
-             *           "last_seen_at": "2026-10-26T05:36:24.439171Z",
+             *           "last_seen_at": "2026-10-30T13:27:50.775587Z",
              *           "lineage_id": null,
              *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
              *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
              *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *           "type": "Port",
-             *           "updated_at": "2026-10-26T05:36:24.439171Z",
-             *           "valid_from": "2026-10-26T05:36:24.439171Z",
+             *           "updated_at": "2026-10-30T13:27:50.775587Z",
+             *           "valid_from": "2026-10-30T13:27:50.775587Z",
              *           "valid_to": null
              *         }
              *       ],
@@ -6128,7 +6218,7 @@ export interface components {
              *       "lineage_id": null,
              *       "name": "nginx",
              *       "position": 0,
-             *       "service_definition": "Scanopy Server",
+             *       "service_definition": "Gogs",
              *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
              *       "source": {
              *         "type": "Manual"
@@ -6808,6 +6898,17 @@ export interface components {
                         [key: string]: number;
                     };
                 };
+                /**
+                 * @description Per view, how many entities of each type a Visibility tag left out that the view would
+                 *     have drawn. They never reach the browser, so this is how the filter panel knows to offer
+                 *     the Visibility filter only in a view, and for a type, where it hid something. Views and
+                 *     types with none are absent.
+                 */
+                hidden_by_tag?: {
+                    [key: string]: {
+                        [key: string]: number;
+                    };
+                };
                 /** @description Hosts included in this topology, each carrying the title the map and the host list share. */
                 hosts: components["schemas"]["TopologyHost"][];
                 /** @description Interfaces included in this topology, each carrying its metadata filter values. */
@@ -6820,6 +6921,17 @@ export interface components {
                  *     `Interface.neighbor` scalar now that a port can anchor several links.
                  */
                 neighbours?: components["schemas"]["InterfaceNeighborRow"][];
+                /**
+                 * @description Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:
+                 *     the addresses reached through an L2 port, the services bound to all of a host's addresses
+                 *     on its IP cards, the members inlined on a card. The topology search selects a node when it
+                 *     matches any of them. Nodes with none are absent.
+                 */
+                node_entities?: {
+                    [key: string]: {
+                        [key: string]: string[];
+                    };
+                };
                 /**
                  * @description Per-view graph built on request from the entities above + grouping
                  *     options. Keyed by view so switching the active perspective is a
@@ -7508,7 +7620,7 @@ export interface components {
          *     that do carry a [`ClientProbe`] keep it under their own name, `{"Probe":"Snmp"}`, which tells them
          *     apart from each other and from every bare name.
          */
-        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "DnsSdServicePort" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
+        AttributeSource: "Unspecified" | "OwnAddress" | "ServiceMatch" | "LldpNeighbourAddress" | "CipVendorId" | "SysDescrMatch" | "SysObjectIdMatch" | "LldpSysDescMatch" | "SshBannerMatch" | "HttpServerMatch" | "X509SubjectMatch" | "X509IssuerMatch" | "HtmlTitleMatch" | "HttpWwwAuthMatch" | "HttpCookieMatch" | "FaviconMatch" | "FtpBannerMatch" | "TelnetBannerMatch" | "RtspServerMatch" | "TcpStackMatch" | "DnsSdDeviceInfoMatch" | "DnsSdAirPlayMatch" | "InterfaceNameMatch" | "DnsSdInstanceName" | "DnsSdHostname" | "DnsSdServicePort" | "LldpChassisId" | "Lldpd" | "ReverseDns" | "ForwardingTable" | "ArpReply" | "IcmpEcho" | "PortScan" | "DaemonSelfReport" | "ProfinetDcp" | "ContainerRuntimeInfo" | "HypervisorConfig" | "GuestAgent" | "SshScript" | {
             /** @description A value the thing emitted about itself, over whatever transport [`ClientProbe`] names. */
             Probe: components["schemas"]["ClientProbe"];
         } | {
@@ -7570,19 +7682,19 @@ export interface components {
         /**
          * @description Association between a service and a port / interface that the service is listening on
          * @example {
-         *       "created_at": "2026-10-26T05:36:24.407299Z",
+         *       "created_at": "2026-10-30T13:27:50.744872Z",
          *       "first_discovery_id": null,
-         *       "id": "1f7559d6-0098-4317-83de-9c1e596421f6",
+         *       "id": "3603dc76-ffb6-47f1-ba9d-a903cb048663",
          *       "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *       "last_discovery_id": null,
-         *       "last_seen_at": "2026-10-26T05:36:24.407299Z",
+         *       "last_seen_at": "2026-10-30T13:27:50.744872Z",
          *       "lineage_id": null,
          *       "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *       "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "type": "Port",
-         *       "updated_at": "2026-10-26T05:36:24.407299Z",
-         *       "valid_from": "2026-10-26T05:36:24.407299Z",
+         *       "updated_at": "2026-10-30T13:27:50.744872Z",
+         *       "valid_from": "2026-10-30T13:27:50.744872Z",
          *       "valid_to": null
          *     }
          */
@@ -7853,7 +7965,7 @@ export interface components {
          *     `every_client_probe_variant_has_a_producer` is what now says so.
          * @enum {string}
          */
-        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "SpotifyConnect" | "Vnc" | "AppleLockdown" | "DnsUdp" | "Ntp" | "Dhcp" | "Bacnet" | "Tftp" | "Mgcp" | "GoogleWifi";
+        ClientProbe: "Docker" | "Gnmi" | "Podman" | "Snmp" | "UnifiController" | "InstantOn" | "Proxmox" | "ModbusTcp" | "OpcUa" | "EtherNetIp" | "Sip" | "Ssh" | "Ftp" | "Telnet" | "Rtsp" | "Nut" | "EpicsCa" | "ZabbixAgent" | "CheckMkAgent" | "Smb" | "Ldap" | "Kerberos" | "MySql" | "PostgreSql" | "MsSql" | "MongoDb" | "Redis" | "Cassandra" | "Kafka" | "Amqp" | "Mqtt" | "OracleTns" | "Rdp" | "Nfs" | "DnsTcp" | "DockerSwarm" | "Tls" | "Ike" | "OpenVpn" | "Zmtp" | "Bacula" | "BeszelAgent" | "H323" | "SnmpEngine" | "DockerPing" | "PodmanPing" | "Ipp" | "Lpd" | "SpotifyConnect" | "Vnc" | "AppleLockdown" | "DnsUdp" | "Ntp" | "Dhcp" | "Bacnet" | "Tftp" | "Mgcp" | "GoogleWifi";
         /** @enum {string} */
         ClockFormat: "browser_default" | "twelve_hour" | "twenty_four_hour";
         /** @enum {string} */
@@ -7972,7 +8084,7 @@ export interface components {
          *           "id": "550e8400-e29b-41d4-a716-446655440007",
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Scanopy Server",
+         *           "service_definition": "Gogs",
          *           "tags": [],
          *           "virtualization_metadata": null,
          *           "virtualization_service_id": null
@@ -8260,17 +8372,6 @@ export interface components {
             /** @description What it did in this run. */
             outcome: components["schemas"]["CredentialRunOutcome"];
         };
-        /**
-         * @description Release maturity of a credential type's integration.
-         *
-         *     Additive and exhaustive: a new credential variant will not compile until it declares its
-         *     stability, and every existing type is `Stable` by explicit arm rather than by wildcard, so
-         *     promoting an integration is a one-line reviewable change rather than a deletion nobody
-         *     notices. This is presentation metadata about the *code*, like `last_unsupported_daemon_version` —
-         *     it is never stored on a credential row, so it carries no deploy-coexistence obligation.
-         * @enum {string}
-         */
-        CredentialStability: "Stable" | "Beta";
         /**
          * @description Universal credential type — tagged enum stored as JSONB.
          *     Each variant represents a different credential protocol/method.
@@ -8836,6 +8937,17 @@ export interface components {
             sites: components["schemas"]["SiteSummary"][];
             /** @description Credentials no scan will send to a daemon, by name. */
             targetless_credentials: components["schemas"]["TargetlessCredential"][];
+            /**
+             * Format: int64
+             * @description Hosts known only from another device's report, waiting to be confirmed, merged or
+             *     dismissed.
+             */
+            unconfirmed_host_count: number;
+            /**
+             * Format: int64
+             * @description Subnets whose range was assumed, waiting to be confirmed or corrected.
+             */
+            unconfirmed_subnet_count: number;
             /** @description Integrations found on hosts with no credential of them, most hosts first. */
             uncovered_integrations: components["schemas"]["UncoveredIntegration"][];
         };
@@ -9019,7 +9131,7 @@ export interface components {
          *     evidence names gets its own variant.
          * @enum {string}
          */
-        DeviceType: "Firewall" | "Router" | "Switch" | "AccessPoint" | "Hypervisor" | "Storage" | "Printer" | "Camera" | "Phone" | "Workstation" | "Tablet" | "Mobile" | "MediaPlayer" | "Speaker" | "Industrial" | "IoT" | "Server" | "Unidentified";
+        DeviceType: "Ips" | "SecurityAppliance" | "Vpn" | "Firewall" | "SdWanAppliance" | "BroadbandRouter" | "CableModem" | "DslModem" | "VoipGateway" | "SipGateway" | "Multiplexer" | "Telecom" | "Router" | "Switch" | "NetworkManagementDevice" | "LightsOutManagement" | "Kvm" | "DeviceServer" | "WirelessController" | "WlanRepeater" | "Powerline" | "AccessPoint" | "Hypervisor" | "Nas" | "StorageAppliance" | "TapeLibrary" | "Storage" | "MultifunctionDevice" | "PrintServer" | "Scanner" | "HandheldScanner" | "CheckScanner" | "Printer" | "NetworkVideoRecorder" | "Dvr" | "WebCam" | "Camera" | "VideoConferencing" | "VideoEncoder" | "VideoDecoder" | "DisplayController" | "WirelessPresenter" | "Whiteboard" | "VoipServer" | "VoiceAppliance" | "Phone" | "Laptop" | "Desktop" | "Workstation" | "Tablet" | "Mobile" | "DataTerminal" | "SmartTv" | "Iptv" | "MediaReceiver" | "AvReceiver" | "MediaServer" | "MediaPlayer" | "NetworkAudio" | "AudioEncoder" | "Speaker" | "Plc" | "HmiController" | "Industrial" | "BuildingAutomation" | "AccessControl" | "AlarmPanel" | "EnvironmentControl" | "Ups" | "PowerDevice" | "PowerMeter" | "PowerRelay" | "RelayController" | "DeviceHub" | "Sensor" | "LightBulb" | "IoT" | "Medical" | "TestInstrument" | "JtagAdapter" | "EthernetAdapter" | "SupportAppliance" | "Monitoring" | "Server" | "Unidentified";
         Discovery: components["schemas"]["DiscoveryBase"] & {
             /**
              * Format: date-time
@@ -9145,7 +9257,7 @@ export interface components {
          * @description Protocol that discovered the physical link between network devices
          * @enum {string}
          */
-        DiscoveryProtocol: "LLDP" | "CDP";
+        DiscoveryProtocol: "LLDP" | "CDP" | "ForwardingTable";
         /**
          * @description Why a session reached its terminal phase.
          *
@@ -9157,7 +9269,7 @@ export interface components {
          *     [`Self::daemon_assigned`]. Absent on runs recorded before this field existed.
          * @enum {string}
          */
-        DiscoveryTerminalReason: "Completed" | "UserCancelled" | "DaemonReportedFailure" | "StalledNoUpdates" | "DaemonRestarted" | "DaemonUnreachable" | "DaemonBusy" | "WatchdogTimeout";
+        DiscoveryTerminalReason: "Completed" | "UserCancelled" | "DaemonReportedFailure" | "StalledNoUpdates" | "DaemonRestarted" | "DaemonUnreachable" | "DaemonBusy" | "WatchdogTimeout" | "DaemonOffline" | "SessionSilent" | "DaemonDroppedSession";
         DiscoveryType: {
             /**
              * Format: uuid
@@ -9745,6 +9857,33 @@ export interface components {
             /** @description The integration that would read it. */
             integration: components["schemas"]["CredentialIntegration"];
         } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestOutsideScan";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+        } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @description The bridge its NIC is on. */
+            bridge: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestBehindNode";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+            /** @description The node it runs on. */
+            node: string;
+        } | {
+            /** @description The guest's first address. */
+            address: string;
+            /** @description The bridge its NIC is on. */
+            bridge: string;
+            /** @enum {string} */
+            code: "ProxmoxGuestIsolated";
+            /** @description Its Proxmox VE name, else its VMID. */
+            guest: string;
+        } | {
             /** @description The subnet the addresses are in. */
             cidr: string;
             /** @enum {string} */
@@ -9829,6 +9968,9 @@ export interface components {
         }) | (components["schemas"]["ProvisionalSubnet"] & {
             /** @enum {string} */
             code: "ProvisionalSubnetInferred";
+        }) | (components["schemas"]["UnconfirmedHost"] & {
+            /** @enum {string} */
+            code: "UnconfirmedHostInferred";
         }) | {
             /**
              * Format: int32
@@ -10291,7 +10433,7 @@ export interface components {
             instances?: components["schemas"]["InstanceUsage"] | null;
         };
         /** @enum {string} */
-        EntityDiscriminants: "Site" | "Vlan" | "Subnet" | "Host" | "Service" | "IPAddress" | "Interface" | "Port" | "Binding" | "Discovery" | "Daemon" | "DaemonApiKey" | "Tag" | "TagGroup" | "User" | "UserApiKey" | "Credential" | "Organization" | "Invite" | "Topology" | "Snapshot" | "Share" | "Dependency";
+        EntityDiscriminants: "Topology" | "Snapshot" | "Share" | "Dependency" | "Site" | "Vlan" | "Subnet" | "Host" | "Service" | "IPAddress" | "Interface" | "Port" | "Binding" | "Discovery" | "Daemon" | "DaemonApiKey" | "Credential" | "Tag" | "TagGroup" | "User" | "UserApiKey" | "Organization" | "Invite";
         /** @description One fact that describes an entity, possibly read from a related entity. */
         EntityField: {
             /**
@@ -10312,6 +10454,11 @@ export interface components {
             many: boolean;
             /** @description Steps from the entity to the objects the value is read from. Empty for the entity itself. */
             path: components["schemas"]["Hop"][];
+            /**
+             * @description Matched by the topology search: a value that names or identifies the entity on the map
+             *     (a name, an address, a MAC, a port name, a vendor). The search reads only these.
+             */
+            searchable: boolean;
             /** @description Sibling field holding the value's attribution, for attributed host facts. */
             source_field?: string | null;
             /** @description Shown by default in tables and in the inspector's details. Every field is exported. */
@@ -10349,6 +10496,11 @@ export interface components {
         } | {
             /** @enum {string} */
             type: "Inferred";
+            /**
+             * @description What reported it, recorded when the entity was created. Defaulted because every row
+             *     stored before the field existed came from an LLDP/CDP neighbour.
+             */
+            via?: components["schemas"]["InferredVia"];
         } | {
             /** @enum {string} */
             type: "Unknown";
@@ -10471,6 +10623,9 @@ export interface components {
             fixture: components["schemas"]["MetadataFixture"];
             /** @enum {string} */
             type: "Metadata";
+        } | {
+            /** @enum {string} */
+            type: "AttributeSource";
         } | {
             /** @enum {string} */
             type: "Entity";
@@ -10620,6 +10775,7 @@ export interface components {
          *       "created_at": "2026-01-15T10:30:00Z",
          *       "credential_assignments": [],
          *       "description": "Primary web server",
+         *       "dismissed_at": null,
          *       "first_discovery_id": null,
          *       "hostname": "web-server-01.local",
          *       "hostname_source": "Manual",
@@ -10648,6 +10804,13 @@ export interface components {
              * @description When this record was first created.
              */
             readonly created_at: string;
+            /**
+             * Format: date-time
+             * @description When a person dismissed this unconfirmed host. A dismissed host is left out of lists,
+             *     topology and warnings, and its MAC or chassis id is not minted again. Cleared when a scan
+             *     reaches the device.
+             */
+            readonly dismissed_at?: string | null;
             /**
              * Format: uuid
              * @description Discovery (historical row) that first observed this entity. Set once
@@ -10708,7 +10871,7 @@ export interface components {
          *     Child entities (ip_addresses, ports, services) are stored in their own tables
          *     and queried by `host_id`. They are NOT stored on the host.
          */
-        HostBase: components["schemas"]["HostName"] & components["schemas"]["HostHostname"] & components["schemas"]["HostSysDescr"] & components["schemas"]["HostSysObjectId"] & components["schemas"]["HostSysLocation"] & components["schemas"]["HostSysContact"] & components["schemas"]["HostManagementUrl"] & components["schemas"]["HostChassisId"] & components["schemas"]["HostSysName"] & components["schemas"]["HostManufacturer"] & components["schemas"]["HostModel"] & components["schemas"]["HostSerialNumber"] & components["schemas"]["HostAssetTag"] & components["schemas"]["HostFirmwareRevision"] & components["schemas"]["HostSoftwareRevision"] & components["schemas"]["HostOperatingSystem"] & {
+        HostBase: components["schemas"]["HostName"] & components["schemas"]["HostHostname"] & components["schemas"]["HostSysDescr"] & components["schemas"]["HostSysObjectId"] & components["schemas"]["HostSysLocation"] & components["schemas"]["HostSysContact"] & components["schemas"]["HostManagementUrl"] & components["schemas"]["HostChassisId"] & components["schemas"]["HostSysName"] & components["schemas"]["HostManufacturer"] & components["schemas"]["HostModel"] & components["schemas"]["HostSerialNumber"] & components["schemas"]["HostAssetTag"] & components["schemas"]["HostFirmwareRevision"] & components["schemas"]["HostSoftwareRevision"] & components["schemas"]["HostOperatingSystem"] & components["schemas"]["HostMatchedDeviceType"] & {
             /** @description Credential assignments for this host (hydrated from junction table). */
             credential_assignments: components["schemas"]["CredentialAssignment"][];
             /** @description Free-text notes about the host. */
@@ -10747,6 +10910,46 @@ export interface components {
             chassis_id?: string;
             chassis_id_source?: components["schemas"]["AttributeSource"];
         };
+        /**
+         * @description Which rung of [`Host::device_type`] decided a host's device type, and the evidence on it.
+         *
+         *     Only `Matched` is a stored value with a source of its own. Every other rung is derived from
+         *     other fields each time the host is read, so the UI says which ones instead of naming a source.
+         */
+        HostDeviceTypeSource: {
+            /**
+             * Format: uuid
+             * @description The service whose definition declares or implies the device type.
+             */
+            service_id: string;
+            /** @description That service's name, for display. */
+            service_name: string;
+            /** @enum {string} */
+            type: "Service";
+        } | {
+            source: components["schemas"]["AttributeSource"];
+            /** @enum {string} */
+            type: "Matched";
+        } | {
+            source: components["schemas"]["AttributeSource"];
+            /** @enum {string} */
+            type: "OperatingSystem";
+        } | {
+            /** @enum {string} */
+            type: "Hostname";
+        } | {
+            /** @enum {string} */
+            type: "Name";
+        } | {
+            /** @enum {string} */
+            type: "MacVendor";
+        } | {
+            /** @enum {string} */
+            type: "Containers";
+        } | {
+            /** @enum {string} */
+            type: "NoEvidence";
+        };
         HostFirmwareRevision: {
             /** @description ENTITY-MIB entPhysicalFirmwareRev - firmware revision of the device as a whole */
             firmware_revision?: string;
@@ -10766,6 +10969,21 @@ export interface components {
             /** @description ENTITY-MIB entPhysicalMfgName - hardware manufacturer */
             manufacturer?: string;
             manufacturer_source?: components["schemas"]["AttributeSource"];
+        };
+        HostMatchedDeviceType: {
+            /**
+             * @description What a host is, as a device: the class its icon stands for on the map.
+             *
+             *     Declaration order is precedence, highest first. A host whose services claim several device types takes
+             *     the first one here, so a firewall that also serves files reads as a firewall, and `Server`,
+             *     which any application implies, never hides a more specific device type.
+             *
+             *     `Unidentified` means no evidence yet, not a device class outside this list: every class the
+             *     evidence names gets its own variant.
+             * @enum {string}
+             */
+            matched_device_type?: "Ips" | "SecurityAppliance" | "Vpn" | "Firewall" | "SdWanAppliance" | "BroadbandRouter" | "CableModem" | "DslModem" | "VoipGateway" | "SipGateway" | "Multiplexer" | "Telecom" | "Router" | "Switch" | "NetworkManagementDevice" | "LightsOutManagement" | "Kvm" | "DeviceServer" | "WirelessController" | "WlanRepeater" | "Powerline" | "AccessPoint" | "Hypervisor" | "Nas" | "StorageAppliance" | "TapeLibrary" | "Storage" | "MultifunctionDevice" | "PrintServer" | "Scanner" | "HandheldScanner" | "CheckScanner" | "Printer" | "NetworkVideoRecorder" | "Dvr" | "WebCam" | "Camera" | "VideoConferencing" | "VideoEncoder" | "VideoDecoder" | "DisplayController" | "WirelessPresenter" | "Whiteboard" | "VoipServer" | "VoiceAppliance" | "Phone" | "Laptop" | "Desktop" | "Workstation" | "Tablet" | "Mobile" | "DataTerminal" | "SmartTv" | "Iptv" | "MediaReceiver" | "AvReceiver" | "MediaServer" | "MediaPlayer" | "NetworkAudio" | "AudioEncoder" | "Speaker" | "Plc" | "HmiController" | "Industrial" | "BuildingAutomation" | "AccessControl" | "AlarmPanel" | "EnvironmentControl" | "Ups" | "PowerDevice" | "PowerMeter" | "PowerRelay" | "RelayController" | "DeviceHub" | "Sensor" | "LightBulb" | "IoT" | "Medical" | "TestInstrument" | "JtagAdapter" | "EthernetAdapter" | "SupportAppliance" | "Monitoring" | "Server" | "Unidentified";
+            matched_device_type_source?: components["schemas"]["AttributeSource"];
         };
         HostModel: {
             /** @description ENTITY-MIB entPhysicalModelName - hardware model */
@@ -10858,11 +11076,18 @@ export interface components {
          *       "credential_assignments": [],
          *       "description": "Primary web server",
          *       "device_type": "Server",
+         *       "device_type_source": {
+         *         "service_id": "550e8400-e29b-41d4-a716-446655440007",
+         *         "service_name": "nginx",
+         *         "type": "Service"
+         *       },
+         *       "dismissed_at": null,
          *       "display_name": "web-server-01",
          *       "display_name_rung": "Name",
          *       "firmware_revision": null,
          *       "firmware_revision_source": "Unspecified",
          *       "first_discovery_id": null,
+         *       "found_by_discovery_id": null,
          *       "hidden": false,
          *       "hostname": "web-server-01.local",
          *       "hostname_source": "Manual",
@@ -10977,24 +11202,25 @@ export interface components {
          *           "valid_to": null
          *         }
          *       ],
+         *       "reported_by_host_ids": [],
          *       "serial_number_source": "Unspecified",
          *       "services": [
          *         {
          *           "bindings": [
          *             {
-         *               "created_at": "2026-10-26T05:36:24.405765Z",
+         *               "created_at": "2026-10-30T13:27:50.743430Z",
          *               "first_discovery_id": null,
-         *               "id": "6a43d303-5813-456b-a0c7-bb5e08f7e8d8",
+         *               "id": "eab774be-1fd3-433a-97d4-2c3a4e9513f5",
          *               "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *               "last_discovery_id": null,
-         *               "last_seen_at": "2026-10-26T05:36:24.405765Z",
+         *               "last_seen_at": "2026-10-30T13:27:50.743430Z",
          *               "lineage_id": null,
          *               "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *               "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *               "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *               "type": "Port",
-         *               "updated_at": "2026-10-26T05:36:24.405765Z",
-         *               "valid_from": "2026-10-26T05:36:24.405765Z",
+         *               "updated_at": "2026-10-30T13:27:50.743430Z",
+         *               "valid_from": "2026-10-30T13:27:50.743430Z",
          *               "valid_to": null
          *             }
          *           ],
@@ -11007,7 +11233,7 @@ export interface components {
          *           "lineage_id": null,
          *           "name": "nginx",
          *           "position": 0,
-         *           "service_definition": "Scanopy Server",
+         *           "service_definition": "Gogs",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "source": {
          *             "type": "Manual"
@@ -11064,10 +11290,21 @@ export interface components {
             description?: string | null;
             /**
              * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-             *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+             *     by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+             *     vendor, as the topology computes it.
              *     Read-only.
              */
             readonly device_type?: components["schemas"]["DeviceType"];
+            /**
+             * @description Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+             *     fingerprint match with its source, or a field the type is derived from. Read-only.
+             */
+            readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
+            /**
+             * Format: date-time
+             * @description When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+             */
+            readonly dismissed_at?: string | null;
             /**
              * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
              *     address, whichever it has. `None` when nothing identifies it.
@@ -11089,6 +11326,12 @@ export interface components {
              * @description The discovery run that first observed this host. Drives the "First found by" column.
              */
             readonly first_discovery_id?: string | null;
+            /**
+             * Format: uuid
+             * @description For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+             *     one no scan reported. Read-only.
+             */
+            readonly found_by_discovery_id?: string | null;
             /**
              * @description Always `false`. Kept because daemons before v0.17.23 require it when they read a host
              *     back; a host is hidden from topology by a tag of the Visibility group.
@@ -11151,6 +11394,12 @@ export interface components {
             readonly os_source?: components["schemas"]["AttributeSource"];
             /** @description Open ports on this host. */
             ports: components["schemas"]["Port"][];
+            /**
+             * @description For an unconfirmed host, the hosts whose report it is known from: the switch whose
+             *     forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+             *     host. Read-only.
+             */
+            reported_by_host_ids?: string[];
             /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
             readonly serial_number?: string | null;
             /** @description What produced the serial number. Read-only: decided by whichever source read it. */
@@ -11504,6 +11753,11 @@ export interface components {
          * @enum {string}
          */
         IfOperStatus: "Up" | "Down" | "Testing" | "Unknown" | "Dormant" | "NotPresent" | "LowerLayerDown";
+        /**
+         * @description What reported an [`EntitySource::Inferred`] entity.
+         * @enum {string}
+         */
+        InferredVia: "Neighbour" | "ForwardingTable" | "ReportedAddress";
         /**
          * @description Format hint for inline values in `PathOrInline` and `SecretPathOrInline` fields.
          * @enum {string}
@@ -12274,6 +12528,26 @@ export interface components {
          * @enum {string}
          */
         LicenseStatusDiscriminants: "valid" | "expired" | "invalid" | "pending";
+        /** @description A site whose live topology changed. */
+        LiveTopologyUpdate: {
+            /**
+             * Format: uuid
+             * @description The site whose live entities changed.
+             */
+            site_id: string;
+        };
+        /** @description An event on the live-update stream (`GET /api/v1/live-updates/stream`). */
+        LiveUpdate: {
+            /** @description Progress or an end state of a discovery session. */
+            data: components["schemas"]["DiscoveryUpdatePayload"];
+            /** @enum {string} */
+            type: "Discovery";
+        } | {
+            /** @description A site's live entity set changed, so its topology needs refetching. */
+            data: components["schemas"]["LiveTopologyUpdate"];
+            /** @enum {string} */
+            type: "Topology";
+        };
         /**
          * @description LLDP Chassis ID subtypes per IEEE 802.1AB.
          *
@@ -12519,7 +12793,7 @@ export interface components {
          *     here + a `HasFilterValues` impl on the relevant entity.
          * @enum {string}
          */
-        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus" | "GuestState";
+        MetadataFilterType: "Category" | "Virtualization" | "LinkState" | "Staleness" | "OperStatus" | "GuestState" | "Confirmation";
         /**
          * @description A metadata fixture whose entries name an enum-valued field, so the UI shows the fixture's
          *     name for the raw value. Serializes to the fixture key.
@@ -12825,7 +13099,7 @@ export interface components {
          *         "offset": 0,
          *         "total_count": 142
          *       },
-         *       "server_version": "0.19.1"
+         *       "server_version": "0.19.4"
          *     }
          */
         PaginatedApiMeta: {
@@ -12838,7 +13112,7 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
             /**
              * @description Server version (semver)
-             * @example 0.19.1
+             * @example 0.19.4
              */
             server_version: string;
         };
@@ -13032,10 +13306,21 @@ export interface components {
                 description?: string | null;
                 /**
                  * @description What this host is, as a device: the role its icon shows everywhere it appears. Computed
-                 *     by [`Host::device_type`] from its services, then its OS, as the topology computes it.
+                 *     by [`Host::device_type`] from its services, a fingerprint match, its OS, its name or its MAC
+                 *     vendor, as the topology computes it.
                  *     Read-only.
                  */
                 readonly device_type?: components["schemas"]["DeviceType"];
+                /**
+                 * @description Which rung of the ladder decided `device_type`, and its evidence: a service, the stored
+                 *     fingerprint match with its source, or a field the type is derived from. Read-only.
+                 */
+                readonly device_type_source?: components["schemas"]["HostDeviceTypeSource"];
+                /**
+                 * Format: date-time
+                 * @description When a person dismissed this unconfirmed host. Read-only: set by the dismiss action.
+                 */
+                readonly dismissed_at?: string | null;
                 /**
                  * @description What to call this host when `name` is empty: its hostname, sysName, chassis id or first
                  *     address, whichever it has. `None` when nothing identifies it.
@@ -13057,6 +13342,12 @@ export interface components {
                  * @description The discovery run that first observed this host. Drives the "First found by" column.
                  */
                 readonly first_discovery_id?: string | null;
+                /**
+                 * Format: uuid
+                 * @description For an unconfirmed host, the scan that first reported it. Absent for a confirmed host, or
+                 *     one no scan reported. Read-only.
+                 */
+                readonly found_by_discovery_id?: string | null;
                 /**
                  * @description Always `false`. Kept because daemons before v0.17.23 require it when they read a host
                  *     back; a host is hidden from topology by a tag of the Visibility group.
@@ -13119,6 +13410,12 @@ export interface components {
                 readonly os_source?: components["schemas"]["AttributeSource"];
                 /** @description Open ports on this host. */
                 ports: components["schemas"]["Port"][];
+                /**
+                 * @description For an unconfirmed host, the hosts whose report it is known from: the switch whose
+                 *     forwarding table learned its MAC, or the neighbour that advertised it. Empty for a confirmed
+                 *     host. Read-only.
+                 */
+                reported_by_host_ids?: string[];
                 /** @description ENTITY-MIB entPhysicalSerialNum — hardware serial number. Read-only, as above. */
                 readonly serial_number?: string | null;
                 /** @description What produced the serial number. Read-only: decided by whichever source read it. */
@@ -13981,6 +14278,11 @@ export interface components {
         };
         PublicConfigResponse: {
             available_upgrade?: components["schemas"]["AvailableUpgrade"] | null;
+            /**
+             * Format: int64
+             * @description The staleness window, in hours, a site uses when it sets none of its own.
+             */
+            default_site_stale_after_hours: number;
             /** @description How this instance is run: cloud, commercial self-hosted, or community. */
             deployment_type: components["schemas"]["DeploymentType"];
             /** @description Whether email/password login is turned off, leaving OIDC as the only method. */
@@ -14584,19 +14886,19 @@ export interface components {
          * @example {
          *       "bindings": [
          *         {
-         *           "created_at": "2026-10-26T05:36:24.407091Z",
+         *           "created_at": "2026-10-30T13:27:50.744652Z",
          *           "first_discovery_id": null,
-         *           "id": "f3aa999f-2900-4cf9-bc9e-f9c902dd523d",
+         *           "id": "588dd7f3-3564-4a9d-9647-5d568b3cda9a",
          *           "ip_address_id": "550e8400-e29b-41d4-a716-446655440005",
          *           "last_discovery_id": null,
-         *           "last_seen_at": "2026-10-26T05:36:24.407091Z",
+         *           "last_seen_at": "2026-10-30T13:27:50.744652Z",
          *           "lineage_id": null,
          *           "port_id": "550e8400-e29b-41d4-a716-446655440006",
          *           "service_id": "550e8400-e29b-41d4-a716-446655440007",
          *           "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *           "type": "Port",
-         *           "updated_at": "2026-10-26T05:36:24.407091Z",
-         *           "valid_from": "2026-10-26T05:36:24.407091Z",
+         *           "updated_at": "2026-10-30T13:27:50.744652Z",
+         *           "valid_from": "2026-10-30T13:27:50.744652Z",
          *           "valid_to": null
          *         }
          *       ],
@@ -14609,7 +14911,7 @@ export interface components {
          *       "lineage_id": null,
          *       "name": "nginx",
          *       "position": 0,
-         *       "service_definition": "Scanopy Server",
+         *       "service_definition": "Gogs",
          *       "site_id": "550e8400-e29b-41d4-a716-446655440002",
          *       "source": {
          *         "type": "Manual"
@@ -15192,6 +15494,17 @@ export interface components {
             rejected_keys?: string[];
         };
         /**
+         * @description Release maturity of something Scanopy ships: a credential type's integration, or a plan
+         *     feature.
+         *
+         *     Each owner declares it in an exhaustive match, so promoting one to `Stable` is a one-line
+         *     reviewable change. This is presentation metadata about the *code*, like
+         *     `last_unsupported_daemon_version`. It is never stored on a row, so it carries no
+         *     deploy-coexistence obligation.
+         * @enum {string}
+         */
+        Stability: "Stable" | "Beta";
+        /**
          * @example {
          *       "cidr": "192.168.1.0/24",
          *       "cidr_source": "DaemonSelfReport",
@@ -15644,6 +15957,17 @@ export interface components {
                     [key: string]: number;
                 };
             };
+            /**
+             * @description Per view, how many entities of each type a Visibility tag left out that the view would
+             *     have drawn. They never reach the browser, so this is how the filter panel knows to offer
+             *     the Visibility filter only in a view, and for a type, where it hid something. Views and
+             *     types with none are absent.
+             */
+            hidden_by_tag?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
             /** @description Hosts included in this topology, each carrying the title the map and the host list share. */
             hosts: components["schemas"]["TopologyHost"][];
             /** @description Interfaces included in this topology, each carrying its metadata filter values. */
@@ -15656,6 +15980,17 @@ export interface components {
              *     `Interface.neighbor` scalar now that a port can anchor several links.
              */
             neighbours?: components["schemas"]["InterfaceNeighborRow"][];
+            /**
+             * @description Per view, the entities each node stands for beyond its own `entity_id`, keyed by node id:
+             *     the addresses reached through an L2 port, the services bound to all of a host's addresses
+             *     on its IP cards, the members inlined on a card. The topology search selects a node when it
+             *     matches any of them. Nodes with none are absent.
+             */
+            node_entities?: {
+                [key: string]: {
+                    [key: string]: string[];
+                };
+            };
             /**
              * @description Per-view graph built on request from the entities above + grouping
              *     options. Keyed by view so switching the active perspective is a
@@ -15789,7 +16124,7 @@ export interface components {
              * @default {
              *       "Application": [
              *         {
-             *           "id": "43930029-1d03-4799-975f-5ab69074046d",
+             *           "id": "8359cdc9-f787-4e3a-be29-36c093779516",
              *           "rule": {
              *             "ByApplication": {
              *               "tag_ids": []
@@ -15799,23 +16134,23 @@ export interface components {
              *       ],
              *       "L2Physical": [
              *         {
-             *           "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
+             *           "id": "8589acf6-db61-4360-a96f-1a5de1a70312",
              *           "rule": "ByHost"
              *         }
              *       ],
              *       "L3Logical": [
              *         {
-             *           "id": "12eeeb3d-68aa-4aa4-a026-64895b3c3a7a",
+             *           "id": "043869dd-efe5-40a6-a4db-2c504bc08dd2",
              *           "rule": "BySubnet"
              *         },
              *         {
-             *           "id": "f325cec9-d841-4631-8292-6af3abe7d4fc",
+             *           "id": "10d6e863-9d9a-43b8-8720-d3adb900d8e6",
              *           "rule": "MergeContainerBridges"
              *         }
              *       ],
              *       "Workloads": [
              *         {
-             *           "id": "7598f048-2aaf-45b3-90d2-2791cb6f506d",
+             *           "id": "8589acf6-db61-4360-a96f-1a5de1a70312",
              *           "rule": "ByHost"
              *         }
              *       ]
@@ -15829,19 +16164,19 @@ export interface components {
              *     takes the rules for an organization with no stated use case.
              * @default [
              *       {
-             *         "id": "b81d664d-b24d-4b4a-a03b-197a1f03d91d",
+             *         "id": "e687f3af-643e-4166-9372-480c613b2c59",
              *         "rule": "ByTrunkPort"
              *       },
              *       {
-             *         "id": "282c5a80-bb7f-485a-b4d2-e47fc96fdaf7",
+             *         "id": "59bae1af-48ae-4a9d-8901-742a5962237e",
              *         "rule": "ByVLAN"
              *       },
              *       {
-             *         "id": "4dadc7fb-67d3-4eac-8790-83537ca6f657",
+             *         "id": "7d098cb5-a1f3-4b44-b2ad-eb84c9f3abce",
              *         "rule": "ByPortOpStatus"
              *       },
              *       {
-             *         "id": "8c66135d-71a8-434d-aaf5-d322314062fb",
+             *         "id": "fa92d20c-4c99-4385-b7e5-554e2f705091",
              *         "rule": {
              *           "ByServiceCategory": {
              *             "categories": [
@@ -15862,7 +16197,7 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "8b9e0b8d-22d9-41ce-9a7a-0794d952eac9",
+             *         "id": "dd6508db-c3f5-47a8-b22d-96a381b5cf75",
              *         "rule": {
              *           "ByTag": {
              *             "tag_ids": [],
@@ -15871,19 +16206,19 @@ export interface components {
              *         }
              *       },
              *       {
-             *         "id": "b3016b7d-7019-4ac8-8dec-1e5e3398f33b",
+             *         "id": "8768cc4d-f427-41ea-9276-2bd74162d7e0",
              *         "rule": "ByDeviceType"
              *       },
              *       {
-             *         "id": "ae77d814-bf83-40b1-9935-b09fd756c6a7",
+             *         "id": "599c0eca-c956-4de2-b72a-6c1208350cbe",
              *         "rule": "ByHypervisor"
              *       },
              *       {
-             *         "id": "62328bbe-114b-4956-895c-992d03fcc813",
+             *         "id": "ab9ef755-540c-41f2-80ee-b0b30bcb57be",
              *         "rule": "ByContainerRuntime"
              *       },
              *       {
-             *         "id": "c04f8977-42eb-4ec8-8c98-1f0e8c06324c",
+             *         "id": "81c086c7-f636-4ef8-bc20-cba88bf034f1",
              *         "rule": "ByStack"
              *       }
              *     ]
@@ -15988,6 +16323,24 @@ export interface components {
         TransportProtocol: "Udp" | "Tcp";
         /** @description No payload. Present only so the envelope keeps its shape. */
         TupleUnit: Record<string, never>;
+        /**
+         * @description A host known only because another device reported it: an LLDP/CDP neighbour advertised it, or a
+         *     switch learned its MAC. Reported on every scan until a person confirms, merges or dismisses it,
+         *     or a scan reaches the device.
+         */
+        UnconfirmedHost: {
+            /**
+             * Format: uuid
+             * @description The host, so the UI can open it. `None` once it has been deleted.
+             */
+            host_id: string | null;
+            /** @description The identifier it is known by: a chassis id for a neighbour, a MAC for a learned device. */
+            identifier: string;
+            /** @description The `sysName` a neighbour advertised for it, where it sent one. */
+            sys_name: string | null;
+            /** @description What reported it. */
+            via: components["schemas"]["InferredVia"];
+        };
         /** @description An integration the latest scans found on hosts with no credential of it, still uncovered now. */
         UncoveredIntegration: {
             /**
@@ -16075,6 +16428,8 @@ export interface components {
          *     Server will sync children (create new, update existing, delete removed) only if provided.
          */
         UpdateHostRequest: {
+            /** @description Asset tag. */
+            asset_tag?: string | null;
             /**
              * @description Credential assignments for this host.
              *     If provided, replaces all existing credential assignments.
@@ -16082,6 +16437,7 @@ export interface components {
             credential_assignments?: components["schemas"]["CredentialAssignment"][] | null;
             /** @description Free-text notes about the host. */
             description?: string | null;
+            device_type?: components["schemas"]["DeviceType"] | null;
             /**
              * Format: date-time
              * @description Optional: expected updated_at timestamp for optimistic locking.
@@ -16106,20 +16462,33 @@ export interface components {
              *     If None, existing ip_addresses are preserved.
              */
             ip_addresses?: components["schemas"]["IPAddressInput"][] | null;
+            /** @description Link to the host's own management interface. */
+            management_url?: string | null;
+            /** @description Hardware manufacturer, such as "Hirschmann". */
+            manufacturer?: string | null;
+            /** @description Hardware model. */
+            model?: string | null;
             /** @description Human-facing name for the host. */
             name: string;
+            os?: components["schemas"]["HostOs"] | null;
             /**
              * @description Ports to sync with this host.
              *     If Some, server will create/update/delete to match this list.
              *     If None, existing ports are preserved.
              */
             ports?: components["schemas"]["PortInput"][] | null;
+            /** @description Hardware serial number. */
+            serial_number?: string | null;
             /**
              * @description Services to sync with this host.
              *     If Some, server will create/update/delete to match this list.
              *     If None, existing services are preserved.
              */
             services?: components["schemas"]["ServiceInput"][] | null;
+            /** @description Administrative contact. */
+            sys_contact?: string | null;
+            /** @description Physical location. */
+            sys_location?: string | null;
             /** @description Tags assigned to this entity. */
             tags: string[];
             /**
@@ -16184,7 +16553,7 @@ export interface components {
         /**
          * @description Whether the vendor publishes and supports the API a credential type talks to.
          *
-         *     Deliberately *not* folded into [`CredentialStability`], because the two describe different
+         *     Deliberately *not* folded into [`Stability`], because the two describe different
          *     things and change independently. Stability is about our own maturity and is meant to be retired
          *     by promotion to `Stable`; an undocumented upstream is a permanent property of the vendor's API
          *     that our promotion does not change. Collapsing them would force an integration built on a
@@ -16292,6 +16661,12 @@ export interface components {
             email: string;
             /** @description Per-user email preferences */
             email_settings?: components["schemas"]["EmailSettings"];
+            /**
+             * @description Whether the user must verify their email before the API serves their
+             *     session (an org on a license plan, see `auth::verification_gate`).
+             *     Computed and set like `terms_acceptance_required`.
+             */
+            readonly email_verification_required?: boolean;
             /** @description Whether the user has verified their email address */
             email_verified?: boolean;
             /** @description Whether the user has a password set — computed from password_hash, never stored in DB */
@@ -21628,7 +22003,89 @@ export interface operations {
             };
         };
     };
-    consolidate_hosts: {
+    confirm_host: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Host ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
+                };
+            };
+            /** @description The host is already confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Host not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    dismiss_host: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Host ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Host dismissed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponse_HostResponse"];
+                };
+            };
+            /** @description The host is already confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Host not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    merge_hosts: {
         parameters: {
             query?: never;
             header?: never;
@@ -21642,7 +22099,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Hosts consolidated successfully */
+            /** @description Hosts merged successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -22588,7 +23045,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_LicenseKeyResponse"];
                 };
             };
-            /** @description Not an owner, or the plan does not include this key type */
+            /** @description Not an owner, the plan has no license key, or the plan does not include this key type */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -22617,7 +23074,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse_LicenseKeyResponse"];
                 };
             };
-            /** @description Not an owner, or the organization has no license */
+            /** @description Not an owner, or the plan has no license key */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -22646,7 +23103,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponse"];
                 };
             };
-            /** @description Not an owner */
+            /** @description Not an owner, or the plan has no license key */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -24755,6 +25212,11 @@ export interface operations {
                  *     (`Subnet::is_user_managed`).
                  */
                 user_managed?: boolean | null;
+                /**
+                 * @description With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+                 *     seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+                 */
+                include_shared_ranges?: boolean | null;
                 /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -24889,6 +25351,11 @@ export interface operations {
                  *     (`Subnet::is_user_managed`).
                  */
                 user_managed?: boolean | null;
+                /**
+                 * @description With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+                 *     seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+                 */
+                include_shared_ranges?: boolean | null;
                 /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**
@@ -24965,6 +25432,11 @@ export interface operations {
                  *     (`Subnet::is_user_managed`).
                  */
                 user_managed?: boolean | null;
+                /**
+                 * @description With `user_managed=true`, also returns the Internet and Remote Network ranges every site is
+                 *     seeded with, once each: one site's copy, from the lowest site id among the sites listed.
+                 */
+                include_shared_ranges?: boolean | null;
                 /** @description Filter by tag IDs (returns subnets that have ANY of the specified tags) */
                 tag_ids?: string[] | null;
                 /**

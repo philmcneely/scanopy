@@ -408,6 +408,7 @@ impl DiscoveryRunner {
             // Probed locally over loopback; multicast browsing does not apply.
             dns_sd: &None,
             certificates: &[],
+            fingerprints: &[],
         };
 
         // Every port here is one a daemon-host integration's probe answered on, and records that
@@ -459,6 +460,7 @@ impl DiscoveryRunner {
             // The daemon-host phase runs before the network sweep, so the subnets it just
             // created are all that is known at this point.
             known_subnets: created_subnets,
+            scanned_subnets: created_subnets,
             scanning_subnet: None,
             ip_address_id: Some(ip_address.id),
         };

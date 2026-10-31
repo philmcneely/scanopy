@@ -1,5 +1,4 @@
 import type { Snippet } from 'svelte';
-import { lastSeenItems } from '$lib/shared/utils/freshness';
 import type { Host, IPAddress, Port } from '../types/base';
 import { hostDisplayName } from '$lib/features/hosts/host-display-name';
 import { hostOsFamilyIds, hostOsFamilyName } from '$lib/features/hosts/host-os';
@@ -9,6 +8,7 @@ import type { EntityLookup } from '$lib/shared/entity-fields';
 import { tagNames } from '$lib/features/tags/columns';
 import { credentialItems } from '$lib/features/credentials/columns';
 import { deviceTypes, entities, entitySources, concepts } from '$lib/shared/stores/metadata';
+import { deviceTypeSourceTag } from '$lib/features/hosts/device-type-source';
 import {
 	hosts_deviceType,
 	common_created,
@@ -291,7 +291,7 @@ export function hostColumns(ctx: HostColumnsContext) {
 				label: common_lastSeen(),
 				type: 'date',
 				staleFilter: true,
-				display: { recency: true, order: 1, getItems: lastSeenItems(ctx.sites, 'Host') }
+				display: { recency: true, order: 1 }
 			},
 			// How the host came to exist, read from `source.type`. An inferred host (one a
 			// neighbour advertised and nothing scanned) looks the same as a down device by its
@@ -353,21 +353,26 @@ export function hostColumns(ctx: HostColumnsContext) {
 			}
 		},
 		[
-			// Computed by the server from services and OS, so it can be shown but not sorted or filtered.
+			// Computed by the server, so it can be shown but not sorted or filtered.
 			{
 				key: 'device_type',
 				label: hosts_deviceType(),
 				type: 'string',
 				getValue: (host: Host) => deviceTypes.getName(host.device_type ?? 'Unidentified'),
-				// A tag, as the subnets table shows a subnet's type.
+				// A tag, as the subnets table shows a subnet's type. Its hover text says where the type
+				// came from, as other columns' hover text names their value's source.
 				display: {
 					getItems: (host: Host) => {
 						const deviceType = host.device_type ?? 'Unidentified';
+						const source = host.device_type_source
+							? deviceTypeSourceTag(host.device_type_source)
+							: null;
 						return [
 							{
 								id: deviceType,
 								...deviceTypes.getTag(deviceType),
-								icon: deviceTypes.getIconComponent(deviceType)
+								icon: deviceTypes.getIconComponent(deviceType),
+								title: source ? `${source.label}\n${source.title}` : undefined
 							}
 						];
 					}

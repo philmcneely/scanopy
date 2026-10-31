@@ -1,6 +1,8 @@
 use super::*;
 use crate::daemon::discovery::types::base::DiscoveryTerminalReason;
-use crate::daemon::discovery::types::warnings::{ClaimSource, DiscoveryWarning, SnmpWalkGroup};
+use crate::daemon::discovery::types::warnings::{
+    ClaimSource, DiscoveryWarning, ProvisionalSubnet, SnmpWalkGroup, UnconfirmedHost,
+};
 use crate::server::credentials::r#impl::mapping::CredentialQueryPayloadDiscriminants;
 use crate::server::credentials::r#impl::run_results::{
     CredentialRunOutcome, CredentialRunResult, WakeOnLanResult,
@@ -19,6 +21,7 @@ pub(super) fn generate_discoveries(
     subnets: &[Subnet],
     daemons: &[Daemon],
     hosts: &[&Host],
+    interfaces: &[Interface],
     credentials: &[Credential],
     now: DateTime<Utc>,
 ) -> Vec<Discovery> {
@@ -218,7 +221,16 @@ pub(super) fn generate_discoveries(
                                 credential_id: Some(network_devices_cred_id),
                                 snmp_version: None,
                             },
-                        ],
+                        ]
+                        .into_iter()
+                        // The annex range, assumed around the address the HQ switch's LLDP table
+                        // heard the annex uplink advertise. The subnet's resolve modal reads its
+                        // evidence from this warning.
+                        .chain(annex_range_warning(subnets, hosts))
+                        // The two hosts it knew only from other devices' reports, which each
+                        // resolve modal links back to as the scan that found it.
+                        .chain(unconfirmed_host_warnings(hosts, interfaces))
+                        .collect(),
                         // What each credential produced: SNMP collected from the network devices,
                         // the inventory script ran on jenkins-ci, and the backup NAS woke for the scan.
                         credential_results: vec![
@@ -384,4 +396,64 @@ pub(super) fn generate_discoveries(
     }
 
     discoveries
+}
+
+/// The warning the HQ scan raised when it assumed the annex's range: the address the annex uplink
+/// advertised over LLDP, and the HQ switch that heard it.
+fn annex_range_warning(subnets: &[Subnet], hosts: &[&Host]) -> Option<DiscoveryWarning> {
+    let annex = subnets
+        .iter()
+        .find(|s| s.base.name().contains("HQ Annex"))?;
+    let switch = hosts
+        .iter()
+        .find(|h| h.base.name.value().as_str() == "unifi-usw-48")?;
+    Some(DiscoveryWarning::ProvisionalSubnetInferred(
+        ProvisionalSubnet {
+            cidr: annex.base.cidr.value().to_string(),
+            subnet_id: Some(annex.id),
+            addresses: vec!["10.0.50.1".to_string()],
+            sys_names: vec![],
+            seen_by_host_ids: vec![switch.id],
+            widened_by_vlan: false,
+        },
+    ))
+}
+
+/// One `UnconfirmedHostInferred` warning per unconfirmed demo host: the HQ scan reported each one,
+/// by the chassis ID a neighbour advertised or the MAC a switch learned (on the host's interface).
+///
+/// Every unconfirmed host gets one: its resolve modal links back to this scan. A host with no
+/// identifier is a broken demo row, so it panics rather than quietly going without.
+fn unconfirmed_host_warnings(hosts: &[&Host], interfaces: &[Interface]) -> Vec<DiscoveryWarning> {
+    hosts
+        .iter()
+        .filter_map(|host| {
+            let EntitySource::Inferred { via } = host.base.source else {
+                return None;
+            };
+            let identifier = host
+                .base
+                .chassis_id
+                .as_ref()
+                .map(|c| c.value().to_string())
+                .or_else(|| {
+                    interfaces
+                        .iter()
+                        .filter(|i| i.base.host_id == host.id)
+                        .find_map(|i| i.base.mac_address.as_ref().map(|m| m.value().to_string()))
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "unconfirmed demo host {} has no chassis ID or interface MAC to be reported by",
+                        host.id
+                    )
+                });
+            Some(DiscoveryWarning::UnconfirmedHostInferred(UnconfirmedHost {
+                host_id: Some(host.id),
+                via,
+                identifier,
+                sys_name: None,
+            }))
+        })
+        .collect()
 }

@@ -11,7 +11,7 @@
 	} from '../../queries';
 	import type { RenderableTopology } from '../../types/base';
 	import { get } from 'svelte/store';
-	import { ChevronLeft, ChevronRight, Filter, LayoutGrid, Eye } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, Filter, LayoutGrid, Eye } from '@lucide/svelte';
 	import OptionsContent from './options/OptionsContent.svelte';
 	import InspectorNode from './inspectors/InspectorNode.svelte';
 	import InspectorEdge from './inspectors/InspectorEdge.svelte';

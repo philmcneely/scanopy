@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
+use super::fdb::LearnedHost;
+
 use crate::server::{
     bindings::r#impl::base::Binding,
     dependencies::r#impl::base::Dependency,
@@ -52,6 +54,12 @@ pub struct TopologyContext<'a> {
     pub options: &'a TopologyOptions,
     /// View this context is building — drives grouping rule selection.
     pub view: TopologyView,
+    /// The known hosts each port's forwarding table learned, computed from `interfaces` and
+    /// `ip_addresses` the way the server-side filter computes it (`fdb::learned_hosts`), so the
+    /// graph and the filter agree on which ports are linked, and L2 draws those links.
+    pub learned_by_port: HashMap<Uuid, Vec<LearnedHost>>,
+    /// The far ends of those links (`fdb::learned_interfaces`).
+    pub interfaces_learned_by_ports: HashSet<Uuid>,
 }
 
 impl<'a> TopologyContext<'a> {
@@ -70,6 +78,7 @@ impl<'a> TopologyContext<'a> {
         options: &'a TopologyOptions,
         view: TopologyView,
     ) -> Self {
+        let learned_by_port = super::fdb::learned_hosts(interfaces, ip_addresses);
         Self {
             hosts,
             ip_addresses,
@@ -86,6 +95,8 @@ impl<'a> TopologyContext<'a> {
             application_group_id: None,
             options,
             view,
+            interfaces_learned_by_ports: super::fdb::learned_interfaces(&learned_by_port),
+            learned_by_port,
         }
     }
 
@@ -270,10 +281,12 @@ impl<'a> TopologyContext<'a> {
     /// ~720; see `FilterValueContext`.
     pub fn interface_link_state(&self, interface_id: Uuid) -> InterfaceLinkState {
         InterfaceLinkState::classify(
-            self.interface_has_neighbor(interface_id),
+            self.interface_has_neighbor(interface_id)
+                || self.learned_by_port.contains_key(&interface_id),
             self.neighbours
                 .iter()
-                .any(|n| n.neighbor.interface_id() == Some(interface_id)),
+                .any(|n| n.neighbor.interface_id() == Some(interface_id))
+                || self.interfaces_learned_by_ports.contains(&interface_id),
         )
     }
 

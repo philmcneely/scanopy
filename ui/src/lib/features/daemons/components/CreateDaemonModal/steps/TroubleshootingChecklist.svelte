@@ -5,7 +5,7 @@
 	import InlineSuccess from '$lib/shared/components/feedback/InlineSuccess.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import InlineDanger from '$lib/shared/components/feedback/InlineDanger.svelte';
-	import { Loader2 } from 'lucide-svelte';
+	import { Loader2 } from '@lucide/svelte';
 	import type { DaemonOS } from '../../../utils';
 	import type { DaemonMode } from '../../../types/base';
 	import {

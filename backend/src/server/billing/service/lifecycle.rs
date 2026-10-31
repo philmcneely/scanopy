@@ -245,9 +245,11 @@ impl BillingService {
     /// Self-serve trial extend (+7 days, once per org lifetime).
     ///
     /// Pattern A: the endpoint stashes `scanopy_trial_extended_days` in
-    /// metadata and calls Stripe. The webhook recognizes the key as a
-    /// Scanopy-driven extend and emits `BillingOperation::TrialExtended`;
-    /// applying it flips `trial_extended_used` to true.
+    /// metadata and calls Stripe. The webhook sees the trial end move, reads
+    /// the key as this extension (see `trial_extension`) and emits
+    /// `BillingOperation::TrialExtended` with `source: User`; applying it
+    /// flips `trial_extended_used` to true. An extension made by staff in the
+    /// Stripe dashboard leaves the flag alone.
     pub async fn extend_trial(
         &self,
         organization_id: Uuid,

@@ -267,6 +267,13 @@ const addressesOf = (group_: { address: string }[]) =>
 		'conjunction'
 	);
 
+/** Each guest by its Proxmox VE name and address: an address on an internal bridge names nothing. */
+const guestsOf = (group_: { address: string; guest: string }[]) =>
+	joinList(
+		group_.map((w) => `${w.guest} (${w.address})`),
+		'conjunction'
+	);
+
 type CapabilityGap = components['schemas']['CapabilityGap'];
 type SnmpV3SecurityOption = components['schemas']['SnmpV3SecurityOption'];
 
@@ -432,6 +439,16 @@ const WARNING_PARAMS = {
 	IntegrationWithoutCredential: (w) =>
 		integrationWithoutCredentialParams(w[0].integration, w.length),
 
+	// One per guest. The bridge and node identify the statement, so guests on one bridge share a
+	// sentence.
+	ProxmoxGuestOutsideScan: (w) => ({ addresses: guestsOf(w) }),
+	ProxmoxGuestBehindNode: (w) => ({
+		addresses: guestsOf(w),
+		bridge: w[0].bridge,
+		node: w[0].node
+	}),
+	ProxmoxGuestIsolated: (w) => ({ addresses: guestsOf(w), bridge: w[0].bridge }),
+
 	// One warning per subnet, so the first is the only one — unlike the address-scoped codes above,
 	// which the daemon raises per host and the UI folds together here.
 	ConnectionsWithoutProtocolResponse: (w) => ({
@@ -459,6 +476,7 @@ const WARNING_PARAMS = {
 	LldpPortAmbiguous: portParams,
 
 	ProvisionalSubnetInferred: (w) => ({ count: w.length }),
+	UnconfirmedHostInferred: (w) => ({ count: w.length }),
 
 	// One per session by construction — the pass runs once and is cut short at most once — so this
 	// reads the single occurrence rather than summing.
@@ -782,6 +800,11 @@ function examplesOf(group_: DiscoveryWarning[], hostName: HostNameLookup): Warni
 				return [describePort(w, hostName)];
 			case 'ProvisionalSubnetInferred':
 				return [describeProvisionalSubnet(w, hostName)];
+			// Each host, linking to it, beside what it is known by.
+			case 'UnconfirmedHostInferred': {
+				const host = hostSubject(w.host_id, hostName);
+				return host ? [{ near: host, nearText: w.identifier, far: null, farText: '' }] : [];
+			}
 			// The hosts a credential would be added for, one per line, each linking to its host.
 			case 'IntegrationWithoutCredential': {
 				const host = hostSubject(w.host_id, hostName);

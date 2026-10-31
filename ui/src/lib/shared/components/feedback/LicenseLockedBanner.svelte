@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ShieldAlert } from 'lucide-svelte';
+	import { ShieldAlert } from '@lucide/svelte';
 	import {
 		license_expiredBanner,
 		license_instanceRefusedBanner,

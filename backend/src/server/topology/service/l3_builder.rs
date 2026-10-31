@@ -97,7 +97,7 @@ mod tests {
     use crate::server::ip_addresses::r#impl::base::{IPAddress, IPAddressBase};
     use crate::server::services::r#impl::base::{Service, ServiceBase};
     use crate::server::services::r#impl::categories::ServiceCategory;
-    use crate::server::services::r#impl::definitions::ServiceDefinition;
+    use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
     use crate::server::services::r#impl::patterns::Pattern;
     use crate::server::shared::attribution::AttributeSource;
     use crate::server::shared::types::Color;
@@ -126,6 +126,9 @@ mod tests {
         }
         fn category(&self) -> ServiceCategory {
             ServiceCategory::Development
+        }
+        fn device_type(&self) -> DeviceTypeImplication {
+            DeviceTypeImplication::Server
         }
         fn discovery_pattern(&self) -> Pattern<'_> {
             Pattern::None

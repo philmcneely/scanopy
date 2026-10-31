@@ -119,16 +119,23 @@ pub enum EntitySource {
     Discovery,
     #[schema(title = "DiscoveryWithMatch")]
     DiscoveryWithMatch { details: MatchDetails },
-    /// Known only because something else reported it — an LLDP/CDP neighbour publishing an address,
-    /// or a controller listing a device — and never contacted directly.
+    /// Known only because something else reported it, and never contacted directly: a host an
+    /// LLDP/CDP neighbour advertised or a switch learned the MAC of, or a subnet whose range was
+    /// assumed around such an address. An inferred entity is unconfirmed until a person confirms
+    /// it or a scan reaches it ([`Self::confirmation`]).
     ///
     /// A distinct rung rather than plain `Discovery` because the difference is exactly what an
     /// operator cannot otherwise see: a host with no ports, no services and an address nothing ever
     /// answered on is indistinguishable from a device that is simply down. It counts as discovered
-    /// for every other purpose — see [`Self::is_from_discovery`] — so staleness, quota and the
-    /// discovery FKs behave for it precisely as they do for a swept host.
+    /// for every other purpose — see [`Self::is_from_discovery`] — so staleness and the discovery
+    /// FKs behave for it precisely as they do for a swept host.
     #[schema(title = "Inferred")]
-    Inferred,
+    Inferred {
+        /// What reported it, recorded when the entity was created. Defaulted because every row
+        /// stored before the field existed came from an LLDP/CDP neighbour.
+        #[serde(default)]
+        via: InferredVia,
+    },
     // `other` makes an EntitySource variant a newer server adds degrade to
     // `Unknown` on an older daemon instead of failing the whole response.
     // EntitySource is embedded as `.source` on nearly every entity, so this is
@@ -138,10 +145,66 @@ pub enum EntitySource {
     Unknown,
 }
 
+/// What reported an [`EntitySource::Inferred`] entity.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    strum_macros::EnumIter,
+    strum_macros::IntoStaticStr,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum InferredVia {
+    /// An LLDP/CDP neighbour advertised the device, or an address a neighbour published.
+    #[default]
+    Neighbour,
+    /// A switch learned the device's MAC on one of its ports.
+    ForwardingTable,
+    /// A range assumed around an address something reported (a neighbour, a controller, a
+    /// router's ARP cache) that no range anything read holds. Subnets only.
+    ReportedAddress,
+}
+
 impl EntitySource {
     /// Returns true if this entity was created via discovery (network, Docker, etc.)
     pub fn is_from_discovery(&self) -> bool {
         self.discriminant().is_from_discovery()
+    }
+
+    /// Whether a person, or a scan that reached the entity, has vouched for it. The single
+    /// definition: `StorableFilter::unconfirmed` is its SQL twin and must be kept in step.
+    pub fn confirmation(&self) -> EntityConfirmation {
+        match self {
+            Self::Inferred { via } => EntityConfirmation::Unconfirmed { via: *via },
+            _ => EntityConfirmation::Confirmed,
+        }
+    }
+}
+
+/// Whether an entity Scanopy only inferred has been confirmed. Derived from `source`, never
+/// persisted, and shared by the inventory, topology and discovery warnings the way
+/// [`EntityFreshness`] is.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
+#[serde(tag = "type")]
+pub enum EntityConfirmation {
+    #[default]
+    #[schema(title = "Confirmed")]
+    Confirmed,
+    /// Known only from another device's report, awaiting a person or a scan.
+    #[schema(title = "Unconfirmed")]
+    Unconfirmed { via: InferredVia },
+}
+
+impl EntityConfirmation {
+    pub fn is_unconfirmed(&self) -> bool {
+        matches!(self, Self::Unconfirmed { .. })
     }
 }
 
@@ -187,6 +250,13 @@ impl EntityMetadataProvider for EntitySourceDiscriminants {
 }
 
 impl TypeMetadataProvider for EntitySourceDiscriminants {
+    /// `unconfirmed`: an entity with this source awaits a person or a scan. The flag the UI reads
+    /// for the Unconfirmed badge, filter and resolve actions; [`EntitySource::confirmation`] is the
+    /// server's copy of the same rule.
+    fn metadata(&self) -> serde_json::Value {
+        serde_json::json!({ "unconfirmed": matches!(self, Self::Inferred) })
+    }
+
     fn name(&self) -> &'static str {
         match self {
             Self::Manual => "Manual",
@@ -210,7 +280,7 @@ impl TypeMetadataProvider for EntitySourceDiscriminants {
                 "Found by a scan that contacted it directly, and matched to a known definition."
             }
             Self::Inferred => {
-                "A neighbouring device advertised this over LLDP or CDP, but no scan has contacted it."
+                "Another device reported this, through LLDP/CDP or its forwarding table, but no scan has contacted it."
             }
             Self::Unknown => "Created by a newer version of Scanopy than this one.",
         }
@@ -248,6 +318,19 @@ mod forward_compat_tests {
     }
 
     #[test]
+    fn an_inferred_row_stored_before_via_existed_reads_as_a_neighbour_report() {
+        let parsed: EntitySource =
+            serde_json::from_value(serde_json::json!({ "type": "Inferred" })).unwrap();
+        assert_eq!(
+            parsed,
+            EntitySource::Inferred {
+                via: InferredVia::Neighbour
+            }
+        );
+        assert!(parsed.confirmation().is_unconfirmed());
+    }
+
+    #[test]
     fn known_variants_round_trip() {
         for variant in [
             EntitySource::Manual,
@@ -275,7 +358,9 @@ mod forward_compat_tests {
                 EntitySourceDiscriminants::DiscoveryWithMatch => EntitySource::DiscoveryWithMatch {
                     details: MatchDetails::new_certain("test"),
                 },
-                EntitySourceDiscriminants::Inferred => EntitySource::Inferred,
+                EntitySourceDiscriminants::Inferred => EntitySource::Inferred {
+                    via: InferredVia::ForwardingTable,
+                },
                 EntitySourceDiscriminants::Unknown => EntitySource::Unknown,
             };
             let json = serde_json::to_value(&source).unwrap();

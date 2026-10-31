@@ -5,7 +5,7 @@ import subnetTypesJson from '$lib/data/subnet-types.json';
 import edgeTypesJson from '$lib/data/edge-types.json';
 import dependencyTypesJson from '$lib/data/dependency-types.json';
 import entitiesJson from '$lib/data/entities.json';
-import entityCategoriesJson from '$lib/data/entity-categories.json';
+import productAreasJson from '$lib/data/product-areas.json';
 import fieldGroupsJson from '$lib/data/field-groups.json';
 import entitySourcesJson from '$lib/data/entity-sources.json';
 import portsJson from '$lib/data/ports.json';
@@ -95,7 +95,7 @@ export interface CredentialTypeMetadata {
 	last_unsupported_daemon_version?: string;
 	/** Release maturity of this type's integration. Beta types render a "Beta" tag in the
 	 *  picker but stay selectable. Union derived from the backend enum, never hand-written. */
-	stability?: components['schemas']['CredentialStability'];
+	stability?: components['schemas']['Stability'];
 	/** Whether the vendor publishes the API this type talks to. Undocumented types render an
 	 *  "Unofficial API" tag but stay selectable. A separate axis from `stability`: an integration
 	 *  can be fully validated and still ride an endpoint the vendor never published. */
@@ -117,7 +117,7 @@ export interface MetadataRegistry {
 	edge_types: TypeMetadata[];
 	dependency_types: TypeMetadata[];
 	entities: TypeMetadata[];
-	entity_categories: TypeMetadata[];
+	product_areas: TypeMetadata[];
 	field_groups: TypeMetadata[];
 	entity_sources: TypeMetadata[];
 	ports: TypeMetadata[];
@@ -164,6 +164,8 @@ export type UpgradeFeature = FeatureId | 'seats' | 'sites' | 'hosts' | 'plan_usa
 
 export interface BillingPlanMetadata {
 	features: BillingPlanFeatures;
+	/** The plan includes the topology view (all three map features). */
+	includes_topology: boolean;
 	is_commercial: boolean;
 	is_stripe_managed: boolean;
 	is_free: boolean;
@@ -243,6 +245,8 @@ export interface SubnetTypeMetadata {
 	 * Use `isUserManagedSubnet` rather than reading this directly.
 	 */
 	is_synthetic_category: boolean;
+	/** Internet and Remote: every site is seeded with one, so users can't create another. */
+	is_seeded_per_site: boolean;
 }
 
 /**
@@ -269,9 +273,17 @@ export interface DependencyTypeMetadata {}
 
 export interface FeatureMetadata {
 	is_coming_soon: boolean;
+	/** Beta features carry a Beta tag that links to the beta program sign-up. */
+	stability: components['schemas']['Stability'];
 	minimum_plan: string | null;
 	/** A credential type needs this feature; plan cards list the integration instead of it. */
 	gates_integration: boolean;
+	/** Plan cards and the comparison list this feature. */
+	listed_on_plans: boolean;
+	/** The format a diagram export writes; plan cards list these under one Exports line. */
+	export_format: string | null;
+	/** The feature a sub-feature extends; plan cards list it under that feature. */
+	parent: string | null;
 }
 
 export interface PortTypeMetadata {
@@ -302,6 +314,8 @@ export interface DiscoveryPhaseMetadata {
 export interface DiscoveryTerminalReasonMetadata {
 	/** The run stopped making progress rather than failing outright. */
 	is_stall: boolean;
+	/** The daemon's own log lines for the run say what happened. */
+	explained_by_daemon_logs: boolean;
 }
 
 export interface ContainerTypeMetadata {
@@ -323,7 +337,7 @@ export const metadata = writable<MetadataRegistry>({
 	edge_types: edgeTypesJson,
 	dependency_types: dependencyTypesJson,
 	entities: entitiesJson,
-	entity_categories: entityCategoriesJson,
+	product_areas: productAreasJson,
 	field_groups: fieldGroupsJson,
 	entity_sources: entitySourcesJson,
 	ports: portsJson,
@@ -405,6 +419,13 @@ type EntityMetadataKeys = {
 	[K in keyof MetadataRegistry]: MetadataRegistry[K][number] extends EntityMetadata ? K : never;
 }[keyof MetadataRegistry];
 
+/** The logo id an entry names in `metadata.logo`, which its icon falls back from. */
+function metadataLogo(meta: unknown): string | null {
+	return meta && typeof meta === 'object' && 'logo' in meta && typeof meta.logo === 'string'
+		? meta.logo
+		: null;
+}
+
 // Full TypeMetadata helpers (includes color methods + other methods)
 function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(category: T) {
 	const sharedHelpers = createSharedHelpers(category);
@@ -415,14 +436,7 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys, M = unknown>(cate
 		getIconComponent: (id: string | null) => {
 			const $registry = get(metadata);
 			const item = ($registry?.[category] as TypeMetadata[])?.find((item) => item.id === id);
-			const iconName = item?.icon || null;
-
-			const meta = item?.metadata;
-			const logo =
-				meta && typeof meta === 'object' && 'logo' in meta && typeof meta.logo === 'string'
-					? meta.logo
-					: null;
-			return logoIcon(logo, createIconComponent(iconName));
+			return logoIcon(metadataLogo(item?.metadata), createIconComponent(item?.icon || null));
 		},
 
 		getItems: (): TypedTypeMetadata<M>[] => {
@@ -532,10 +546,8 @@ export interface EntityTypeMetadata {
 	display_fields: string[];
 }
 export const entities = createTypeMetadataHelpers<'entities', EntityTypeMetadata>('entities');
-/** The parts of the product entities belong to, in display order: the sidebar's sections. */
-export const entityCategories = createTypeMetadataHelpers<'entity_categories', object>(
-	'entity_categories'
-);
+/** The parts of the product entities and features belong to, in display order: the sidebar's sections and the plan cards' headings. */
+export const productAreas = createTypeMetadataHelpers<'product_areas', object>('product_areas');
 /** Headings a field is listed under, in display order: the column menu's sections. */
 export const fieldGroups = createTypeMetadataHelpers<'field_groups', object>('field_groups');
 /** How an entity came to exist, keyed by `source.type`. */
@@ -713,6 +725,8 @@ interface StaticMetadataItem {
 export function createStaticHelpers<M>(fixtureKey: string, items: StaticMetadataItem[]) {
 	const map = new Map(items.map((i) => [i.id, i]));
 	return {
+		/** Every id, in fixture order. */
+		getIds: () => items.map((i) => i.id),
 		getMetadata: (id: string | null): M => (map.get(id ?? '')?.metadata as M) ?? ({} as M),
 		getName: (id: string | null) => metaName(fixtureKey, id, map.get(id ?? '')?.name ?? id ?? ''),
 		getDescription: (id: string | null) =>
@@ -720,7 +734,7 @@ export function createStaticHelpers<M>(fixtureKey: string, items: StaticMetadata
 		getCategory: (id: string | null) => map.get(id ?? '')?.category ?? '',
 		getIconComponent: (id: string | null) => {
 			const item = map.get(id ?? '');
-			return createIconComponent(item?.icon ?? null);
+			return logoIcon(metadataLogo(item?.metadata), createIconComponent(item?.icon ?? null));
 		},
 		getColorHelper: (id: string | null) => {
 			const item = map.get(id ?? '');

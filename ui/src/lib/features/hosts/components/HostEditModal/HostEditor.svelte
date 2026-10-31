@@ -2,7 +2,7 @@
 	import { hostIcon } from '$lib/features/hosts/host-icon';
 	import { createForm } from '@tanstack/svelte-form';
 	import { validateForm, clearStaleFieldInfo } from '$lib/shared/components/forms/form-context';
-	import { Info } from 'lucide-svelte';
+	import { Info } from '@lucide/svelte';
 	import { hostDisplayName } from '../../host-display-name';
 	import { nameToSubmit, overrideOf } from '../../host-identity';
 	import type {
@@ -20,7 +20,7 @@
 	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { queryKeys } from '$lib/api/query-client';
 	import DetailsForm from './Details/HostDetailsForm.svelte';
-	import InferredHostNotice from '../InferredHostNotice.svelte';
+	import { deviceFactsToSubmit, deviceLabelDefaults } from './Details/device-labels';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import type { ModalAction } from '$lib/shared/components/layout/modalActions';
 	import IPAddressesForm from './IPAddresses/IPAddressesForm.svelte';
@@ -172,7 +172,8 @@
 						host: hostPrimitive,
 						ip_addresses: formData.ip_addresses,
 						ports: formData.ports,
-						services: formData.services
+						services: formData.services,
+						facts: deviceFactsToSubmit(value, formData)
 					})
 				];
 
@@ -217,7 +218,8 @@
 			services: formData.services || [],
 			credential_mode: ((formData.credential_assignments?.length ?? 0) > 0
 				? 'override'
-				: 'default') as 'default' | 'override'
+				: 'default') as 'default' | 'override',
+			...deviceLabelDefaults(formData)
 		},
 		onSubmit: async ({ value }) => {
 			await performSubmission(value);
@@ -389,7 +391,8 @@
 			ip_addresses: formData.ip_addresses || [],
 			ports: formData.ports || [],
 			services: formData.services || [],
-			credential_mode: (formData.credential_assignments?.length ?? 0) > 0 ? 'override' : 'default'
+			credential_mode: (formData.credential_assignments?.length ?? 0) > 0 ? 'override' : 'default',
+			...deviceLabelDefaults(formData)
 		});
 
 		// Clear stale field registrations from previous modal sessions to prevent
@@ -547,9 +550,6 @@
 			{#if activeTab === 'details'}
 				<div class="flex h-full flex-col">
 					<div class="min-h-0 flex-1 overflow-y-auto">
-						{#if isEditing && host}
-							<InferredHostNotice source={host.source} class="px-6 pt-6" />
-						{/if}
 						<DetailsForm {form} bind:formData {isEditing} />
 					</div>
 					{#if isEditing && host}

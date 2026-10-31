@@ -29,10 +29,11 @@
 	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
 	import { createEmptyDiscoveryFormData, parseDayTimeCronSchedule } from '../../queries';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import PreDaemonEmptyState from '$lib/shared/components/layout/PreDaemonEmptyState.svelte';
 	import InlineInfo from '$lib/shared/components/feedback/InlineInfo.svelte';
 	import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 	import { copyText } from '$lib/shared/utils/clipboard';
-	import { formatDiagnostics } from '../../utils/diagnostics';
+	import { runDiagnostics } from '../../utils/diagnostics';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { isPreUnifiedDaemon } from '$lib/features/daemons/utils';
 	import type { Host } from '$lib/features/hosts/types/base';
@@ -40,7 +41,7 @@
 	import { useOrganizationQuery } from '$lib/features/organizations/queries';
 	import { isPlanLapsed } from '$lib/features/organizations/types';
 	import { billingPlans } from '$lib/shared/stores/metadata';
-	import { Info, Crosshair, ScanSearch, Gauge, Calendar, KeyRound, Copy } from 'lucide-svelte';
+	import { Info, Crosshair, ScanSearch, Gauge, Calendar, KeyRound, Copy } from '@lucide/svelte';
 	import CredentialsStep, {
 		type PendingCredential
 	} from '$lib/features/credentials/components/CredentialsStep.svelte';
@@ -64,7 +65,6 @@
 		common_performance,
 		common_targets,
 		daemons_credentialWizardTargetRequired,
-		discovery_copyDiagnostics,
 		discovery_copyRunData,
 		discovery_couldNotGetSiteId,
 		discovery_createDiscovery,
@@ -74,7 +74,8 @@
 		discovery_noDaemonSelected,
 		discovery_editActiveInfo,
 		discovery_updateDiscovery,
-		discovery_viewRun
+		discovery_viewRun,
+		daemons_installPromptDiscoveries
 	} from '$lib/paraglide/messages';
 
 	interface Props {
@@ -148,13 +149,14 @@
 	let historicalCredentialResults = $derived(historicalResults?.credential_results ?? []);
 	/** Whether the copy button has anything to copy. */
 	let hasRunData = $derived(
-		historicalWarnings.length > 0 || historicalCredentialResults.length > 0
+		endedBadly || historicalWarnings.length > 0 || historicalCredentialResults.length > 0
 	);
 
 	/**
-	 * Put the run's warnings and credential results on the clipboard as recorded, for pasting into
-	 * an issue or a thread. Both tabs that show them copy the whole of both, so whichever tab the
-	 * reader is on, nothing the run recorded is left out.
+	 * Put the run on the clipboard as recorded, for pasting into an issue or a support thread: its
+	 * identifiers, versions, outcome and timings, then its warnings and credential results. Both
+	 * tabs that show them copy the whole of it, so whichever tab the reader is on, nothing the run
+	 * recorded is left out.
 	 *
 	 * The rendered report is the wrong thing to share: its sentences are this build's copy in the
 	 * reader's locale, its rows merge occurrences the backend deliberately kept apart, and its
@@ -165,21 +167,18 @@
 	 * likely to be sharing warnings with us.
 	 */
 	async function copyRunData() {
+		if (!historicalResults) return;
 		await copyToClipboard(
 			JSON.stringify(
-				{ warnings: historicalWarnings, credential_results: historicalCredentialResults },
+				{
+					run: runDiagnostics(historicalResults),
+					warnings: historicalWarnings,
+					credential_results: historicalCredentialResults
+				},
 				null,
 				2
 			)
 		);
-	}
-
-	/**
-	 * Put the run's identifiers, versions and timings on the clipboard as plain text, for a
-	 * support thread about a run that failed or was cancelled.
-	 */
-	async function copyDiagnostics() {
-		if (historicalResults) await copyToClipboard(formatDiagnostics(historicalResults));
 	}
 
 	async function copyToClipboard(text: string) {
@@ -200,6 +199,9 @@
 	);
 
 	let daemon = $derived(daemons.find((d) => d.id === formData.daemon_id) || null);
+	// A new discovery runs on a daemon. Without one there is nothing to configure, and saving
+	// would fail on the missing site, so the modal points at daemon setup instead.
+	let noDaemon = $derived(!isEditing && !isHistoricalRun && daemons.length === 0);
 	let daemonHostId = $derived(
 		(daemon ? hosts.find((h) => h.id === daemon.host_id)?.id : null) || null
 	);
@@ -746,9 +748,9 @@
 			const label = discovery_copyRunData();
 			list.push({ role: 'secondary', label, icon: Copy, onClick: copyRunData });
 		}
-		if (activeTab === 'scan' && endedBadly) {
-			const label = discovery_copyDiagnostics();
-			list.push({ role: 'secondary', label, icon: Copy, onClick: copyDiagnostics });
+		if (noDaemon) {
+			list.push({ role: 'cancel', label: common_cancel(), onClick: onClose });
+			return list;
 		}
 		if (isEditing || isHistoricalRun) {
 			const label = isHistoricalRun ? common_close() : common_cancel();
@@ -814,7 +816,9 @@
 			class:flex={wizardCredentialsActive}
 			class:flex-col={wizardCredentialsActive}
 		>
-			{#if isHistoricalRun && discovery?.run_type.type === 'Historical'}
+			{#if noDaemon}
+				<PreDaemonEmptyState title={daemons_installPromptDiscoveries()} />
+			{:else if isHistoricalRun && discovery?.run_type.type === 'Historical'}
 				<div class="space-y-8 p-6">
 					{#if activeTab === 'scan'}
 						<WarningReport payload={discovery.run_type.results} />
@@ -875,7 +879,7 @@
 					/>
 				</div>
 			{/if}
-			{#if hasCredentialsTab}
+			{#if hasCredentialsTab && !noDaemon}
 				<div class="flex min-h-0 flex-1 flex-col" class:hidden={activeTab !== 'credentials'}>
 					<CredentialsStep
 						bind:this={credentialsStep}

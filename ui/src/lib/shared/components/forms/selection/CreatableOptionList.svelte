@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import KbdKey from '$lib/shared/components/feedback/KbdKey.svelte';
 	import { keyLabel } from '$lib/shared/utils/shortcuts';
 	import { common_ungrouped } from '$lib/paraglide/messages';

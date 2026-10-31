@@ -1,5 +1,5 @@
 //! Coverage for merging the hosts one discovery payload proves are the same device, end to end
-//! through `discover_host` and `consolidate_hosts` on a testcontainers Postgres.
+//! through `discover_host` and `merge_hosts` on a testcontainers Postgres.
 //!
 //! The rule itself (`hosts_proven_same_device`) is pure and unit-tested beside it. These cover
 //! what only the database shows: that the merge happens on the real write path, that it carries
@@ -905,7 +905,7 @@ async fn a_manual_merge_keeps_interfaces_adjacencies_and_tags() {
         .unwrap();
     services
         .host_service
-        .consolidate_hosts(
+        .merge_hosts(
             a_host,
             b_host,
             AuthenticatedEntity::System,

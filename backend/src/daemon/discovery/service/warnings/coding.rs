@@ -22,7 +22,8 @@ use super::{
     AttemptOutcome, ContradictedClaim, CredentialIssue, CredentialIssueReason, DeviceClaim,
     EqualReachIntegrations, IncompleteInterfaceWalk, IncompleteSnmpWalk, LocalPortPlacementReason,
     MalformedNeighbourReason, MalformedNeighbours, ShortfallReason, SnmpCollectedNothing,
-    SnmpWalkCause, UnresolvedLldpPorts, VlanRecordingFailed,
+    SnmpWalkCause, UnreachedGuestReason, UnreachedProxmoxGuest, UnresolvedLldpPorts,
+    VlanRecordingFailed,
 };
 use crate::daemon::discovery::types::warnings::{
     CredentialAttempt, DiscoveryWarning, MalformedNeighbourConsequence,
@@ -320,6 +321,39 @@ pub fn warn_vlan_recording_failures(records: &[VlanRecordingFailed]) -> Vec<Disc
     records
         .iter()
         .map(|record| DiscoveryWarning::VlanRecordingFailed { address: record.ip })
+        .collect()
+}
+
+/// One warning per guest. Every node's API answers for the whole cluster, so a credential on each
+/// of two nodes reports the same guest twice; the second is dropped.
+pub fn warn_unreached_proxmox_guests(records: &[UnreachedProxmoxGuest]) -> Vec<DiscoveryWarning> {
+    let mut seen = HashSet::new();
+    records
+        .iter()
+        .filter(|record| seen.insert(record.ip))
+        .map(|record| {
+            let (address, guest) = (record.ip, record.guest.clone());
+            match &record.reason {
+                UnreachedGuestReason::OutsideScan => {
+                    DiscoveryWarning::ProxmoxGuestOutsideScan { address, guest }
+                }
+                UnreachedGuestReason::BehindNode { node, bridge } => {
+                    DiscoveryWarning::ProxmoxGuestBehindNode {
+                        address,
+                        guest,
+                        node: node.clone(),
+                        bridge: bridge.clone(),
+                    }
+                }
+                UnreachedGuestReason::Isolated { bridge } => {
+                    DiscoveryWarning::ProxmoxGuestIsolated {
+                        address,
+                        guest,
+                        bridge: bridge.clone(),
+                    }
+                }
+            }
+        })
         .collect()
 }
 
@@ -1399,6 +1433,28 @@ mod tests {
                 address: ip("192.168.7.250"),
                 first: CredentialQueryPayloadDiscriminants::Snmp,
                 second: CredentialQueryPayloadDiscriminants::Gnmi,
+            }]
+        );
+    }
+
+    /// Credentials on two nodes of one cluster each report every guest. The guest is one finding.
+    #[test]
+    fn a_guest_two_nodes_report_is_warned_about_once() {
+        let isolated = UnreachedProxmoxGuest {
+            ip: ip("10.20.0.5"),
+            guest: "gitlab".to_string(),
+            reason: UnreachedGuestReason::Isolated {
+                bridge: "vmbr2".to_string(),
+            },
+        };
+        let warnings = warn_unreached_proxmox_guests(&[isolated.clone(), isolated]);
+
+        assert_eq!(
+            warnings,
+            vec![DiscoveryWarning::ProxmoxGuestIsolated {
+                address: ip("10.20.0.5"),
+                guest: "gitlab".to_string(),
+                bridge: "vmbr2".to_string(),
             }]
         );
     }

@@ -3,7 +3,7 @@ use crate::server::hosts::r#impl::base::{Host, HostBase};
 use crate::server::hosts::r#impl::name::{HostName, HostNameSources};
 use crate::server::services::r#impl::base::{Service, ServiceBase};
 use crate::server::services::r#impl::categories::ServiceCategory;
-use crate::server::services::r#impl::definitions::ServiceDefinition;
+use crate::server::services::r#impl::definitions::{DeviceTypeImplication, ServiceDefinition};
 use crate::server::services::r#impl::patterns::Pattern;
 use crate::server::services::r#impl::virtualization::{
     DockerVirtualization, ServiceVirtualization,
@@ -30,6 +30,9 @@ impl ServiceDefinition for ReverseProxyServiceDef {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::ReverseProxy
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::None
@@ -464,7 +467,7 @@ fn by_device_type_groups_each_device_type_present() {
 
     assert_eq!(
         containers.len(),
-        3,
+        4,
         "one subcontainer per device type present, Unidentified included"
     );
     let container_for = |device_type: DeviceType| {
@@ -474,27 +477,28 @@ fn by_device_type_groups_each_device_type_present() {
             .unwrap_or_else(|| panic!("no subcontainer for {device_type:?}"))
     };
     let mobile = container_for(DeviceType::Mobile);
-    let workstation = container_for(DeviceType::Workstation);
+    let laptop = container_for(DeviceType::Laptop);
+    let desktop = container_for(DeviceType::Desktop);
     let unidentified = container_for(DeviceType::Unidentified);
     let NodeType::Container {
         container_type,
         icon,
         parent_container_id,
         ..
-    } = &workstation.node_type
+    } = &laptop.node_type
     else {
         panic!("expected a container");
     };
     assert_eq!(*container_type, ContainerType::DeviceType);
     assert_eq!(
         icon.as_deref(),
-        Some(DeviceType::Workstation.icon().to_string().as_str())
+        Some(DeviceType::Laptop.icon().to_string().as_str())
     );
     assert_eq!(*parent_container_id, Some(subnet_id));
 
     assert_eq!(placement[&children[0].id], mobile.id);
-    assert_eq!(placement[&children[1].id], workstation.id);
-    assert_eq!(placement[&children[2].id], workstation.id);
+    assert_eq!(placement[&children[1].id], laptop.id);
+    assert_eq!(placement[&children[2].id], desktop.id);
     assert_eq!(
         placement[&children[3].id], unidentified.id,
         "a host with no evidence gets the Unidentified group"

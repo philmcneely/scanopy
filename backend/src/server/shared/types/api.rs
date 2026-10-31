@@ -489,6 +489,14 @@ impl ApiError {
         )
     }
 
+    /// Forbidden (403) - the user has to verify their email first
+    pub fn email_verification_required() -> Self {
+        Self::coded(
+            StatusCode::FORBIDDEN,
+            ErrorCode::AuthEmailVerificationRequired,
+        )
+    }
+
     /// Forbidden (403) - the user has to accept the current terms before the
     /// API serves their session
     pub fn terms_acceptance_required() -> Self {
@@ -509,6 +517,12 @@ impl ApiError {
     /// Settings routes are open to it
     pub fn billing_plan_required() -> Self {
         Self::coded(StatusCode::FORBIDDEN, ErrorCode::BillingPlanRequired)
+    }
+
+    /// Forbidden (403) - only the self-hosted license plans carry a license key.
+    /// The self-hosted server treats a 403 check-in as final and locks.
+    pub fn license_plan_has_no_key() -> Self {
+        Self::coded(StatusCode::FORBIDDEN, ErrorCode::LicensePlanHasNoKey)
     }
 
     /// Conflict (409) - cannot leave an air-gapped key while it is still valid.
@@ -643,6 +657,18 @@ impl ApiError {
             ErrorCode::IpAddressOutOfRange {
                 ip: ip.to_string(),
                 subnet: subnet.to_string(),
+            },
+        )
+    }
+
+    // === Subnet errors ===
+
+    /// Bad request (400) - a user tried to create an Internet or Remote Network subnet
+    pub fn subnet_type_seeded_per_site(subnet_type: &str) -> Self {
+        Self::coded(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::SubnetTypeSeededPerSite {
+                subnet_type: subnet_type.to_string(),
             },
         )
     }

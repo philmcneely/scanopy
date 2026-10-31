@@ -35,7 +35,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import RadioGroup from '$lib/shared/components/forms/input/RadioGroup.svelte';
 	import type { FieldDefinition, FieldType } from '$lib/shared/stores/metadata';
-	import { Eye, EyeOff, HelpCircle, Plus } from 'lucide-svelte';
+	import { Eye, EyeOff, HelpCircle, Plus } from '@lucide/svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import { docsUrl } from '$lib/shared/utils/docs';
 	import {
@@ -88,6 +88,7 @@
 		daemons_credentialWizardTargetSpecificHosts,
 		daemons_credentialWizardTargetAllHosts,
 		daemons_credentialWizardBroadcastHelp,
+		daemons_credentialWizardDaemonHostTargetFixed,
 		credentials_alreadyAssignedTo
 	} from '$lib/paraglide/messages';
 
@@ -99,6 +100,8 @@
 		/** Limit the type picker to these types and pre-select the first, for a create flow opened
 		 *  for one integration. Ignored when editing or when `fixedCredentialType` is set. */
 		typeChoices?: string[];
+		/** Why a type can't be picked here, or null. Shown as the option's tooltip. */
+		typeDisabledReason?: (typeId: string) => string | null;
 		fixedName?: string;
 		compact?: boolean;
 		hideFields?: boolean;
@@ -148,6 +151,7 @@
 		credential = null,
 		fixedCredentialType,
 		typeChoices,
+		typeDisabledReason,
 		fixedName,
 		compact = false,
 		hideFields = false,
@@ -977,6 +981,7 @@
 				<p class="text-xs text-muted">{daemons_credentialWizardBroadcastHelp()}</p>
 			{:else}
 				{#each targetIpValues as ip, i (i)}
+					{@const removeBlocked = isDaemonHostValue(ip) && !supportsRemoteHosts}
 					<div class="flex items-center gap-2">
 						{#if isDaemonHostValue(ip)}
 							<input
@@ -1011,13 +1016,20 @@
 						{/if}
 						<!-- A type that can only target the daemon host keeps that row: removing it would
 						     leave the credential nothing to run on. -->
-						{#if !(isDaemonHostValue(ip) && !supportsRemoteHosts)}
+						<span
+							class="flex shrink-0"
+							data-tooltip={removeBlocked
+								? daemons_credentialWizardDaemonHostTargetFixed()
+								: undefined}
+							use:tooltip
+						>
 							<button
 								type="button"
-								class="shrink-0 p-1 text-lg leading-none text-muted hover:text-primary"
+								class="p-1 text-lg leading-none text-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted"
+								disabled={removeBlocked}
 								onclick={() => handleRemoveTarget(i)}>&times;</button
 							>
-						{/if}
+						</span>
 					</div>
 				{/each}
 				<div class="flex flex-wrap items-center gap-3">
@@ -1193,7 +1205,10 @@
 			showSearch={true}
 			disabled={isEditing}
 			onSelect={handleTypeChange}
-			getOptionContext={(option) => ({ upgradeFeature: upgradeFeatureFor(option.id) })}
+			getOptionContext={(option) => ({
+				upgradeFeature: upgradeFeatureFor(option.id),
+				disabledReason: isEditing ? null : (typeDisabledReason?.(option.id) ?? null)
+			})}
 			onDisabledClick={handleGatedTypeClick}
 		/>
 		{#if !isEditing}

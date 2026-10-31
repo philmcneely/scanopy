@@ -72,9 +72,6 @@ use crate::server::{
     },
 };
 
-/// Subnet types every site is seeded with.
-const SYSTEM_SUBNET_TYPES: [SubnetType; 2] = [SubnetType::Internet, SubnetType::Remote];
-
 /// What one site lacks compared with a freshly created one.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct SiteSetupGaps {
@@ -86,8 +83,9 @@ impl SiteSetupGaps {
     pub(crate) fn find(has_topology: bool, existing_subnet_types: &[SubnetType]) -> Self {
         Self {
             topology: !has_topology,
-            subnet_types: SYSTEM_SUBNET_TYPES
-                .into_iter()
+            subnet_types: SubnetType::seeded_per_site()
+                .iter()
+                .copied()
                 .filter(|t| !existing_subnet_types.contains(t))
                 .collect(),
         }

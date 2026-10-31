@@ -2,6 +2,7 @@ use crate::daemon::utils::app_probe::AppProbe;
 use crate::daemon::utils::app_probe::bacula::BaculaProbe;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::ServiceDefinition;
 use crate::server::services::r#impl::patterns::{ClientProbe, Pattern};
 use crate::server::shared::logos::Logo;
@@ -18,6 +19,9 @@ impl ServiceDefinition for Bacula {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Backup
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Server
     }
 
     /// The Director's port, qualified by the CRAM-MD5 challenge it issues to an unauthenticated

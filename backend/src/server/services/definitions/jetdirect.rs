@@ -1,6 +1,8 @@
+use crate::server::hosts::r#impl::device_type::DeviceType;
 use crate::server::ports::r#impl::base::PortType;
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::r#impl::categories::ServiceCategory;
+use crate::server::services::r#impl::definitions::DeviceTypeImplication;
 use crate::server::services::r#impl::definitions::{ConnectOnly, ServiceDefinition};
 use crate::server::services::r#impl::patterns::Pattern;
 
@@ -16,6 +18,9 @@ impl ServiceDefinition for JetDirect {
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Printer
+    }
+    fn device_type(&self) -> DeviceTypeImplication {
+        DeviceTypeImplication::Is(DeviceType::Printer)
     }
 
     /// A raw-socket printer port prints whatever it is sent. There is no query that is not also a

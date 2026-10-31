@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { usePreloadStripe } from '$lib/features/billing/stripe.svelte';
-	import { Copy, RefreshCw } from 'lucide-svelte';
+	import { Copy, RefreshCw } from '@lucide/svelte';
 	import InfoCard from '$lib/shared/components/data/InfoCard.svelte';
 	import DocsHint from '$lib/shared/components/feedback/DocsHint.svelte';
 	import ConfirmationDialog from '$lib/shared/components/feedback/ConfirmationDialog.svelte';
 	import SegmentedControl from '$lib/shared/components/forms/SegmentedControl.svelte';
 	import LicenseInstancesCard from './LicenseInstancesCard.svelte';
-	import { useEmailVerificationPending } from '$lib/features/auth/queries';
 	import {
 		useCreateLicenseKeyMutation,
 		useCurrentLicenseKeyQuery,
@@ -48,7 +47,6 @@
 		settings_billing_license_airGappedOpenInvoice,
 		settings_billing_license_airGappedPastDue,
 		settings_billing_license_installHint,
-		settings_billing_license_verifyEmailForKey,
 		settings_billing_license_installLinkText,
 		settings_billing_license_keyLabel,
 		settings_billing_license_keyTypeChanged,
@@ -94,26 +92,17 @@
 	// Wait for the real org to carry the plan: minting before the checkout webhook
 	// lands returns 403 NotLicensed. The tab opens on a provisional signal from the
 	// plan picker, so this can be false for the first second or two.
-	//
-	// The server also refuses every key endpoint to an owner who hasn't verified their
-	// email. Fetching anyway would toast that refusal each time the tab opens, so the
-	// query waits; the current-user query refetches on focus, which lifts this once the
-	// link is used.
-	const emailVerification = useEmailVerificationPending();
-	const keyQuery = useCurrentLicenseKeyQuery(
-		() => org != null && hasLicensedPlan(org) && !emailVerification.pending
-	);
-	let currentKey = $derived(keyQuery.data?.key ?? null);
-	let keyType = $derived<LicenseKeyType>(keyQuery.data?.key_type ?? 'Online');
+	const keyQuery = useCurrentLicenseKeyQuery(() => org != null && hasLicensedPlan(org));
+	// A disabled query keeps its last data, and AppShell drops it only after this
+	// renders, so a key left over from a license plan is never read off a cloud plan.
+	let keyData = $derived(org != null && hasLicensedPlan(org) ? keyQuery.data : undefined);
+	let currentKey = $derived(keyData?.key ?? null);
+	let keyType = $derived<LicenseKeyType>(keyData?.key_type ?? 'Online');
 	// An org on a cloud plan sees the tab as a preview of what a self-hosted plan
 	// gives it: the same controls, disabled, with a placeholder key.
 	let preview = $derived(org != null && !hasLicensedPlan(org) && !licensedPlanPending);
 	let maskedKey = $derived(
 		currentKey ? `${currentKey.slice(0, 8)}${'•'.repeat(32)}` : preview ? '•'.repeat(40) : ''
-	);
-	// Why the field is empty, said inside it. The banner above carries the Resend.
-	let keyPlaceholder = $derived(
-		!preview && emailVerification.pending ? settings_billing_license_verifyEmailForKey() : ''
 	);
 	// Until a server has used the key there is nothing to rotate it away from, and
 	// "Last check-in: Never" says nothing the empty server list doesn't.
@@ -466,11 +455,8 @@
 								<div class="mt-1 flex flex-wrap items-center gap-2">
 									<input
 										id="license-key"
-										class="input-field min-w-0 flex-1 basis-full text-sm sm:min-w-[16rem] sm:basis-0"
-										class:font-mono={!keyPlaceholder}
+										class="input-field min-w-0 flex-1 basis-full font-mono text-sm sm:min-w-[16rem] sm:basis-0"
 										value={maskedKey}
-										placeholder={keyPlaceholder}
-										disabled={!!keyPlaceholder}
 										readonly
 									/>
 									<button
